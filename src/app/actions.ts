@@ -6,9 +6,9 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { seedDemoWorkspace } from "@/lib/seed/seed-workspace";
+import { selfOrigin } from "@/lib/origin";
 import { requireSession } from "@/lib/session";
 import { fingerprint, runChecks } from "@/lib/pipeline";
-import { headers } from "next/headers";
 import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
 import { SAMPLE_DRAFTS } from "@/lib/seed/urja";
 import type { Channel } from "@/lib/checks/types";
@@ -25,12 +25,15 @@ function server(s: Session) {
     drafts: (values: Record<string, unknown>, draftId: string) => db.from("drafts").update(values).eq("id", draftId).eq("workspace_id", s.workspace.id),
     finding: (values: Record<string, unknown>, findingId: string) => db.from("findings").update(values).eq("id", findingId).eq("workspace_id", s.workspace.id),
     version: (values: Record<string, unknown>, versionId: string) => db.from("draft_versions").update(values).eq("id", versionId).eq("workspace_id", s.workspace.id),
+    /** Append-only records: the workspace and person always come from the session, never the form. */
+    record: (table: "events" | "comments" | "decisions" | "approvals", row: Record<string, unknown>) =>
+      db.from(table).insert({ ...row, workspace_id: s.workspace.id, ...(table === "approvals" ? { approver_id: s.person.id } : { person_id: s.person.id }) }),
     withdrawApprovals: (draftId: string) => db.from("approvals").update({ valid: false }).eq("draft_id", draftId).eq("workspace_id", s.workspace.id).eq("valid", true),
   };
 }
 
 async function logEvent(s: Session, type: string, draftId: string | null, detail: Record<string, unknown> = {}) {
-  await s.supabase.from("events").insert({ workspace_id: s.workspace.id, draft_id: draftId, person_id: s.person.id, type, detail });
+  await server(s).record("events", { draft_id: draftId, type, detail });
 }
 
 // ── Demo workspace ───────────────────────────────────────────────────────────
@@ -97,9 +100,7 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
       if (file.size > MAX_IMAGE_BYTES) return { error: "The image must be 4 MB or smaller." };
       image_path = await storeImage(s.workspace.id, Buffer.from(await file.arrayBuffer()), file.type);
     } else if (sample?.image && formData.get("use_sample_image") === "1") {
-      const h = await headers();
-      const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-      const res = await fetch(new URL(sample.image, origin));
+      const res = await fetch(new URL(sample.image, await selfOrigin()));
       if (!res.ok) return { error: "Could not load the sample image." };
       image_path = await storeImage(s.workspace.id, Buffer.from(await res.arrayBuffer()), "image/png");
     }
@@ -201,7 +202,7 @@ export async function acceptFix(formData: FormData) {
   } else return;
 
   await server(s).finding({ status: "accepted" }, findingId);
-  await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: findingId, rule_code: f.rule_code, action: "accept", person_id: s.person.id });
+  await server(s).record("decisions", { draft_id: f.draft_id, finding_id: findingId, rule_code: f.rule_code, action: "accept" });
   await newVersion(s, f.draft_id, { body, alt_text: alt, note: `Accepted the suggested fix for ${f.rule_code}`, reuseRunId: f.check_run_id });
   revalidatePath(`/app/drafts/${f.draft_id}`);
 }
@@ -214,8 +215,8 @@ export async function disputeFinding(formData: FormData) {
   const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).single();
   if (!f || f.status !== "open") return;
   await server(s).finding({ status: "disputed" }, findingId);
-  await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: "dispute", reason, person_id: s.person.id });
-  await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, person_id: s.person.id, body: `Disputed ${f.rule_code}: ${reason}` });
+  await server(s).record("decisions", { draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: "dispute", reason });
+  await server(s).record("comments", { draft_id: f.draft_id, finding_id: f.id, body: `Disputed ${f.rule_code}: ${reason}` });
   await logEvent(s, "finding.disputed", f.draft_id, { rule: f.rule_code, reason });
   revalidatePath(`/app/drafts/${f.draft_id}`);
 }
@@ -302,8 +303,8 @@ export async function resolveDispute(formData: FormData) {
   const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).single();
   if (!f || f.status !== "disputed") return;
   await server(s).finding({ status: decision === "override" ? "overridden" : "upheld" }, findingId);
-  await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: decision, reason, person_id: s.person.id });
-  await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, person_id: s.person.id, body: `${decision === "override" ? "Overrode" : "Upheld"} ${f.rule_code}: ${reason}` });
+  await server(s).record("decisions", { draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: decision, reason });
+  await server(s).record("comments", { draft_id: f.draft_id, finding_id: f.id, body: `${decision === "override" ? "Overrode" : "Upheld"} ${f.rule_code}: ${reason}` });
   await logEvent(s, decision === "override" ? "finding.overridden" : "finding.upheld", f.draft_id, { rule: f.rule_code, reason });
   revalidatePath(`/app/drafts/${f.draft_id}`);
 }
@@ -318,9 +319,9 @@ export async function approveDraft(formData: FormData) {
   if (blocking.length) return;
   const { data: run } = await s.supabase.from("check_runs").select("fingerprint, rulebook_version, ai_model").eq("draft_version_id", version.id).order("created_at", { ascending: false }).limit(1).single();
   const overrides = findings.filter((f) => f.status === "overridden").map((f) => ({ rule: f.rule_code, quote: f.quote }));
-  const { error } = await s.supabase.from("approvals").insert({
-    workspace_id: s.workspace.id, draft_id: draftId, draft_version_id: version.id, fingerprint: run?.fingerprint ?? "",
-    rulebook_version: run?.rulebook_version ?? s.workspace.rulebook_version, approver_id: s.person.id, overrides,
+  const { error } = await server(s).record("approvals", {
+    draft_id: draftId, draft_version_id: version.id, fingerprint: run?.fingerprint ?? "",
+    rulebook_version: run?.rulebook_version ?? s.workspace.rulebook_version, overrides,
     ai_services: run?.ai_model ? [run.ai_model] : [],
   });
   if (error) throw new Error(error.message);
@@ -336,7 +337,7 @@ export async function requestChanges(formData: FormData) {
   const note = String(formData.get("note") ?? "").trim().slice(0, 2000);
   if (note.length < 3) return;
   if ((await loadDraft(s, draftId)).draft.status !== "in_review") return;
-  await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: draftId, person_id: s.person.id, body: note });
+  await server(s).record("comments", { draft_id: draftId, body: note });
   await server(s).drafts({ status: "changes_requested", updated_at: new Date().toISOString() }, draftId);
   await logEvent(s, "draft.changes_requested", draftId, { note });
   revalidatePath(`/app/drafts/${draftId}`);
@@ -348,7 +349,11 @@ export async function addComment(formData: FormData) {
   const findingId = String(formData.get("finding_id") ?? "") || null;
   const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
   if (!body) return;
-  await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: draftId, finding_id: findingId, person_id: s.person.id, body });
+  // Both ids are read through the visitor's own access rules before the server writes the comment.
+  const { data: draft } = await s.supabase.from("drafts").select("id").eq("id", draftId).eq("workspace_id", s.workspace.id).maybeSingle();
+  if (!draft) return;
+  if (findingId && !(await s.supabase.from("findings").select("id").eq("id", findingId).eq("draft_id", draftId).maybeSingle()).data) return;
+  await server(s).record("comments", { draft_id: draftId, finding_id: findingId, body });
   await logEvent(s, "comment.added", draftId, { on_finding: !!findingId });
   revalidatePath(`/app/drafts/${draftId}`);
 }

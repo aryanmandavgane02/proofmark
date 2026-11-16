@@ -47,7 +47,7 @@ export function verifyImportedRules(drafted: DraftedRule[], pages: string[], exi
     }
     const exact = locateQuote(pages[page - 1], quote)!;
     const exactQuote = pages[page - 1].slice(exact.start, exact.end).replace(/\s+/g, " ");
-    const dup = [...existing, ...rules].find((r) => norm(r.source_quote).includes(norm(exactQuote)) || norm(exactQuote).includes(norm(r.source_quote)));
+    const dup = [...existing, ...rules].filter((r) => norm(r.source_quote ?? "").length >= 12).find((r) => norm(r.source_quote).includes(norm(exactQuote)) || norm(exactQuote).includes(norm(r.source_quote)));
     if (dup) {
       dropped.push({ rule_code: d.title, quote, reason: `is already in the rulebook as ${dup.code}` });
       continue;

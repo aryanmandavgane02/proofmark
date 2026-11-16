@@ -55,9 +55,14 @@ async function main() {
   await actAs("Ritu");
   const factsReviewer = (await a.c.from("facts").select("code, restricted").eq("workspace_id", a.ws)).data!;
   check("reviewer can see confidential facts", factsReviewer.some((f) => f.restricted));
-  check("reviewer can create an approval", !(await a.c.from("approvals").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, fingerprint: "f", rulebook_version: 1 })).error);
+  check("reviewer cannot create an approval directly, only through the app's checks", !!(await a.c.from("approvals").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, fingerprint: "f", rulebook_version: 1 })).error);
 
-  await a.c.from("events").insert({ workspace_id: a.ws, type: "test" });
+  // Records that insights and the audit trail are built from cannot be forged.
+  check("visitor cannot write an audit event in someone else's name", !!(await a.c.from("events").insert({ workspace_id: a.ws, type: "draft.approved", person_id: id("Ritu") })).error);
+  check("visitor cannot write a comment in someone else's name", !!(await a.c.from("comments").insert({ workspace_id: a.ws, draft_id: draft!.id, person_id: id("Meera"), body: "Looks fine to me" })).error);
+  check("visitor cannot add fake disputes to make a rule look unclear", !!(await a.c.from("decisions").insert({ workspace_id: a.ws, draft_id: draft!.id, rule_code: "TONE-04", action: "dispute", reason: "x" })).error);
+
+  await admin0.from("events").insert({ workspace_id: a.ws, type: "test" });
   const before = (await a.c.from("events").select("id").eq("workspace_id", a.ws)).data!.length;
   await a.c.from("events").delete().eq("workspace_id", a.ws);
   await a.c.from("events").update({ type: "tampered" }).eq("workspace_id", a.ws);

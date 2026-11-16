@@ -21,7 +21,7 @@ function RuleForm({ r, primary }: { r: RuleRow; primary: "approve" | "save" }) {
         <label className="font-semibold text-muted">Severity{" "}
           <select name="severity" defaultValue={r.severity} className="rounded border border-line bg-surface px-1.5 py-1"><option value="blocker">Blocker</option><option value="major">Major</option><option value="minor">Minor</option></select>
         </label>
-        <span className="font-semibold text-muted">Channels:</span>
+        <span className="font-semibold text-muted">Channels (tick at least one):</span>
         {CHANNELS.map((c) => (
           <label key={c} className="flex items-center gap-1"><input type="checkbox" name="channels" value={c} defaultChecked={r.channels.length === 0 || r.channels.includes(c)} />{CHANNEL_LABEL[c]}</label>
         ))}

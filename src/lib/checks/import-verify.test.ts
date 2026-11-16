@@ -26,6 +26,9 @@ describe("verifyImportedRules", () => {
     expect(rules).toHaveLength(1);
     expect(dropped.map((d) => d.reason).join(" ")).toMatch(/already in the rulebook as MSG-0[13]/);
   });
+  it("is not fooled by an existing rule with an empty quote", () => {
+    expect(verifyImportedRules([base], pages, [...existing, { code: "TONE-09", source_quote: "" }]).rules).toHaveLength(1);
+  });
   it("drops incomplete rules", () => {
     expect(verifyImportedRules([{ ...base, category: "random" as never }], pages, existing).dropped).toHaveLength(1);
   });

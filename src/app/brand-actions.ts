@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { selfOrigin } from "@/lib/origin";
 import { requireSession } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProvider } from "@/lib/ai/gemini";
@@ -22,7 +22,7 @@ async function managerSession() {
 }
 
 async function logEvent(s: Session, type: string, detail: Record<string, unknown>) {
-  await s.supabase.from("events").insert({ workspace_id: s.workspace.id, person_id: s.person.id, type, detail });
+  await createAdminClient().from("events").insert({ workspace_id: s.workspace.id, person_id: s.person.id, type, detail });
 }
 
 const SAMPLE_GUIDES: Record<string, string> = {
@@ -45,8 +45,7 @@ export async function importGuide(_prev: BrandFormState, formData: FormData): Pr
     bytes = Buffer.from(await file.arrayBuffer());
     fileName = file.name.slice(0, 120);
   } else if (SAMPLE_GUIDES[sample]) {
-    const h = await headers();
-    const res = await fetch(new URL(SAMPLE_GUIDES[sample], `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`));
+    const res = await fetch(new URL(SAMPLE_GUIDES[sample], await selfOrigin()));
     if (!res.ok) return { error: "Could not load the sample document." };
     bytes = Buffer.from(await res.arrayBuffer());
     fileName = SAMPLE_GUIDES[sample].split("/").pop()!;
@@ -110,6 +109,7 @@ export async function reviewRule(formData: FormData) {
   if (!parsed.success) return;
   const r = parsed.data;
   const channels = formData.getAll("channels").map(String).filter((c) => (CHANNELS as string[]).includes(c));
+  if (!channels.length) return; // no channel ticked would otherwise read as "all channels"
   const status = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : undefined;
   await s.supabase
     .from("rules")
