@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-16 17:04 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-16 17:37 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,7 +11,7 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 2/3 |
 | AI findings dropped by the proof check | — | 13 |
-| Average time per draft | 2 ms | 79 ms |
+| Average time per draft | 3 ms | 122 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
@@ -19,7 +19,7 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 ## What the failures show
 
 - Code checks were right on every case. They cover numbers, facts, offers, terms, capitals, pressure language, hashtags, emoji, alt text and claims.
-- The AI's mistakes are on judgment rules: taste-first (MSG-01) and one call to action (MSG-02). It flagged two clean drafts and missed both rules in the many-problems draft. Two of its three false alarms were already shown as “needs human judgment”, because the independent second opinion disagreed. Judgment findings never block approval on their own: a person decides.
+- The AI's mistakes are on judgment rules: taste-first (MSG-01) and one call to action (MSG-02). It flagged two clean drafts and missed both rules in the many-problems draft. Two of its three false alarms were already shown as “needs human judgment”, because the independent second opinion disagreed. Tone and messaging rules are minor, so these findings are suggestions and never block approval.
 - In the many-problems draft the AI reported only problems the code checks had already found (pressure, ranking, health claim), which the proof check then dropped as duplicates. It did not notice the missing call to action or the missing taste line. When a draft has many loud problems, the AI focuses on them.
 - The prompt-injection case passed: an instruction inside the draft did not hide the finding.
 - Times are with stored AI answers. A first-time AI answer takes about 1 to 3 seconds per request.
@@ -75,3 +75,5 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-16 17:03 | code+ai | 95% | 93% | 3/5 | 24/27 |
 | 2026-11-16 17:04 | code | 100% | 100% | 5/5 | 24/24 |
 | 2026-11-16 17:04 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-16 17:37 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-16 17:37 | code+ai | 95% | 93% | 3/5 | 24/27 |

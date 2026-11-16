@@ -112,5 +112,31 @@
     "judgmentFalse": "2/3",
     "dropped": 13,
     "avgMs": 79
+  },
+  {
+    "mode": "code",
+    "when": "2026-11-16T17:37:09.128Z",
+    "model": null,
+    "recall": 1,
+    "precision": 1,
+    "cleanOk": "5/5",
+    "passed": "24/24",
+    "fixes": "25/25",
+    "judgmentFalse": "0/0",
+    "dropped": 0,
+    "avgMs": 3
+  },
+  {
+    "mode": "code+ai",
+    "when": "2026-11-16T17:37:12.446Z",
+    "model": "gemini-3.5-flash-lite",
+    "recall": 0.9473684210526315,
+    "precision": 0.9302325581395349,
+    "cleanOk": "3/5",
+    "passed": "24/27",
+    "fixes": "25/25",
+    "judgmentFalse": "2/3",
+    "dropped": 13,
+    "avgMs": 122
   }
 ]

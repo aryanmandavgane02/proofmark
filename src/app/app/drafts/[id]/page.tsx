@@ -201,6 +201,34 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             <h2 className="text-lg font-semibold text-primary-d">{live.length ? `${live.length} finding${live.length > 1 ? "s" : ""}` : "No open findings"}</h2>
             <span className="text-xs text-muted">{run?.ai_status === "off" ? "Code checks only (AI off)" : run?.ai_status === "unavailable" ? "Code checks only (AI unavailable)" : run?.ai_model ? "Code checks + AI" : "Code checks"}</span>
           </div>
+          {findings.length > 0 && (() => {
+            const blocking = live.filter((f) => f.status !== "open" || f.severity === "blocker");
+            const should = live.filter((f) => f.status === "open" && f.severity === "major");
+            const suggestions = live.filter((f) => f.status === "open" && f.severity === "minor");
+            const done = findings.length - live.length;
+            return (
+              <Card className="p-4">
+                <div className="flex items-center justify-between text-sm"><span className="font-semibold text-primary-d">{done} of {findings.length} dealt with</span>{blocking.length === 0 && <span className="text-xs font-semibold text-accent">Nothing blocks review</span>}</div>
+                <div className="mt-1.5 h-2 rounded-full bg-soft" role="progressbar" aria-valuemin={0} aria-valuemax={findings.length} aria-valuenow={done} aria-label="Findings dealt with"><div className="h-2 rounded-full bg-accent" style={{ width: `${(done / findings.length) * 100}%` }} /></div>
+                <ul className="mt-3 grid gap-1 text-sm">
+                  <li><b className="text-red">{blocking.length} must be dealt with</b> before review or approval: fix it, or dispute it so a reviewer decides.</li>
+                  <li><b className="text-amber">{should.length} should be fixed</b>: the reviewer sees them, but they do not block.</li>
+                  <li><b className="text-muted">{suggestions.length} suggestion{suggestions.length === 1 ? "" : "s"}</b>: style and tone improvements.</li>
+                </ul>
+                <details className="mt-2 text-sm">
+                  <summary className="cursor-pointer text-xs font-semibold text-primary">What do the labels mean?</summary>
+                  <dl className="mt-2 grid grid-cols-[minmax(0,190px)_1fr] items-start gap-x-3 gap-y-1.5 text-xs [&_dt>span]:whitespace-nowrap">
+                    <dt><SeverityChip severity="blocker" /></dt><dd>Stops the draft until it is fixed or a reviewer overrides it. Usually legal risk: false claims, health claims.</dd>
+                    <dt><SeverityChip severity="major" /></dt><dd>Should be fixed: wrong facts, missing T&amp;C, missing alt text.</dd>
+                    <dt><SeverityChip severity="minor" /></dt><dd>A suggestion: tone, style, hashtags.</dd>
+                    <dt><LabelChip label="code" /></dt><dd>Found by an exact rule (for example a number that does not match an approved fact). Reliable.</dd>
+                    <dt><LabelChip label="ai_verified" /></dt><dd>Found by AI, and code confirmed the quoted words are really in your draft.</dd>
+                    <dt><LabelChip label="needs_judgment" /></dt><dd>A matter of opinion, or something read from an image. Check it yourself; if it is wrong, dispute it and a reviewer decides.</dd>
+                  </dl>
+                </details>
+              </Card>
+            );
+          })()}
           {run?.ai_status === "unavailable" && (
             <div role="status" className="rounded-xl border border-amber/40 bg-[#fff6e5] p-4 text-sm text-[#7a3d00]">
               <p className="font-semibold">AI checks did not run this time</p>
@@ -238,7 +266,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
           {findings.length === 0 && (
             <Card className="p-5 text-sm text-muted">Nothing breaks the approved rules, facts or terms. It can go to review as it is.</Card>
           )}
-          {findings.map((f) => {
+          {[...findings].sort((a, b) => Number(!LIVE.includes(a.status)) - Number(!LIVE.includes(b.status)) || (ORDER[a.severity] ?? 3) - (ORDER[b.severity] ?? 3)).map((f) => {
             const rule = ruleBy.get(f.rule_code);
             const fact = f.fact_code ? factBy.get(f.fact_code) : null;
             const dispute = decisionFor(f.id, "dispute");
@@ -261,11 +289,12 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                       <blockquote className="mt-1 border-l-2 border-line pl-3 text-muted">&ldquo;{rule.source_quote}&rdquo;</blockquote>
                     </details>
                   )}
-                  {fact && <p className="mt-1 text-sm text-muted">Fact <b>{f.fact_code}</b>: {fact.statement} <span className="text-xs">({fact.source}; owner {fact.owner}{fact.status !== "approved" ? `; ${fact.status}` : ""})</span></p>}
+                  {fact && !f.fix_text && <p className="mt-1 text-sm text-muted">Fact <b>{f.fact_code}</b>: {fact.statement} <span className="text-xs">({fact.source}; owner {fact.owner}{fact.status !== "approved" ? `; ${fact.status}` : ""})</span></p>}
                   {f.fix_text && (
                     <div className="mt-2 rounded-lg bg-[#eef7f4] p-2.5 text-sm">
                       <span className="font-semibold text-[#0a5c4f]">Suggested {f.fix_kind === "none" ? "correction" : "fix"}:</span>{" "}
                       {f.fix_kind === "none" ? f.fix_text : <span className="font-medium">&ldquo;{f.fix_text.trim()}&rdquo;</span>}
+                      {fact && <span className="mt-1 block text-xs text-[#0a5c4f]">Based on approved fact <b>{f.fact_code}</b>: {fact.statement} Source: {fact.source}; owner: {fact.owner}{fact.status !== "approved" ? ` (${fact.status})` : ""}.</span>}
                     </div>
                   )}
                   {dispute && <p className="mt-2 text-sm"><b>Disputed by {personBy.get(dispute.person_id)?.name}:</b> {dispute.reason}</p>}

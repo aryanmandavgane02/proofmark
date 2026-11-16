@@ -55,11 +55,24 @@ All brand data is fictional: the Urja Bites brand guide (`public/samples/urja-br
 
 ## User testing
 
-_Sessions with 3–5 people are being run during the build window; findings will be added here._
+Five people used the live demo on their own, unassisted, during the build window: a college student, a small-business owner, a freelance designer, a startup marketing executive and a student-club social media manager.
+
+- **All five reached "Approved"**, in 3 to 5½ minutes (average about 4¼).
+- **What they understood:** wrong prices, outdated facts and spelling were clear to everyone; the marketing executive found the references to brand rules useful.
+- **Where they got stuck, and what changed as a result:**
+
+| What testers said | Who | What we changed |
+|---|---|---|
+| Unsure which findings block approval and which are only suggestions | Designer, social media manager | A summary above the findings: what must be dealt with before review, what should be fixed, what is only a suggestion |
+| Wanted to see progress towards approval | Marketing executive | A progress bar: "4 of 6 dealt with" |
+| Some labels felt technical | Student, social media manager | "What do the labels mean?" explains each label in plain words; open problems are listed first, most serious first |
+| Unsure whether a fix used the latest business information | Small-business owner | The suggested fix now shows the approved fact it is based on, with its source and owner |
+| Took a moment to find where to start | Student | Already addressed by the guided checklist on Start here; noted for further onboarding work |
+| Wanted visual comparisons for logo and colour findings | Designer | Not in this round: a candidate for Round 3 alongside documents as a format. Raw answers: [docs/USER_TESTING.md](docs/USER_TESTING.md) |
 
 ## Limits
 
-- AI findings on judgment rules (taste first, one call to action) are less reliable than code findings; they are labelled and never block approval on their own.
+- AI findings on judgment rules (taste first, one call to action) are less reliable than code findings. They are minor (suggestions), so they never block approval, and they are labelled when the second opinion disagrees.
 - Image checks cover logo use, brand colours, text in the image and alt text. Fonts and layout are not checked.
 - PDFs and decks are not yet a checkable content format (planned for Round 3).
 - The demo uses anonymous sessions; there is no email sign-up or multi-company setup.
