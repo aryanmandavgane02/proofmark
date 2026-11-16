@@ -71,6 +71,15 @@ export default async function StartHere() {
         {!next && <p className="mt-4 rounded-lg bg-[#d8f0ea] p-3 text-sm text-[#0a5c4f]">You have run the whole workflow. Try your own content in <Link className="underline" href="/app/drafts/new">New draft</Link>, or look at the rulebook and facts behind each finding.</p>}
       </Card>
 
+      <Card className="mt-4 p-5">
+        <h2 className="font-semibold text-primary-d">More to try</h2>
+        <ul className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+          <li><Link className="font-semibold text-primary hover:underline" href="/app/drafts/new?sample=diwali-ad">Check an image ad</Link><span className="block text-muted">Logo, brand colours, text in the picture and alt text.</span></li>
+          <li><Link className="font-semibold text-primary hover:underline" href="/app/rulebook/import">Import rules from a PDF</Link><span className="block text-muted">As Meera: the AI drafts rules, code checks every quote, you approve and publish.</span></li>
+          <li><Link className="font-semibold text-primary hover:underline" href="/app/insights">See insights</Link><span className="block text-muted">Repeated mistakes, a rule flagged as unclear, and AI-proposed clearer wording.</span></li>
+        </ul>
+      </Card>
+
       <div className="mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-primary-d">Drafts</h2>
         <Link href="/app/drafts/new" className={btn.secondary}>New draft</Link>
