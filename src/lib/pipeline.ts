@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runCodeChecks, sortFindings } from "@/lib/checks";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { locateQuote, proofCheck, type Dropped } from "@/lib/checks/proof";
 import { overlaps } from "@/lib/checks/text";
 import { getProvider } from "@/lib/ai/gemini";
@@ -171,9 +172,11 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
   }
   if (imageError) ai_error = ai_error ? `${ai_error} ${imageError}` : imageError;
   const findings = sortFindings([...codeFindings, ...aiFindings]);
-  if (intent) await db.from("draft_versions").update({ intent }).eq("id", input.version.id).is("intent", null);
+  // Results are written by the server only (visitors can read but not write them).
+  const admin = createAdminClient();
+  if (intent) await admin.from("draft_versions").update({ intent }).eq("id", input.version.id).eq("workspace_id", input.workspaceId).is("intent", null);
 
-  const { data: run, error } = await db
+  const { data: run, error } = await admin
     .from("check_runs")
     .insert({
       workspace_id: input.workspaceId,
@@ -222,7 +225,7 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
       label: f.label,
       status: carried.get(`${f.rule_code}|${f.field}|${f.quote}`) ?? "open",
     }));
-    const { error: fe } = await db.from("findings").insert(rows);
+    const { error: fe } = await admin.from("findings").insert(rows);
     if (fe) throw new Error(`Could not save findings: ${fe.message}`);
   }
   return { runId: run.id as string, count: findings.length, fingerprint: fp };

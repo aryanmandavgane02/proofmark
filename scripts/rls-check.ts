@@ -41,6 +41,17 @@ async function main() {
   check("creator cannot record an override", !!(await a.c.from("decisions").insert({ workspace_id: a.ws, draft_id: draft!.id, rule_code: "TONE-04", action: "override" })).error);
   check("creator cannot switch to a person in another workspace", ((await a.c.from("members").update({ active_person_id: (await b.c.from("people").select("id").eq("workspace_id", b.ws).limit(1)).data![0].id }).eq("workspace_id", a.ws).select("user_id")).data ?? []).length === 0);
 
+  // Governance: the workflow must not be bypassable by talking to the database directly.
+  const { data: run } = await a.c.from("check_runs").insert({ workspace_id: a.ws, draft_version_id: v!.id, rulebook_version: 1, fingerprint: "f" }).select("id").maybeSingle();
+  check("creator cannot write check runs directly", !run);
+  const admin0 = createClient(URL, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const { data: realRun } = await admin0.from("check_runs").insert({ workspace_id: a.ws, draft_version_id: v!.id, rulebook_version: 1, fingerprint: "f" }).select("id").single();
+  const { data: blocker } = await admin0.from("findings").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, check_run_id: realRun!.id, category: "claims", severity: "blocker", rule_code: "CLAIM-02", quote: "#1", message: "x", label: "code" }).select("id").single();
+  check("creator cannot insert findings directly", !!(await a.c.from("findings").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, check_run_id: realRun!.id, category: "claims", severity: "minor", rule_code: "X", quote: "x", message: "x", label: "code" })).error);
+  check("creator cannot mark a blocker accepted without fixing it", ((await a.c.from("findings").update({ status: "accepted" }).eq("id", blocker!.id).select("id")).data ?? []).length === 0);
+  check("creator cannot push a draft into review directly", ((await a.c.from("drafts").update({ status: "in_review" }).eq("id", draft!.id).select("id")).data ?? []).length === 0);
+  check("creator cannot rewrite a checked version", ((await a.c.from("draft_versions").update({ body: "tampered" }).eq("id", v!.id).select("id")).data ?? []).length === 0);
+
   await actAs("Ritu");
   const factsReviewer = (await a.c.from("facts").select("code, restricted").eq("workspace_id", a.ws)).data!;
   check("reviewer can see confidential facts", factsReviewer.some((f) => f.restricted));

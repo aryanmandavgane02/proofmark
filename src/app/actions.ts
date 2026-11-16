@@ -15,6 +15,20 @@ import type { Channel } from "@/lib/checks/types";
 
 type Session = Awaited<ReturnType<typeof requireSession>>;
 
+/**
+ * Workflow state (draft status, finding status, versions' intent) is written with the server key,
+ * always scoped to the visitor's workspace and only after the row was read through their own access rules.
+ */
+function server(s: Session) {
+  const db = createAdminClient();
+  return {
+    drafts: (values: Record<string, unknown>, draftId: string) => db.from("drafts").update(values).eq("id", draftId).eq("workspace_id", s.workspace.id),
+    finding: (values: Record<string, unknown>, findingId: string) => db.from("findings").update(values).eq("id", findingId).eq("workspace_id", s.workspace.id),
+    version: (values: Record<string, unknown>, versionId: string) => db.from("draft_versions").update(values).eq("id", versionId).eq("workspace_id", s.workspace.id),
+    withdrawApprovals: (draftId: string) => db.from("approvals").update({ valid: false }).eq("draft_id", draftId).eq("workspace_id", s.workspace.id).eq("valid", true),
+  };
+}
+
 async function logEvent(s: Session, type: string, draftId: string | null, detail: Record<string, unknown> = {}) {
   await s.supabase.from("events").insert({ workspace_id: s.workspace.id, draft_id: draftId, person_id: s.person.id, type, detail });
 }
@@ -145,12 +159,9 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
   if (error) throw new Error(error.message);
 
   const wasApproved = draft.status === "approved";
-  await s.supabase
-    .from("drafts")
-    .update({ current_version: next, updated_at: new Date().toISOString(), ...(wasApproved ? { status: "draft" } : {}) })
-    .eq("id", draftId);
+  await server(s).drafts({ current_version: next, updated_at: new Date().toISOString(), ...(wasApproved ? { status: "draft" } : {}) }, draftId);
   if (wasApproved) {
-    await s.supabase.from("approvals").update({ valid: false }).eq("draft_id", draftId).eq("valid", true);
+    await server(s).withdrawApprovals(draftId);
     await logEvent(s, "approval.invalidated", draftId, { reason: "edited after approval", version: next });
   }
   await runChecks(s.supabase, {
@@ -189,7 +200,7 @@ export async function acceptFix(formData: FormData) {
     alt = f.fix_text;
   } else return;
 
-  await s.supabase.from("findings").update({ status: "accepted" }).eq("id", findingId);
+  await server(s).finding({ status: "accepted" }, findingId);
   await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: findingId, rule_code: f.rule_code, action: "accept", person_id: s.person.id });
   await newVersion(s, f.draft_id, { body, alt_text: alt, note: `Accepted the suggested fix for ${f.rule_code}`, reuseRunId: f.check_run_id });
   revalidatePath(`/app/drafts/${f.draft_id}`);
@@ -200,9 +211,9 @@ export async function disputeFinding(formData: FormData) {
   const findingId = String(formData.get("finding_id"));
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 1000);
   if (reason.length < 3) return;
-  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code").eq("id", findingId).single();
-  if (!f) return;
-  await s.supabase.from("findings").update({ status: "disputed" }).eq("id", findingId);
+  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).single();
+  if (!f || f.status !== "open") return;
+  await server(s).finding({ status: "disputed" }, findingId);
   await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: "dispute", reason, person_id: s.person.id });
   await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, person_id: s.person.id, body: `Disputed ${f.rule_code}: ${reason}` });
   await logEvent(s, "finding.disputed", f.draft_id, { rule: f.rule_code, reason });
@@ -236,7 +247,7 @@ export async function confirmIntent(formData: FormData) {
   const clip = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 200);
   const intent = { goal: clip("goal"), audience: clip("audience"), call_to_action: clip("call_to_action") };
   const { version } = await loadDraft(s, draftId);
-  await s.supabase.from("draft_versions").update({ intent, intent_confirmed: true }).eq("id", version.id);
+  await server(s).version({ intent, intent_confirmed: true }, version.id);
   await logEvent(s, "intent.confirmed", draftId, intent);
   revalidatePath(`/app/drafts/${draftId}`);
 }
@@ -254,6 +265,8 @@ export async function setCodeChecksOnly(formData: FormData) {
 export async function submitForReview(formData: FormData) {
   const s = await requireSession();
   const draftId = String(formData.get("draft_id"));
+  const { draft } = await loadDraft(s, draftId);
+  if (draft.status !== "draft" && draft.status !== "changes_requested") return;
   const { findings } = await currentFindings(s, draftId);
   const openBlockers = findings.filter((f) => f.severity === "blocker" && (f.status === "open" || f.status === "upheld"));
   if (openBlockers.length) return;
@@ -274,7 +287,7 @@ export async function submitForReview(formData: FormData) {
     reviewer = design;
     reason = `Visual finding${visual.length > 1 ? "s" : ""} ${[...new Set(visual.map((f) => f.rule_code))].join(", ")} go${visual.length > 1 ? "" : "es"} to the design lead.`;
   }
-  await s.supabase.from("drafts").update({ status: "in_review", reviewer_id: reviewer?.id ?? null, route_reason: reason, updated_at: new Date().toISOString() }).eq("id", draftId);
+  await server(s).drafts({ status: "in_review", reviewer_id: reviewer?.id ?? null, route_reason: reason, updated_at: new Date().toISOString() }, draftId);
   await logEvent(s, "draft.submitted", draftId, { reviewer: reviewer?.name, reason });
   revalidatePath(`/app/drafts/${draftId}`);
 }
@@ -286,9 +299,9 @@ export async function resolveDispute(formData: FormData) {
   const decision = String(formData.get("decision")) === "override" ? "override" : "uphold";
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 1000);
   if (reason.length < 3) return;
-  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code").eq("id", findingId).single();
-  if (!f) return;
-  await s.supabase.from("findings").update({ status: decision === "override" ? "overridden" : "upheld" }).eq("id", findingId);
+  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).single();
+  if (!f || f.status !== "disputed") return;
+  await server(s).finding({ status: decision === "override" ? "overridden" : "upheld" }, findingId);
   await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: decision, reason, person_id: s.person.id });
   await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: f.id, person_id: s.person.id, body: `${decision === "override" ? "Overrode" : "Upheld"} ${f.rule_code}: ${reason}` });
   await logEvent(s, decision === "override" ? "finding.overridden" : "finding.upheld", f.draft_id, { rule: f.rule_code, reason });
@@ -299,6 +312,7 @@ export async function approveDraft(formData: FormData) {
   const s = await requireSession();
   if (s.person.role === "creator") return;
   const draftId = String(formData.get("draft_id"));
+  if ((await loadDraft(s, draftId)).draft.status !== "in_review") return;
   const { version, findings } = await currentFindings(s, draftId);
   const blocking = findings.filter((f) => f.status === "disputed" || f.status === "upheld" || (f.severity === "blocker" && f.status === "open"));
   if (blocking.length) return;
@@ -310,7 +324,7 @@ export async function approveDraft(formData: FormData) {
     ai_services: run?.ai_model ? [run.ai_model] : [],
   });
   if (error) throw new Error(error.message);
-  await s.supabase.from("drafts").update({ status: "approved", updated_at: new Date().toISOString() }).eq("id", draftId);
+  await server(s).drafts({ status: "approved", updated_at: new Date().toISOString() }, draftId);
   await logEvent(s, "draft.approved", draftId, { version: version.version, overrides: overrides.length });
   revalidatePath(`/app/drafts/${draftId}`);
 }
@@ -321,8 +335,9 @@ export async function requestChanges(formData: FormData) {
   const draftId = String(formData.get("draft_id"));
   const note = String(formData.get("note") ?? "").trim().slice(0, 2000);
   if (note.length < 3) return;
+  if ((await loadDraft(s, draftId)).draft.status !== "in_review") return;
   await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: draftId, person_id: s.person.id, body: note });
-  await s.supabase.from("drafts").update({ status: "changes_requested", updated_at: new Date().toISOString() }).eq("id", draftId);
+  await server(s).drafts({ status: "changes_requested", updated_at: new Date().toISOString() }, draftId);
   await logEvent(s, "draft.changes_requested", draftId, { note });
   revalidatePath(`/app/drafts/${draftId}`);
 }
