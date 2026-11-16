@@ -268,8 +268,8 @@ Each check is a pure function with unit tests.
 
 **B. Packaging**
 
-- [ ] README: try it in two minutes, feature status against the Round 1 plan, technology and implementation details, architecture, AI models, services, libraries and templates, data used, tests and scores, user testing, limits, changes from plan, three improvements, contribution
-- [ ] `docs/ARCHITECTURE.md`, `docs/CHANGES_FROM_PLAN.md`, `DISCLOSURES.md`
+- [x] README: try it in two minutes, feature status against the Round 1 plan, technology and implementation details, architecture, AI models, services, libraries and templates, data used, tests and scores, user testing, limits, changes from plan, three improvements, contribution
+- [x] `docs/ARCHITECTURE.md`, `docs/CHANGES_FROM_PLAN.md`, `DISCLOSURES.md`
 - [ ] Updated PDF with real screenshots
 - [ ] Three improvements for Round 3, confirmed or revised from user feedback, each with acceptance criteria
 - [ ] Form answers drafted

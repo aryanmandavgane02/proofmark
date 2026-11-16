@@ -1,19 +1,85 @@
 # Proofmark
 
-**Brand guidelines as code.** Every draft is checked against approved rules, facts and assets before it is published. Every issue comes with its reason, its source and a suggested fix. A person always makes the final call.
+**Brand guidelines as code.** Every draft is checked against approved rules, facts and assets before it is published. Every issue comes with the rule it breaks, where that rule comes from, and a suggested fix. A person always makes the final call.
 
 Built for **CodeZen 2026, Round 2 (The Build)** by team **SoloStack** (solo: Aryan Mandavgane). Problem statement by Inkloom AI.
 
-> Work in progress during the Round 2 build window (16 Nov 2026, 10:00 IST to 19 Nov 2026, 10:00 IST). The full README (how to try it, feature status, architecture, tests, changes from the plan, Round 3 improvements) is completed in Phase 8.
+**Live demo:** https://proofmark-flame.vercel.app · no sign-up · each visitor gets a private copy of a demo workspace for the fictional snack brand *Urja Bites*.
 
-- Round 2 build plan: [docs/PLAN.md](docs/PLAN.md)
-- Round 1 plan (submitted 15 Nov 2026): [docs/round1/](docs/round1/)
-- AI assistance and third-party disclosures: [DISCLOSURES.md](DISCLOSURES.md)
+## Try it in two minutes
+
+1. Open the live demo and click **Start the live demo**. The **Start here** page has a five-step guided checklist.
+2. As **Arjun** (agency creator), open the sample Instagram post and click **Check this draft**. Findings appear in six categories (claims, terminology, tone, messaging, visual, accessibility). Each one has the quoted text, the rule with its page in the brand guide, the reason and a suggested fix.
+3. **Accept a fix** (for example the wrong customer number). A new version is created and re-checked.
+4. **Dispute** a finding, then **Submit for review**. The draft is routed by risk: claims go to Ritu (legal).
+5. Switch **Acting as** to the reviewer, resolve the dispute and **Approve**. The approval records the exact version, the rulebook version and any overrides. See the **Audit trail**.
+
+More to try, linked from Start here: an **image ad** (logo, colours, text in the picture, alt text), **importing rules from a brand-guide PDF** as Meera (brand manager), and **Insights** (a rule flagged as unclear, with AI-proposed clearer wording).
+
+## What it does
+
+| Area | What is built |
+|---|---|
+| Brand setup | Import a brand-guide PDF: the AI drafts numbered rules with quote and page, code confirms each quote is in the document, the manager approves and publishes a versioned rulebook. Fact ledger with source, owner, expiry and confidential facts. Glossary. Colour palette and logo |
+| Intake | Text for Instagram, LinkedIn, email, website or ads; images (PNG, JPEG, WebP) with alt text |
+| Checks | 12 code checks run first (facts and numbers, expired offers, superlatives, health and absolute claims, T&C on offers, terms, reading level, capitals, pressure language, hashtags, emoji, alt text, brand colours). AI checks only what code cannot: tone, messaging, claims in context, logo use and text in images |
+| Trust | Proof check: an AI finding is shown only if its quote is really in the draft and its rule is approved and applies. A second opinion on tone and messaging. Every finding is labelled *verified by code*, *AI verified* or *needs human judgment* |
+| Workflow | Accept, edit or dispute each finding; comments per finding; versions with word-level differences; routing by risk to legal or design; override with a reason; approval tied to the exact version, withdrawn by any later edit; append-only audit trail |
+| Insights | Repeated mistakes by rule, category and channel; rules flagged as unclear from real disputes and overrides, with AI-proposed clearer wording that publishes a new rulebook version; claims without a fact; human decisions kept as test cases (JSON download) |
+| Privacy | Access rules enforced by the database; confidential facts never reach creators or the AI; a "code checks only" mode; an "AI & data" page listing every model and service |
+
+Feature status against the Round 1 plan and every change from it: [docs/CHANGES_FROM_PLAN.md](docs/CHANGES_FROM_PLAN.md).
+
+## Technology and implementation
+
+- **Next.js 16** (App Router, server actions, TypeScript, Tailwind CSS 4) on **Vercel**, functions in Mumbai.
+- **Supabase**: Postgres with row-level security, anonymous sign-in for the demo, private file storage. Migrations in `supabase/migrations/`.
+- **Google Gemini** (`gemini-3.5-flash-lite`, fallback `gemini-3.1-flash-lite`) through one provider interface (`src/lib/ai/`), with JSON schemas, a timeout, a retry, answers stored by exact prompt, and daily caps.
+- **sharp** (image colours and contrast), **unpdf** (PDF text by page), **Zod**, **diff** (version differences).
+- **Tests:** Vitest, Playwright, GitHub Actions (CI on every push, and a daily check of the live site and database).
+
+How it fits together, the check pipeline and the security model: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Tests and scores
+
+| What | Result |
+|---|---|
+| Unit tests (`npm test`) | 89 passing: every code check, the proof check, colours, image findings, PDF import verification, insights |
+| Browser tests (`npx playwright test`) | 6 passing, locally and against production: judge path, image ad, review workflow, brand setup, insights (two) |
+| Database access attacks (`npm run rls-check`) | 22 of 22 refused, e.g. a creator marking a blocker accepted, forging an approval, or writing an audit entry in someone else's name |
+| Scored test set (`npm run eval`) | 27 hand-labelled drafts. Code checks: 100% of problems found, 100% precision, 5/5 clean drafts untouched. Code + AI: 95% found, 93% precision, 3/5 clean drafts untouched (AI false alarms on judgment rules, two of three already labelled *needs human judgment*). Details and failure notes: [eval/RESULTS.md](eval/RESULTS.md) |
+
+## Data used
+
+All brand data is fictional: the Urja Bites brand guide (`public/samples/urja-brand-guide.pdf`, generated from `src/lib/seed/`), facts, sample drafts and images, and a labelled sample history on the Insights page. No real customer or brand data is used, because the free Gemini tier may use submitted content. User research: the Round 1 survey and five follow-up answers in [docs/USER_RESEARCH.md](docs/USER_RESEARCH.md).
+
+## User testing
+
+_Sessions with 3–5 people are being run during the build window; findings will be added here._
+
+## Limits
+
+- AI findings on judgment rules (taste first, one call to action) are less reliable than code findings; they are labelled and never block approval on their own.
+- Image checks cover logo use, brand colours, text in the image and alt text. Fonts and layout are not checked.
+- PDFs and decks are not yet a checkable content format (planned for Round 3).
+- The demo uses anonymous sessions; there is no email sign-up or multi-company setup.
+
+## Three improvements for Round 3
+
+1. **PDF documents and decks as a content format.** Check the text of each page of a PDF or deck against the rulebook, with findings that point to the page. *Done when:* a 10-page deck is checked page by page, every finding shows its page and quote, and the scored test set includes PDF cases.
+2. **Outdated-content alerts.** When a fact changes or expires, list the approved content that relied on it and notify its owner. *Done when:* editing fact F-12 lists every approved draft that quoted the old figure, and each can be re-checked in one click.
+3. **Rule-change replay.** Before publishing a reworded rule, replay it against the stored decisions (already kept as test cases) and show which past findings would change. *Done when:* proposing clearer wording shows "would now pass / would now flag" for every past decision on that rule before the manager publishes.
 
 ## Run locally
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the values
-npm run dev
+cp .env.example .env.local   # Supabase URL and keys, database URL, Gemini API key
+npm run db:migrate
+npm run dev                  # http://localhost:3000
+npm test && npx playwright test && npm run rls-check && npm run eval
 ```
+
+## Contribution and disclosures
+
+Built solo by Aryan Mandavgane with **Claude Code** (Anthropic) as a disclosed AI assistant for code, tests, seed data and documents, under his direction and review; commits it helped with carry a `Co-Authored-By` line. Services, libraries and AI use: [DISCLOSURES.md](DISCLOSURES.md). Round 2 build plan: [docs/PLAN.md](docs/PLAN.md). Round 1 plan: [docs/round1/](docs/round1/). Licence: MIT.
