@@ -24,15 +24,24 @@ export function todayIST(): string {
 }
 
 /** Loads the approved rulebook and brand data the visitor is allowed to see (row-level security applies). */
+/** The rules that are live: the latest published rulebook version (edits stay pending until published). */
+export async function publishedRules(db: SupabaseClient, workspaceId: string): Promise<{ version: number; rules: Rule[] }> {
+  const { data } = await db.from("rulebook_versions").select("version, snapshot").eq("workspace_id", workspaceId).order("version", { ascending: false }).limit(1).maybeSingle();
+  if (data) return { version: data.version, rules: (data.snapshot as Rule[]).filter((r) => r.status === "approved") };
+  const { data: live } = await db.from("rules").select("*").eq("workspace_id", workspaceId).eq("status", "approved");
+  return { version: 1, rules: (live ?? []) as Rule[] };
+}
+
 export async function loadBrand(db: SupabaseClient, workspaceId: string) {
-  const [rules, facts, terms, assets] = await Promise.all([
-    db.from("rules").select("*").eq("workspace_id", workspaceId).eq("status", "approved"),
+  const [published, facts, terms, assets] = await Promise.all([
+    publishedRules(db, workspaceId),
     db.from("facts").select("*").eq("workspace_id", workspaceId),
     db.from("terms").select("*").eq("workspace_id", workspaceId),
     db.from("assets").select("*").eq("workspace_id", workspaceId).eq("kind", "color"),
   ]);
   return {
-    rules: (rules.data ?? []) as Rule[],
+    rules: published.rules,
+    rulebookVersion: published.version,
     facts: (facts.data ?? []).map((f) => ({ ...f, value: f.value == null ? null : Number(f.value) })) as Fact[],
     terms: (terms.data ?? []) as Term[],
     palette: (assets.data ?? []).map((a) => ({ name: a.name, hex: a.hex })) as PaletteColor[],
@@ -47,7 +56,7 @@ type VersionRow = { id: string; draft_id: string; version: number; body: string;
  */
 export async function runChecks(db: SupabaseClient, input: { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean; reuseFrom?: { runId: string; version: number } }) {
   const started = Date.now();
-  const brand = await loadBrand(db, input.workspaceId);
+  const { rulebookVersion, ...brand } = await loadBrand(db, input.workspaceId);
   const ctx: CheckContext = {
     body: input.version.body,
     alt_text: input.version.alt_text,
@@ -181,7 +190,7 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
     .insert({
       workspace_id: input.workspaceId,
       draft_version_id: input.version.id,
-      rulebook_version: input.rulebookVersion,
+      rulebook_version: rulebookVersion,
       fingerprint: fp,
       ms: Date.now() - started,
       ai_ms: ai_status === "off" ? null : Date.now() - aiStarted,

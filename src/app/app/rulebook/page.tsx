@@ -1,46 +1,162 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/session";
-import { Card, CategoryChip, PageTitle, SeverityChip } from "@/components/ui";
-import { CATEGORIES } from "@/lib/checks/types";
+import { Card, CategoryChip, PageTitle, SeverityChip, btn, input, timeAgo } from "@/components/ui";
+import { CATEGORIES, CHANNELS, CHANNEL_LABEL } from "@/lib/checks/types";
+import { approveAllVerified, publishRulebook, reviewRule } from "@/app/brand-actions";
+import { PendingButton } from "../drafts/[id]/PendingButton";
 
 const KIND: Record<string, string> = { code: "Checked by code", ai: "Checked by AI", both: "Code + AI" };
+type RuleRow = {
+  code: string; category: string; title: string; statement: string; severity: string; channels: string[]; check_kind: string;
+  source_doc: string; source_page: number | null; source_quote: string; builtin: boolean; status: string; import_id: string | null;
+};
 
-export default async function Rulebook() {
+function RuleForm({ r, primary }: { r: RuleRow; primary: "approve" | "save" }) {
+  return (
+    <form action={reviewRule} className="mt-3 grid gap-2 rounded-lg border border-line bg-soft p-3">
+      <input type="hidden" name="code" value={r.code} />
+      <label className="text-xs font-semibold text-muted">Title<input name="title" defaultValue={r.title} maxLength={80} className={input} /></label>
+      <label className="text-xs font-semibold text-muted">Rule (what the checker enforces)<textarea name="statement" defaultValue={r.statement} rows={2} maxLength={400} className={input} /></label>
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <label className="font-semibold text-muted">Severity{" "}
+          <select name="severity" defaultValue={r.severity} className="rounded border border-line bg-surface px-1.5 py-1"><option value="blocker">Blocker</option><option value="major">Major</option><option value="minor">Minor</option></select>
+        </label>
+        <span className="font-semibold text-muted">Channels:</span>
+        {CHANNELS.map((c) => (
+          <label key={c} className="flex items-center gap-1"><input type="checkbox" name="channels" value={c} defaultChecked={r.channels.length === 0 || r.channels.includes(c)} />{CHANNEL_LABEL[c]}</label>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {primary === "approve" ? (
+          <>
+            <button name="decision" value="approve" className={btn.accent}>Approve</button>
+            <button name="decision" value="save" className={btn.secondary}>Save edits</button>
+            <button name="decision" value="reject" className={btn.danger}>Reject</button>
+          </>
+        ) : (
+          <>
+            <button name="decision" value="save" className={btn.secondary}>Save changes</button>
+            <button name="decision" value="reject" className={btn.danger}>Retire this rule</button>
+          </>
+        )}
+      </div>
+    </form>
+  );
+}
+
+export default async function Rulebook(props: PageProps<"/app/rulebook">) {
+  const sp = await props.searchParams;
   const s = await requireSession();
-  const [{ data: rules }, { data: versions }] = await Promise.all([
-    s.supabase.from("rules").select("*").eq("workspace_id", s.workspace.id).order("code"),
-    s.supabase.from("rulebook_versions").select("version, note, published_at, published_by").eq("workspace_id", s.workspace.id).order("version", { ascending: false }),
+  const manager = s.person.role === "manager";
+  const [{ data: rulesRaw }, { data: versions }, importRes] = await Promise.all([
+    s.supabase.from("rules").select("code, category, title, statement, severity, channels, check_kind, source_doc, source_page, source_quote, builtin, status, import_id").eq("workspace_id", s.workspace.id).order("code"),
+    s.supabase.from("rulebook_versions").select("version, note, published_at, published_by, snapshot").eq("workspace_id", s.workspace.id).order("version", { ascending: false }),
+    sp.import ? s.supabase.from("imports").select("*").eq("id", String(sp.import)).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const rules = (rulesRaw ?? []) as RuleRow[];
   const latest = versions?.[0];
+  const live = new Map(((latest?.snapshot ?? []) as RuleRow[]).map((r) => [r.code, r]));
   const by = new Map(s.people.map((p) => [p.id, p.name]));
+  const imp = importRes.data as null | { id: string; file_name: string; pages: number; drafted: number; dropped: { rule_code: string; quote: string; reason: string }[]; ai_model: string; created_at: string };
+
+  // What would change if the manager published now
+  const approved = rules.filter((r) => r.status === "approved");
+  const sig = (r: RuleRow) => JSON.stringify([r.title, r.statement, r.severity, [...r.channels].sort()]);
+  const added = approved.filter((r) => !live.has(r.code)).map((r) => r.code);
+  const changed = approved.filter((r) => live.has(r.code) && sig(live.get(r.code)!) !== sig(r)).map((r) => r.code);
+  const removed = [...live.keys()].filter((code) => !approved.some((r) => r.code === code));
+  const pendingChanges = added.length + changed.length + removed.length;
+  const drafts = rules.filter((r) => r.status === "draft");
+  const fromImport = imp ? drafts.filter((r) => r.import_id === imp.id) : [];
+
   return (
     <>
       <PageTitle
-        title={`Rulebook v${s.workspace.rulebook_version}`}
-        subtitle={<>Every rule is small, numbered and approved by the brand manager, with the exact quote and page it came from. Simple rules run as code; judgment calls use AI. {latest && <>Published by {by.get(latest.published_by) ?? "—"}: {latest.note}.</>}</>}
+        title={`Rulebook v${latest?.version ?? 1}`}
+        subtitle={<>Small, numbered rules approved by the brand manager, each with the exact quote and page it came from. Checks always use the latest published version. {latest && <>v{latest.version} was published by {by.get(latest.published_by) ?? "—"} {timeAgo(latest.published_at)}: {latest.note}.</>}</>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <a href="/samples/urja-brand-guide.pdf" target="_blank" className={btn.secondary}>Open the brand guide (PDF)</a>
+            {manager && <Link href="/app/rulebook/import" className={btn.primary}>Import rules from a PDF</Link>}
+          </div>
+        }
       />
+      {!manager && <p className="mb-4 rounded-lg bg-soft p-3 text-sm text-muted">Only the brand manager edits the rulebook. Switch to <b>Meera</b> with &ldquo;Acting as&rdquo; to import, approve or publish rules.</p>}
+
+      {imp && (
+        <Card className="mb-6 p-5">
+          <h2 className="font-semibold text-primary-d">Imported from {imp.file_name}</h2>
+          <p className="mt-1 text-sm text-muted">{imp.pages} page{imp.pages > 1 ? "s" : ""} read. The AI ({imp.ai_model}) drafted rules; code then checked that every quote is really in the document, corrected page numbers and removed duplicates of existing rules.</p>
+          <p className="mt-2 text-sm"><b>{imp.drafted}</b> rule{imp.drafted === 1 ? "" : "s"} verified and waiting for approval below. <b>{imp.dropped.length}</b> not imported{imp.dropped.length ? ":" : "."}</p>
+          {imp.dropped.length > 0 && (
+            <ul className="mt-1 list-disc pl-5 text-sm text-muted">{imp.dropped.map((d, i) => <li key={i}><b>{d.rule_code}</b>{d.quote ? <> &ldquo;{d.quote.slice(0, 90)}&rdquo;</> : null}: {d.reason}</li>)}</ul>
+          )}
+          {manager && fromImport.length > 0 && (
+            <form action={approveAllVerified} className="mt-3">
+              <input type="hidden" name="import_id" value={imp.id} />
+              <PendingButton className={btn.accent} pendingText="Approving…">{`Approve all ${fromImport.length} verified rules`}</PendingButton>
+            </form>
+          )}
+        </Card>
+      )}
+
+      {manager && pendingChanges > 0 && (
+        <Card className="mb-6 border-amber/50 bg-[#fff6e5] p-5">
+          <h2 className="font-semibold text-[#7a3d00]">{pendingChanges} change{pendingChanges > 1 ? "s" : ""} not live yet</h2>
+          <p className="mt-1 text-sm text-[#7a3d00]">
+            {added.length > 0 && <>New: {added.join(", ")}. </>}{changed.length > 0 && <>Edited: {changed.join(", ")}. </>}{removed.length > 0 && <>Retired: {removed.join(", ")}. </>}
+            Drafts keep being checked against v{latest?.version ?? 1} until you publish.
+          </p>
+          <form action={publishRulebook} className="mt-3 flex flex-wrap gap-2">
+            <input name="note" maxLength={200} className={`${input} max-w-md`} placeholder="What changed, e.g. Added the November 2026 update" aria-label="What changed" />
+            <PendingButton className={btn.primary} pendingText="Publishing…">{`Publish as v${(latest?.version ?? 1) + 1}`}</PendingButton>
+          </form>
+        </Card>
+      )}
+
+      {drafts.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-2 text-sm font-semibold text-primary-d">Waiting for approval ({drafts.length})</h2>
+          <div className="space-y-3">
+            {drafts.map((r) => (
+              <Card key={r.code} className="p-4">
+                <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-sm font-bold text-primary-d">{r.code}</span><CategoryChip category={r.category} /><SeverityChip severity={r.severity} /><span className="text-xs font-semibold uppercase text-[#7a3d00]">Draft from {r.source_doc}</span></div>
+                <p className="mt-2 font-semibold">{r.title}</p>
+                <p className="text-sm">{r.statement}</p>
+                <blockquote className="mt-1 border-l-2 border-accent pl-3 text-sm text-muted">&ldquo;{r.source_quote}&rdquo; <span className="text-xs">— {r.source_doc}, p. {r.source_page} <span className="text-accent">(quote verified in the document)</span></span></blockquote>
+                {manager && <RuleForm r={r} primary="approve" />}
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="space-y-6">
         {CATEGORIES.map((cat) => {
-          const list = (rules ?? []).filter((r) => r.category === cat);
+          const list = approved.filter((r) => r.category === cat);
           if (!list.length) return null;
           return (
             <section key={cat}>
-              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold capitalize text-primary-d"><CategoryChip category={cat} /> {list.length} rule{list.length > 1 ? "s" : ""}</h2>
+              <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary-d"><CategoryChip category={cat} /> {list.length} rule{list.length > 1 ? "s" : ""}</h2>
               <Card className="divide-y divide-line">
                 {list.map((r) => (
                   <div key={r.code} className="grid gap-2 p-4 sm:grid-cols-[110px_1fr_190px]">
                     <div>
                       <p className="font-mono text-sm font-bold text-primary-d">{r.code}</p>
                       <SeverityChip severity={r.severity} />
+                      {!live.has(r.code) && <p className="mt-1 text-xs font-semibold text-[#7a3d00]">Not live yet</p>}
                     </div>
                     <div>
                       <p className="font-semibold">{r.title}</p>
                       <p className="text-sm text-ink">{r.statement}</p>
                       <blockquote className="mt-1 border-l-2 border-line pl-3 text-sm text-muted">&ldquo;{r.source_quote}&rdquo; <span className="text-xs">— {r.builtin ? r.source_doc : `${r.source_doc}, p. ${r.source_page}`}</span></blockquote>
+                      {manager && (
+                        <details className="mt-1"><summary className="cursor-pointer text-xs font-semibold text-primary">Edit</summary><RuleForm r={r} primary="save" /></details>
+                      )}
                     </div>
                     <div className="text-xs text-muted">
                       <p>{KIND[r.check_kind]}</p>
                       <p>{r.channels.length ? `Channels: ${r.channels.join(", ")}` : "All channels"}</p>
-                      <p className="capitalize">Status: {r.status}</p>
                     </div>
                   </div>
                 ))}
@@ -49,6 +165,15 @@ export default async function Rulebook() {
           );
         })}
       </div>
+
+      <h2 className="mb-2 mt-8 text-sm font-semibold text-primary-d">Published versions</h2>
+      <Card className="divide-y divide-line">
+        {(versions ?? []).map((v) => (
+          <div key={v.version} className="flex flex-wrap gap-3 p-3 text-sm">
+            <b>v{v.version}</b><span className="flex-1">{v.note}</span><span className="text-muted">{(v.snapshot as unknown[]).length} rules · {by.get(v.published_by) ?? "—"} · {timeAgo(v.published_at)}</span>
+          </div>
+        ))}
+      </Card>
     </>
   );
 }

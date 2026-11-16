@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/session";
 import { Card, PageTitle } from "@/components/ui";
 import { todayIST } from "@/lib/pipeline";
+import { ColorForm, FactForm, TermForm, type FactRow } from "./BrandForms";
 
 export default async function Facts() {
   const s = await requireSession();
@@ -10,6 +11,8 @@ export default async function Facts() {
     s.supabase.from("assets").select("*").eq("workspace_id", s.workspace.id),
   ]);
   const today = todayIST();
+  const manager = s.person.role === "manager";
+  const nextCode = `F-${Math.max(9, ...(facts ?? []).map((f) => Number(String(f.code).replace("F-", "")) || 0)) + 1}`;
   return (
     <>
       <PageTitle
@@ -17,6 +20,11 @@ export default async function Facts() {
         subtitle={<>Claims in a draft are checked against these approved facts, and numbers are compared by code. {s.person.role === "creator" && <b>Some confidential facts are hidden from creators.</b>}</>}
       />
       <h2 className="mb-2 text-sm font-semibold text-primary-d">Fact ledger</h2>
+      {manager ? (
+        <details className="mb-3"><summary className="cursor-pointer text-sm font-semibold text-primary">Add a fact</summary><div className="mt-2"><FactForm nextCode={nextCode} /></div></details>
+      ) : (
+        <p className="mb-3 text-sm text-muted">Only the brand manager (Meera) adds or edits facts.</p>
+      )}
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-primary-d text-left text-white">
@@ -28,7 +36,10 @@ export default async function Facts() {
               return (
                 <tr key={f.code} className={expired ? "text-muted" : ""}>
                   <td className="p-2.5 font-mono font-bold">{f.code}</td>
-                  <td className="p-2.5">{f.statement} {f.restricted && <span className="ml-1 rounded bg-[#ffecc7] px-1.5 text-xs text-[#7a3d00]">Confidential</span>}</td>
+                  <td className="p-2.5">
+                    {f.statement} {f.restricted && <span className="ml-1 rounded bg-[#ffecc7] px-1.5 text-xs text-[#7a3d00]">Confidential</span>}
+                    {manager && <details className="mt-1"><summary className="cursor-pointer text-xs font-semibold text-primary">Edit</summary><div className="mt-2"><FactForm fact={{ ...f, value: f.value == null ? null : Number(f.value) } as FactRow} /></div></details>}
+                  </td>
                   <td className="p-2.5">{f.source}</td>
                   <td className="p-2.5">{f.owner}</td>
                   <td className="p-2.5">{f.expires_on ?? "—"}</td>
@@ -40,6 +51,7 @@ export default async function Facts() {
         </table>
       </Card>
       <h2 className="mb-2 mt-8 text-sm font-semibold text-primary-d">Glossary (rule TERM-01)</h2>
+      {manager && <details className="mb-3"><summary className="cursor-pointer text-sm font-semibold text-primary">Add a term</summary><div className="mt-2"><TermForm /></div></details>}
       <Card className="divide-y divide-line">
         {(terms ?? []).map((t) => (
           <div key={t.id} className="grid gap-1 p-3 text-sm sm:grid-cols-[180px_1fr_1fr]">
@@ -50,6 +62,7 @@ export default async function Facts() {
         ))}
       </Card>
       <h2 className="mb-2 mt-8 text-sm font-semibold text-primary-d">Brand palette (rule VIS-02)</h2>
+      {manager && <details className="mb-3"><summary className="cursor-pointer text-sm font-semibold text-primary">Add a colour</summary><div className="mt-2"><ColorForm /></div></details>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(assets ?? []).filter((a) => a.kind === "color").map((a) => (
           <Card key={a.id} className="overflow-hidden">
