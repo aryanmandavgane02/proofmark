@@ -74,6 +74,7 @@ Five people used the live demo on their own, unassisted, during the build window
 
 - AI findings on judgment rules (taste first, one call to action) are less reliable than code findings. They are minor (suggestions), so they never block approval, and they are labelled when the second opinion disagrees.
 - Image checks cover logo use, brand colours, text in the image and alt text. Fonts and layout are not checked.
+- Reading level uses one limit (25 words per sentence) on every channel; stricter per-channel limits are configured but not yet enforced.
 - PDFs and decks are not yet a checkable content format (planned for Round 3).
 - The demo uses anonymous sessions; there is no email sign-up or multi-company setup.
 

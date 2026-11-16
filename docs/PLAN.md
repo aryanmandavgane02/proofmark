@@ -264,7 +264,7 @@ Each check is a pure function with unit tests.
 - [x] Playwright test of the judge path, CI green
 - [x] Scored test set: at least 20 cases with planted issues and clean controls, results in `eval/RESULTS.md` (issues caught, wrong flags, findings dropped by the proof check)
 - [x] Keep-alive ping, quota check
-- [ ] **Feature freeze** once Phase 7 is done, and no later than Wednesday night. Only fixes after this
+- [x] **Feature freeze** once Phase 7 is done, and no later than Wednesday night. Only fixes after this *(declared after the final recheck)*
 
 **B. Packaging**
 

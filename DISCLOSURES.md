@@ -28,7 +28,7 @@ The free Gemini tier may use submitted content to improve Google's products, so 
 
 ## Libraries
 
-Listed in `package.json`. Main ones: Next.js, React, Tailwind CSS, @supabase/supabase-js, @supabase/ssr, @google/genai, Zod, sharp (image colours), unpdf (PDF text), diff (version differences), postgres (migrations), Vitest, Playwright, tsx, dotenv.
+Listed in `package.json`. Main ones: Next.js, React, Tailwind CSS, @supabase/supabase-js, @supabase/ssr, @google/genai, Zod, sharp (image colours), unpdf (PDF text), diff (version differences), postgres (migrations), Vitest, Playwright, @axe-core/playwright (accessibility tests), tsx, dotenv.
 
 ## Generated assets
 
