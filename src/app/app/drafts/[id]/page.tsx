@@ -7,6 +7,7 @@ import { acceptFix, addComment, approveDraft, confirmIntent, disputeFinding, req
 import { Highlighted, type Mark } from "./Highlighted";
 import { signedImageUrl } from "@/lib/images";
 import { PendingButton } from "./PendingButton";
+import { describeEvent } from "@/lib/events";
 
 type Finding = {
   id: string; category: string; severity: string; rule_code: string; fact_code: string | null; field: string; quote: string;
@@ -27,7 +28,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     s.supabase.from("draft_versions").select("version, change_note, created_at, created_by").eq("draft_id", id).order("version", { ascending: false }),
     s.supabase.from("rules").select("code, title, statement, source_doc, source_page, source_quote, builtin").eq("workspace_id", s.workspace.id),
     s.supabase.from("facts").select("code, statement, source, owner, status").eq("workspace_id", s.workspace.id),
-    s.supabase.from("comments").select("id, body, person_id, created_at").eq("draft_id", id).order("created_at"),
+    s.supabase.from("comments").select("id, body, person_id, created_at, finding_id").eq("draft_id", id).order("created_at"),
     s.supabase.from("events").select("id, type, person_id, detail, created_at").eq("draft_id", id).order("created_at"),
     s.supabase.from("approvals").select("*").eq("draft_id", id).order("created_at", { ascending: false }),
     s.supabase.from("decisions").select("finding_id, action, reason, person_id, created_at").eq("draft_id", id),
@@ -39,6 +40,14 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
   const imageFindings = ((rawFindings ?? []) as Finding[]).filter((f) => f.field === "image" && LIVE.includes(f.status)).length;
   const findings = ((rawFindings ?? []) as Finding[]).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || (a.start_at ?? 9e9) - (b.start_at ?? 9e9));
 
+  // Comments follow an issue across versions: match by rule and quoted text, not by finding id.
+  const commentFindingIds = [...new Set((comments ?? []).map((c) => c.finding_id).filter(Boolean))] as string[];
+  const { data: commentFindings } = commentFindingIds.length
+    ? await s.supabase.from("findings").select("id, rule_code, quote").in("id", commentFindingIds)
+    : { data: [] as { id: string; rule_code: string; quote: string }[] };
+  const issueKey = (f: { rule_code: string; quote: string }) => `${f.rule_code}|${f.quote}`;
+  const keyOfFinding = new Map((commentFindings ?? []).map((f) => [f.id, issueKey(f)]));
+  const threadFor = (f: Finding) => (comments ?? []).filter((c) => c.finding_id && keyOfFinding.get(c.finding_id) === issueKey(f));
   const ruleBy = new Map((rules ?? []).map((r) => [r.code, r]));
   const factBy = new Map((facts ?? []).map((f) => [f.code, f]));
   const personBy = new Map(s.people.map((p) => [p.id, p]));
@@ -167,7 +176,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
           <Card className="p-5">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Activity</h2>
             <ol className="space-y-2 text-sm">
-              {[...(events ?? []).map((e) => ({ k: `e${e.id}`, at: e.created_at, who: personBy.get(e.person_id)?.name, text: describeEvent(e.type, e.detail) })),
+              {[...(events ?? []).filter((e) => e.type !== "comment.added").map((e) => ({ k: `e${e.id}`, at: e.created_at, who: personBy.get(e.person_id)?.name, text: describeEvent(e.type, e.detail) })),
                 ...(comments ?? []).map((c) => ({ k: `c${c.id}`, at: c.created_at, who: personBy.get(c.person_id)?.name, text: `“${c.body}”` }))]
                 .sort((a, b) => a.at.localeCompare(b.at))
                 .map((x) => (
@@ -179,7 +188,10 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               <input name="body" required maxLength={2000} className={input} placeholder="Add a comment" aria-label="Comment" />
               <button className={btn.secondary}>Post</button>
             </form>
-            <p className="mt-3 text-xs text-muted">Versions: {(versions ?? []).map((v) => `v${v.version}${v.change_note ? ` (${v.change_note})` : ""}`).join(" · ")}</p>
+            <p className="mt-3 text-xs text-muted">
+              {(versions ?? []).length} version{(versions ?? []).length > 1 ? "s" : ""}.{" "}
+              {(versions ?? []).length > 1 && <Link href={`/app/drafts/${id}/versions`} className="font-semibold text-primary hover:underline">See what changed between versions</Link>}
+            </p>
           </Card>
         </div>
 
@@ -259,6 +271,22 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   {dispute && <p className="mt-2 text-sm"><b>Disputed by {personBy.get(dispute.person_id)?.name}:</b> {dispute.reason}</p>}
                   {resolved && <p className="mt-1 text-sm"><b>{f.status === "overridden" ? "Overridden" : "Upheld"} by {personBy.get(resolved.person_id)?.name}:</b> {resolved.reason}</p>}
 
+                  {threadFor(f).length > 0 && (
+                    <ul className="mt-2 space-y-1 border-l-2 border-line pl-3 text-sm">
+                      {threadFor(f).map((c) => (
+                        <li key={c.id}><b>{personBy.get(c.person_id)?.name}</b> <span className="text-xs text-muted">{timeAgo(c.created_at)}</span><br />{c.body}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <details className="mt-2 text-sm">
+                    <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-primary">Comment on this finding</summary>
+                    <form action={addComment} className="mt-2 flex gap-2">
+                      <input type="hidden" name="draft_id" value={id} />
+                      <input type="hidden" name="finding_id" value={f.id} />
+                      <input name="body" required maxLength={2000} className={input} placeholder={`Comment as ${s.person.name}`} aria-label="Comment on this finding" />
+                      <button className={btn.secondary}>Post</button>
+                    </form>
+                  </details>
                   {(f.status === "open" || f.status === "upheld") && (
                     <div className="mt-3 flex flex-wrap items-start gap-2">
                       {f.fix_kind !== "none" && (
@@ -305,10 +333,11 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   {run.ai_status === "off" && "Off: this workspace runs code checks only, so nothing was sent to an AI service."}
                   {run.ai_status === "unavailable" && `Did not run: ${run.ai_error ?? "service unavailable"}`}
                   {(run.ai_status === "ok" || run.ai_status === "cached") && <>{run.ai_model} · {run.ai_requests} request{run.ai_requests === 1 ? "" : "s"}{run.ai_status === "cached" ? " (stored result reused for identical content)" : ""} · {run.ai_ms} ms</>}
+                  {run.ai_status === "reused" && <>Not asked again: only the text you fixed changed. {run.reused_count} AI finding(s) on unchanged text were carried over from version {run.reused_from_version}; code re-checked everything. 0 AI requests.</>}
                 </dd>
                 <dt className="text-muted">Proof check</dt>
                 <dd>
-                  {(run.ai_status === "ok" || run.ai_status === "cached") ? (
+                  {(run.ai_status === "ok" || run.ai_status === "cached" || run.ai_status === "reused") ? (
                     <>
                       {findings.filter((f) => f.label === "ai_verified").length} text finding(s) from AI passed: quote found in the draft, rule approved and applicable.
                       {findings.some((f) => f.field === "image" && f.label === "needs_judgment") && <> {findings.filter((f) => f.field === "image" && f.label === "needs_judgment").length} image finding(s) cannot be verified by code, so a person confirms them.</>}
@@ -329,19 +358,4 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
       </div>
     </div>
   );
-}
-
-function describeEvent(type: string, detail: Record<string, unknown>): string {
-  switch (type) {
-    case "draft.created": return "created the draft and ran the checks.";
-    case "version.created": return `saved version ${detail.version}: ${detail.note}.`;
-    case "finding.disputed": return `disputed ${detail.rule}.`;
-    case "finding.overridden": return `overrode ${detail.rule}.`;
-    case "finding.upheld": return `upheld ${detail.rule}.`;
-    case "draft.submitted": return `submitted it for review. Routed to ${detail.reviewer}: ${detail.reason}`;
-    case "draft.approved": return `approved version ${detail.version}.`;
-    case "draft.changes_requested": return "requested changes.";
-    case "approval.invalidated": return "edited it after approval, so it needs a new approval.";
-    default: return type;
-  }
 }

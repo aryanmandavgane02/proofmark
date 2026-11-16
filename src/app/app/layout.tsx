@@ -6,9 +6,10 @@ import { PersonSwitcher } from "./PersonSwitcher";
 const NAV = [
   { href: "/app", label: "Start here" },
   { href: "/app/drafts/new", label: "New draft" },
-  { href: "/app/review", label: "Review queue" },
+  { href: "/app/review", label: "Review" },
   { href: "/app/rulebook", label: "Rulebook" },
-  { href: "/app/facts", label: "Facts & terms" },
+  { href: "/app/facts", label: "Facts" },
+  { href: "/app/activity", label: "Audit trail" },
   { href: "/app/ai", label: "AI & data" },
 ];
 
@@ -22,7 +23,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
             <LogoMark className="h-7 w-7" />
             <span className="font-bold text-primary-d">Proofmark</span>
           </Link>
-          <nav className="flex flex-wrap gap-1 text-sm" aria-label="Main">
+          <nav className="flex flex-wrap gap-0.5 text-sm" aria-label="Main">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} className="rounded-md px-2.5 py-1.5 font-medium text-muted hover:bg-soft hover:text-primary-d">
                 {n.label}

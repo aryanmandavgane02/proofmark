@@ -128,7 +128,7 @@ async function loadDraft(s: Session, draftId: string) {
 }
 
 /** Saves a new version of a draft and re-checks it. An approved draft goes back for re-approval. */
-async function newVersion(s: Session, draftId: string, change: { body?: string; alt_text?: string; note: string }) {
+async function newVersion(s: Session, draftId: string, change: { body?: string; alt_text?: string; note: string; reuseRunId?: string }) {
   const { draft, version } = await loadDraft(s, draftId);
   const body = change.body ?? version.body;
   const alt_text = change.alt_text ?? version.alt_text;
@@ -153,7 +153,10 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
     await s.supabase.from("approvals").update({ valid: false }).eq("draft_id", draftId).eq("valid", true);
     await logEvent(s, "approval.invalidated", draftId, { reason: "edited after approval", version: next });
   }
-  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version: v, codeChecksOnly: s.workspace.code_checks_only });
+  await runChecks(s.supabase, {
+    workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version: v,
+    codeChecksOnly: s.workspace.code_checks_only, reuseFrom: change.reuseRunId ? { runId: change.reuseRunId, version: draft.current_version } : undefined,
+  });
   await logEvent(s, "version.created", draftId, { version: next, note: change.note });
 }
 
@@ -188,7 +191,7 @@ export async function acceptFix(formData: FormData) {
 
   await s.supabase.from("findings").update({ status: "accepted" }).eq("id", findingId);
   await s.supabase.from("decisions").insert({ workspace_id: s.workspace.id, draft_id: f.draft_id, finding_id: findingId, rule_code: f.rule_code, action: "accept", person_id: s.person.id });
-  await newVersion(s, f.draft_id, { body, alt_text: alt, note: `Accepted the suggested fix for ${f.rule_code}` });
+  await newVersion(s, f.draft_id, { body, alt_text: alt, note: `Accepted the suggested fix for ${f.rule_code}`, reuseRunId: f.check_run_id });
   revalidatePath(`/app/drafts/${f.draft_id}`);
 }
 
@@ -327,8 +330,10 @@ export async function requestChanges(formData: FormData) {
 export async function addComment(formData: FormData) {
   const s = await requireSession();
   const draftId = String(formData.get("draft_id"));
+  const findingId = String(formData.get("finding_id") ?? "") || null;
   const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
   if (!body) return;
-  await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: draftId, person_id: s.person.id, body });
+  await s.supabase.from("comments").insert({ workspace_id: s.workspace.id, draft_id: draftId, finding_id: findingId, person_id: s.person.id, body });
+  await logEvent(s, "comment.added", draftId, { on_finding: !!findingId });
   revalidatePath(`/app/drafts/${draftId}`);
 }

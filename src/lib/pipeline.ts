@@ -2,7 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { runCodeChecks, sortFindings } from "@/lib/checks";
-import { proofCheck, type Dropped } from "@/lib/checks/proof";
+import { locateQuote, proofCheck, type Dropped } from "@/lib/checks/proof";
+import { overlaps } from "@/lib/checks/text";
 import { getProvider } from "@/lib/ai/gemini";
 import { AIUnavailableError } from "@/lib/ai/provider";
 import { reviewImage, reviewText, secondOpinion } from "@/lib/ai/review";
@@ -43,7 +44,7 @@ type VersionRow = { id: string; draft_id: string; version: number; body: string;
  * Runs every check on one draft version and stores the run and its findings.
  * Decisions already made on the same issue in an earlier version (disputed, overridden, upheld) carry over.
  */
-export async function runChecks(db: SupabaseClient, input: { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean }) {
+export async function runChecks(db: SupabaseClient, input: { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean; reuseFrom?: { runId: string; version: number } }) {
   const started = Date.now();
   const brand = await loadBrand(db, input.workspaceId);
   const ctx: CheckContext = {
@@ -74,14 +75,56 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
   // AI step: never blocks the code findings. Every AI finding must pass the proof check.
   let aiFindings: FindingDraft[] = [];
   let dropped: Dropped[] = [];
-  let ai_status: "ok" | "cached" | "unavailable" | "skipped" | "off" = "skipped";
+  let ai_status: "ok" | "cached" | "reused" | "unavailable" | "skipped" | "off" = "skipped";
   let ai_requests = 0;
   let ai_model: string | null = null;
   let ai_error: string | null = null;
   let intent: unknown = null;
+  let reused_count = 0;
+  let reused_from_version: number | null = null;
   const aiStarted = Date.now();
   const provider = getProvider();
-  if (input.codeChecksOnly) ai_status = "off";
+
+  // Only the changed parts are re-checked: after an accepted fix, AI findings whose text did not change
+  // are carried over from the previous run instead of asking the AI again. Code re-checks everything.
+  let reused = false;
+  if (input.reuseFrom && !input.codeChecksOnly) {
+    const { data: prevRun } = await db.from("check_runs").select("ai_status, ai_model").eq("id", input.reuseFrom.runId).maybeSingle();
+    if (prevRun && ["ok", "cached", "reused"].includes(prevRun.ai_status)) {
+      const { data: prev } = await db.from("findings").select("*").eq("check_run_id", input.reuseFrom.runId);
+      for (const f of prev ?? []) {
+        if (f.label === "code") {
+          if (f.rule_code === "A11Y-01" && f.fix_kind === "set_alt" && f.fix_text) {
+            const now = codeFindings.find((c) => c.rule_code === "A11Y-01" && c.field === "alt_text" && c.fix_kind === "none");
+            if (now) Object.assign(now, { fix_kind: "set_alt", fix_text: f.fix_text, message: f.message });
+          }
+          continue;
+        }
+        if (f.status === "accepted") continue;
+        let start: number | null = null;
+        let end: number | null = null;
+        if (f.field === "body") {
+          const pos = locateQuote(ctx.body, f.quote);
+          if (!pos) continue; // its text changed, so this finding no longer applies as written
+          if (codeFindings.some((c) => c.field === "body" && overlaps(c, pos))) continue;
+          ({ start, end } = pos);
+        }
+        aiFindings.push({
+          category: f.category, severity: f.severity, rule_code: f.rule_code, fact_code: f.fact_code, field: f.field,
+          quote: f.quote, start, end, message: f.message, fix_kind: f.fix_kind, fix_text: f.fix_text, label: f.label,
+        });
+        reused_count++;
+      }
+      reused = true;
+      ai_status = "reused";
+      ai_model = prevRun.ai_model;
+      reused_from_version = input.reuseFrom.version;
+    }
+  }
+
+  if (reused) {
+    // nothing else to do: the AI was not needed for this version
+  } else if (input.codeChecksOnly) ai_status = "off";
   else if (!provider) {
     ai_status = "unavailable";
     ai_error = "No AI key is configured, so only code checks ran.";
@@ -139,6 +182,8 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
       fingerprint: fp,
       ms: Date.now() - started,
       ai_ms: ai_status === "off" ? null : Date.now() - aiStarted,
+      reused_count,
+      reused_from_version,
       ai_status,
       ai_requests,
       ai_model,
