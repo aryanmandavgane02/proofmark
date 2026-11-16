@@ -22,5 +22,5 @@ Five people used the live demo at https://proofmark-flame.vercel.app on their ow
 
 ## Not changed in Round 2
 
-- **Visual comparisons for logo and colour findings** (tester 3): a candidate for Round 3.
+- **Visual comparisons** (tester 3): colour findings now show swatches of the image colour and the nearest brand colour. Font checks are part of Round 3 improvement 1 (documents and decks). Logo side-by-side comparison is not built.
 - **Where to start** (tester 1): the guided checklist on Start here already covers this; further onboarding work is noted.

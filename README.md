@@ -21,8 +21,8 @@ More to try, linked from Start here: an **image ad** (logo, colours, text in the
 | Area | What is built |
 |---|---|
 | Brand setup | Import a brand-guide PDF: the AI drafts numbered rules with quote and page, code confirms each quote is in the document, the manager approves and publishes a versioned rulebook. Fact ledger with source, owner, expiry and confidential facts. Glossary. Colour palette and logo |
-| Intake | Text for Instagram, LinkedIn, email, website or ads; images (PNG, JPEG, WebP) with alt text |
-| Checks | 12 code checks run first (facts and numbers, expired offers, superlatives, health and absolute claims, T&C on offers, terms, reading level, capitals, pressure language, hashtags, emoji, alt text, brand colours). AI checks only what code cannot: tone, messaging, claims in context, logo use and text in images |
+| Intake | Posts, ads, emails and web copy as text, for Instagram, LinkedIn, email, website or ads; images (PNG, JPEG, WebP) with alt text. A document can be checked by pasting its text; uploading PDFs and decks directly is Round 3 improvement 1 |
+| Checks | 13 code checks run first (facts and numbers, expired offers, superlatives, health and absolute claims, T&C on offers, terms, reading level, capitals, pressure language, hashtags, emoji, alt text, brand colours). AI checks only what code cannot: tone, messaging, claims in context, logo use and text in images |
 | Trust | Proof check: an AI finding is shown only if its quote is really in the draft and its rule is approved and applies. A second opinion on tone and messaging. Every finding is labelled *verified by code*, *AI verified* or *needs human judgment* |
 | Workflow | Accept, edit or dispute each finding; comments per finding; versions with word-level differences; routing by risk to legal or design; override with a reason; approval tied to the exact version, withdrawn by any later edit; append-only audit trail |
 | Insights | Repeated mistakes by rule, category and channel; rules flagged as unclear from real disputes and overrides, with AI-proposed clearer wording that publishes a new rulebook version; claims without a fact; human decisions kept as test cases (JSON download) |
@@ -45,7 +45,7 @@ How it fits together, the check pipeline and the security model: [docs/ARCHITECT
 | What | Result |
 |---|---|
 | Unit tests (`npm test`) | 89 passing: every code check, the proof check, colours, image findings, PDF import verification, insights |
-| Browser tests (`npx playwright test`) | 6 passing, locally and against production: judge path, image ad, review workflow, brand setup, insights (two) |
+| Browser tests (`npx playwright test`) | 9 passing, locally and against production: judge path, image ad, review workflow, brand setup, insights (two), and accessibility: no WCAG 2.1 A/AA violations found by axe on any screen, no sideways scrolling at phone width, and the demo usable by keyboard alone |
 | Database access attacks (`npm run rls-check`) | 22 of 22 refused, e.g. a creator marking a blocker accepted, forging an approval, or writing an audit entry in someone else's name |
 | Scored test set (`npm run eval`) | 27 hand-labelled drafts. Code checks: 100% of problems found, 100% precision, 5/5 clean drafts untouched. Code + AI: 95% found, 93% precision, 3/5 clean drafts untouched (AI false alarms on judgment rules, two of three already labelled *needs human judgment*). Details and failure notes: [eval/RESULTS.md](eval/RESULTS.md) |
 
@@ -68,7 +68,7 @@ Five people used the live demo on their own, unassisted, during the build window
 | Some labels felt technical | Student, social media manager | "What do the labels mean?" explains each label in plain words; open problems are listed first, most serious first |
 | Unsure whether a fix used the latest business information | Small-business owner | The suggested fix now shows the approved fact it is based on, with its source and owner |
 | Took a moment to find where to start | Student | Already addressed by the guided checklist on Start here; noted for further onboarding work |
-| Wanted visual comparisons for logo and colour findings | Designer | Not in this round: a candidate for Round 3 alongside documents as a format. Raw answers: [docs/USER_TESTING.md](docs/USER_TESTING.md) |
+| Wanted visual comparisons for logo, colour and font findings | Designer | Colour findings now show swatches: the colour in the image next to the nearest brand colour. Font checks are part of Round 3 improvement 1. Raw answers: [docs/USER_TESTING.md](docs/USER_TESTING.md) |
 
 ## Limits
 
@@ -79,9 +79,11 @@ Five people used the live demo on their own, unassisted, during the build window
 
 ## Three improvements for Round 3
 
-1. **PDF documents and decks as a content format.** Check the text of each page of a PDF or deck against the rulebook, with findings that point to the page. *Done when:* a 10-page deck is checked page by page, every finding shows its page and quote, and the scored test set includes PDF cases.
-2. **Outdated-content alerts.** When a fact changes or expires, list the approved content that relied on it and notify its owner. *Done when:* editing fact F-12 lists every approved draft that quoted the old figure, and each can be re-checked in one click.
-3. **Rule-change replay.** Before publishing a reworded rule, replay it against the stored decisions (already kept as test cases) and show which past findings would change. *Done when:* proposing clearer wording shows "would now pass / would now flag" for every past decision on that rule before the manager publishes.
+These are the three named in the Round 1 plan, now **confirmed** by what we built and by user testing. Each will be shown with a before-and-after demonstration and a measured number.
+
+1. **PDF documents and decks as a content format.** Check the text and fonts of each page of a PDF or deck against the rulebook, with findings that point to the page. A user tester (designer) asked for exactly this kind of font and layout feedback. *Done when:* a 10-page deck is checked page by page, every finding shows its page and quote, fonts outside the brand typefaces are flagged, and the scored test set includes PDF cases with published scores.
+2. **Outdated-content alerts.** When a fact changes or expires, list the approved content that relied on it and notify its owner. A user tester (small-business owner) asked whether fixes use the latest information; this answers it over time. *Done when:* editing fact F-12 lists every approved draft that quoted the old figure (all of them, measured), and each can be re-checked in one click.
+3. **Rule-change replay.** Before publishing a reworded rule, replay it against the stored decisions (already kept as test cases) and show which past findings would change. *Done when:* proposing clearer wording shows "would now pass / would now flag" for every past decision on that rule before the manager publishes, with the count of decisions that would change.
 
 ## Run locally
 

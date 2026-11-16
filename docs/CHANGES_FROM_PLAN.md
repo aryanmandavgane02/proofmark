@@ -9,7 +9,7 @@ Proofmark was built in Round 2 (16–19 Nov 2026) from the plan submitted in Rou
 | Brand setup and rulebook | Core | Done | PDF import: AI drafts numbered rules; code confirms each quote is really in the PDF and corrects page numbers. The manager approves, edits or rejects, then publishes a numbered rulebook version |
 | Fact ledger, glossary, assets | Core | Done | Facts with source, owner, expiry and a confidential flag; preferred and banned terms; colour palette and logo |
 | Text and image intake | Core | Done | Text with channel; PNG, JPEG or WebP up to 4 MB with alt text; large photos resized in the browser |
-| Code checks | Core | Done | 12 checks: terms, disclaimers, brand colours, alt text, reading level, capitals, pressure language, hashtags, emoji, numbers against facts (including expired facts), superlatives, health and absolute claims |
+| Code checks | Core | Done | 13 checks: terms, disclaimers, brand colours, alt text, reading level, capitals, pressure language, hashtags, emoji, numbers against facts (including expired facts), superlatives, health and absolute claims |
 | AI checks | Core | Done | Tone, messaging and claims (text); logo use, text inside images and alt-text suggestion (images). Google Gemini, as planned |
 | Proof check and labels | Core | Done | AI findings must quote real text and cite an approved rule that applies to the channel. Labels: verified by code, AI verified, needs human judgment |
 | Explained findings and fixes | Core | Done | Quote, rule with source page, reason, before-and-after fix. Accept, edit by hand, or dispute |

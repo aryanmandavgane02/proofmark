@@ -154,27 +154,27 @@ Order differs from the Round 1 plan on purpose: the checker is built before the 
 
 ### Phase 0 · Setup and first deploy
 
-- [ ] Accounts and keys (Aryan): GitHub repository, Supabase project with anonymous sign-ins on, Gemini API key, Vercel project
-- [ ] Scaffold Next.js, Tailwind, shadcn/ui, Supabase client, env handling
-- [ ] Repository hygiene: `.gitignore`, MIT licence, README stub, DISCLOSURES stub, this plan, the Round 1 PDF
-- [ ] Migration runner and CI (typecheck, lint, unit tests)
-- [ ] Gemini smoke test: model list, JSON output against a schema, image input, rate limits noted
-- [ ] First deploy
+- [x] Accounts and keys (Aryan): GitHub repository, Supabase project with anonymous sign-ins on, Gemini API key, Vercel project
+- [x] Scaffold Next.js, Tailwind, shadcn/ui, Supabase client, env handling *(shadcn/ui not used: a few plain Tailwind components in `src/components/ui.tsx` were enough)*
+- [x] Repository hygiene: `.gitignore`, MIT licence, README stub, DISCLOSURES stub, this plan, the Round 1 PDF
+- [x] Migration runner and CI (typecheck, lint, unit tests)
+- [x] Gemini smoke test: model list, JSON output against a schema, image input, rate limits noted
+- [x] First deploy
 
 **Done when:** the production URL shows the landing page, the first commits are pushed, and the Gemini smoke test returns valid JSON.
 
 ### Phase 1 · Walking skeleton — Round 1 phase 1
 
-- [ ] Database schema, row-level security, migration applied
-- [ ] Demo start: anonymous session, seeded private workspace, people switcher
-- [ ] Seed data v1: Urja Bites rules across six categories, facts, terms, palette, four sample drafts
-- [ ] New draft: channel, title, text, alt text, "load a sample"
-- [ ] Pipeline v0: normalise, banned and preferred terms, findings stored
-- [ ] Findings screen: highlighted text, finding cards with rule, source quote and page, reason, fix, label
-- [ ] Accept a fix (new version), dispute with a reason
-- [ ] Submit for review, reviewer queue, approve or request changes, audit events
-- [ ] Read-only Rulebook and Fact ledger pages
-- [ ] Landing page and first guided checklist
+- [x] Database schema, row-level security, migration applied
+- [x] Demo start: anonymous session, seeded private workspace, people switcher
+- [x] Seed data v1: Urja Bites rules across six categories, facts, terms, palette, four sample drafts
+- [x] New draft: channel, title, text, alt text, "load a sample"
+- [x] Pipeline v0: normalise, banned and preferred terms, findings stored
+- [x] Findings screen: highlighted text, finding cards with rule, source quote and page, reason, fix, label
+- [x] Accept a fix (new version), dispute with a reason
+- [x] Submit for review, reviewer queue, approve or request changes, audit events
+- [x] Read-only Rulebook and Fact ledger pages
+- [x] Landing page and first guided checklist
 
 **Done when (Round 1 wording):** on the live link, a creator's text is flagged with its rule and a reviewer approves it.
 
@@ -182,15 +182,15 @@ Order differs from the Round 1 plan on purpose: the checker is built before the 
 
 Each check is a pure function with unit tests.
 
-- [ ] Banned and preferred terms, product spellings and casing
-- [ ] Required disclaimers (trigger words require a set text)
-- [ ] Punctuation and shouting (exclamation marks, all-caps words)
-- [ ] Hashtag rules (count, capitalised words) and emoji rules
-- [ ] Reading level per channel
-- [ ] Alt text present and of useful length
-- [ ] Superlatives and absolute claims that need a supporting fact
-- [ ] Numbers compared with the fact ledger, expired and superseded facts
-- [ ] "Code checks only" mode
+- [x] Banned and preferred terms, product spellings and casing
+- [x] Required disclaimers (trigger words require a set text)
+- [x] Punctuation and shouting (exclamation marks, all-caps words)
+- [x] Hashtag rules (count, capitalised words) and emoji rules
+- [ ] Reading level per channel *(partial: one limit of 25 words per sentence on every channel; the per-channel averages are configured in the rule but not yet enforced)*
+- [x] Alt text present and of useful length
+- [x] Superlatives and absolute claims that need a supporting fact
+- [x] Numbers compared with the fact ledger, expired and superseded facts
+- [x] "Code checks only" mode
 
 **Done when:** the sample drafts produce the right code findings and at least 40 unit tests pass in CI.
 
@@ -198,37 +198,37 @@ Each check is a pure function with unit tests.
 
 ### Phase 3 · AI checks and proof check — part of Round 1 phase 3
 
-- [ ] Provider interface, Gemini implementation, mock provider, retry with back-off, usage log, per-workspace and global daily limits
-- [ ] Text request: tone, messaging, claims with verdict against the ledger, intent summary, suggested fixes, strict JSON schema
-- [ ] Proof check: exact quote match gives positions, rule or fact exists, is approved and applies to the channel, suggested fix re-checked by code checks
-- [ ] Labels, merge with code findings on the same text
-- [ ] Second-opinion pass for tone and messaging (first item in the cut order)
-- [ ] Intent card: confirm or edit
-- [ ] Stored results by fingerprint, sample drafts pre-stored from real runs
-- [ ] Failure mode: AI unavailable banner, code findings still shown, retry button
-- [ ] Transparency panel: model, requests used, time, stored-result hit, findings dropped by the proof check and why
+- [x] Provider interface, Gemini implementation, mock provider, retry with back-off, usage log, per-workspace and global daily limits *(no mock provider: checks are unit-tested as pure functions and the AI path is tested end to end)*
+- [x] Text request: tone, messaging, claims with verdict against the ledger, intent summary, suggested fixes, strict JSON schema
+- [x] Proof check: exact quote match gives positions, rule or fact exists, is approved and applies to the channel, suggested fix re-checked by code checks
+- [x] Labels, merge with code findings on the same text
+- [x] Second-opinion pass for tone and messaging (first item in the cut order)
+- [x] Intent card: confirm or edit
+- [x] Stored results by fingerprint, sample drafts pre-stored from real runs
+- [x] Failure mode: AI unavailable banner, code findings still shown, retry button
+- [x] Transparency panel: model, requests used, time, stored-result hit, findings dropped by the proof check and why
 
 **Done when:** the sample Instagram post returns tone, terminology, messaging, claims and accessibility findings with rule and fix, every AI finding has a verified quote, and with the API key removed the code findings still appear under a clear banner.
 
 ### Phase 4 · Images and visual identity — part of Round 1 phase 3
 
-- [ ] Upload straight to private storage, type and size limits, preview
-- [ ] Dominant colours against the palette (colour difference), finding with swatches and nearest brand colour
-- [ ] Image request: text inside the image (then checked like any other text), logo and imagery use against the reference logo, suggested alt text labelled as AI
-- [ ] Sample ad creative made during the window
+- [x] Upload straight to private storage, type and size limits, preview *(uploaded through the server, which checks the type and size and that the file really decodes as an image)*
+- [x] Dominant colours against the palette (colour difference), finding with swatches and nearest brand colour
+- [x] Image request: text inside the image (then checked like any other text), logo and imagery use against the reference logo, suggested alt text labelled as AI
+- [x] Sample ad creative made during the window
 
 **Done when (Round 1 wording):** demo content gets cited findings with fixes in all six categories.
 
 ### Phase 5 · Review workflow, complete — Round 1 phase 4
 
-- [ ] Statuses and submit rules, routing by risk with the reason shown
-- [ ] Reviewer queue and review screen, comments
-- [ ] Uphold or override a disputed finding, reason required
-- [ ] Approve or request changes
-- [ ] Version list with differences, only changed parts re-checked
-- [ ] Approval record: fingerprint, rulebook version, approver, overrides, AI services used
-- [ ] Edit after approval sends the draft back for re-approval
-- [ ] Audit trail view
+- [x] Statuses and submit rules, routing by risk with the reason shown
+- [x] Reviewer queue and review screen, comments
+- [x] Uphold or override a disputed finding, reason required
+- [x] Approve or request changes
+- [x] Version list with differences, only changed parts re-checked *(after an accepted fix, AI findings on unchanged text are reused; a hand edit is re-checked in full; code checks always re-run, in milliseconds)*
+- [x] Approval record: fingerprint, rulebook version, approver, overrides, AI services used
+- [x] Edit after approval sends the draft back for re-approval
+- [x] Audit trail view
 
 **Done when (Round 1 wording):** a draft passes a revision, a dispute and an approval, and a later edit needs re-approval.
 
@@ -236,11 +236,11 @@ Each check is a pure function with unit tests.
 
 ### Phase 6 · Brand setup — Round 1 phase 2
 
-- [ ] Rulebook screen: filter, approve, edit, reject, severity, channels, check parameters, publish version, version history
-- [ ] Fact ledger screen: add, edit, source, owner, expiry, restricted
-- [ ] Terminology and assets screens
-- [ ] Urja Bites brand guide PDF, made during the window from the seed rules so quotes and pages match
-- [ ] Import: upload PDF, text by page, AI drafts rules, code verifies each quote, drafts wait for approval. Stored result for the sample guide
+- [x] Rulebook screen: filter, approve, edit, reject, severity, channels, check parameters, publish version, version history *(rules are grouped by category instead of filtered; check parameters are not editable on screen)*
+- [x] Fact ledger screen: add, edit, source, owner, expiry, restricted
+- [x] Terminology and assets screens
+- [x] Urja Bites brand guide PDF, made during the window from the seed rules so quotes and pages match
+- [x] Import: upload PDF, text by page, AI drafts rules, code verifies each quote, drafts wait for approval. Stored result for the sample guide
 
 **Done when (Round 1 wording):** an uploaded brand PDF becomes an approved rulebook v1.
 
@@ -258,10 +258,10 @@ Each check is a pure function with unit tests.
 
 **A. Proof (user tests run alongside phases 6 and 7)**
 
-- [ ] User tests: link and task sent once Phase 5 is live, three to five people, five-question form, results in `docs/USER_TESTS.md`, top issues fixed
-- [ ] Guided checklist polish, loading, empty and error states, AI and data use page
-- [ ] Own-screen basics: labels, contrast, keyboard, phone width
-- [ ] Playwright test of the judge path, CI green
+- [x] User tests: link and task sent once Phase 5 is live, three to five people, five-question form, results in `docs/USER_TESTS.md`, top issues fixed *(five people, four questions; results in `docs/USER_TESTING.md`)*
+- [x] Guided checklist polish, loading, empty and error states, AI and data use page
+- [x] Own-screen basics: labels, contrast, keyboard, phone width *(automated: `e2e/accessibility.spec.ts`)*
+- [x] Playwright test of the judge path, CI green
 - [x] Scored test set: at least 20 cases with planted issues and clean controls, results in `eval/RESULTS.md` (issues caught, wrong flags, findings dropped by the proof check)
 - [x] Keep-alive ping, quota check
 - [ ] **Feature freeze** once Phase 7 is done, and no later than Wednesday night. Only fixes after this
@@ -270,8 +270,8 @@ Each check is a pure function with unit tests.
 
 - [x] README: try it in two minutes, feature status against the Round 1 plan, technology and implementation details, architecture, AI models, services, libraries and templates, data used, tests and scores, user testing, limits, changes from plan, three improvements, contribution
 - [x] `docs/ARCHITECTURE.md`, `docs/CHANGES_FROM_PLAN.md`, `DISCLOSURES.md`
-- [ ] Updated PDF with real screenshots
-- [ ] Three improvements for Round 3, confirmed or revised from user feedback, each with acceptance criteria
+- [x] Updated PDF with real screenshots
+- [x] Three improvements for Round 3, confirmed or revised from user feedback, each with acceptance criteria
 - [ ] Form answers drafted
 
 **C. Submit (Thursday morning, before 10:00)**

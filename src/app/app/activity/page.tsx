@@ -44,7 +44,7 @@ export default async function AuditTrail() {
             <span className="w-20 flex-none text-xs text-muted">{timeAgo(e.created_at)}</span>
             <span className="min-w-0 flex-1">
               <b>{who.get(e.person_id) ?? "System"}</b> {describeEvent(e.type, e.detail)}
-              {e.draft_id && <> · <Link className="text-primary hover:underline" href={`/app/drafts/${e.draft_id}`}>{title.get(e.draft_id) ?? "draft"}</Link></>}
+              {e.draft_id && <> · <Link className="text-primary underline underline-offset-2" href={`/app/drafts/${e.draft_id}`}>{title.get(e.draft_id) ?? "draft"}</Link></>}
             </span>
           </div>
         ))}

@@ -4,7 +4,7 @@ import { setCodeChecksOnly } from "@/app/actions";
 import { GEMINI_MODELS } from "@/lib/ai/gemini";
 
 const SERVICES = [
-  { name: "Google Gemini API", use: `AI checks for tone, messaging and claims, and the second opinion. Models: ${GEMINI_MODELS.join(", ")} (fallback).`, sent: "The draft text, the AI-checked rules and the approved, non-confidential facts. Never names, emails or confidential facts." },
+  { name: "Google Gemini API", use: `AI checks for tone, messaging and claims, and the second opinion; reading text in an image, checking logo use and suggesting alt text; drafting rules from an imported brand guide; proposing clearer wording for a rule flagged on the Insights page. Models: ${GEMINI_MODELS[0]}, with ${GEMINI_MODELS.slice(1).join(", ")} as fallback.`, sent: "The draft text and its image (with the brand's reference logo), the AI-checked rules and the approved, non-confidential facts; the text of a brand guide you import; and, when asked for clearer wording, the flagged phrases and the reasons given in disputes and overrides. Proofmark never adds the names or emails of people in your workspace, or confidential facts, to a request." },
   { name: "Supabase (Mumbai region)", use: "Database, sign-in and file storage, with row-level security per workspace.", sent: "Everything you save in Proofmark." },
   { name: "Vercel (Mumbai region)", use: "Hosts the app.", sent: "Web requests." },
 ];

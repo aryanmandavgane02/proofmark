@@ -283,6 +283,17 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   </div>
                   <p className="mt-2 font-semibold text-ink">&ldquo;{f.quote}&rdquo;</p>
                   <p className="mt-1 text-sm text-ink"><b>Why:</b> {f.message}</p>
+                  {f.field === "image" && f.label === "code" && (f.message.match(/#[0-9A-F]{6}\b/gi)?.length ?? 0) > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted" aria-hidden>
+                      {[...new Set([...f.message.matchAll(/#[0-9A-F]{6}\b/gi)].map((m) => m[0].toUpperCase()))].map((hex, i) => (
+                        <span key={hex} className="flex items-center gap-1.5">
+                          {i === 1 && <span className="mr-1">→</span>}
+                          <span className="inline-block h-6 w-10 rounded border border-line" style={{ backgroundColor: hex }} />
+                          <span className="font-mono">{hex}</span>{i === 0 ? " (in the image)" : " (brand colour)"}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {rule && (
                     <details className="mt-2 text-sm">
                       <summary className="cursor-pointer text-primary"><b>{rule.code}</b> · {rule.title} · {rule.builtin ? rule.source_doc : `${rule.source_doc}, p. ${rule.source_page}`}</summary>
