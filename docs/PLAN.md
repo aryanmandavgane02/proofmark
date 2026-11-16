@@ -262,8 +262,8 @@ Each check is a pure function with unit tests.
 - [ ] Guided checklist polish, loading, empty and error states, AI and data use page
 - [ ] Own-screen basics: labels, contrast, keyboard, phone width
 - [ ] Playwright test of the judge path, CI green
-- [ ] Scored test set: at least 20 cases with planted issues and clean controls, results in `eval/RESULTS.md` (issues caught, wrong flags, findings dropped by the proof check)
-- [ ] Keep-alive ping, quota check
+- [x] Scored test set: at least 20 cases with planted issues and clean controls, results in `eval/RESULTS.md` (issues caught, wrong flags, findings dropped by the proof check)
+- [x] Keep-alive ping, quota check
 - [ ] **Feature freeze** once Phase 7 is done, and no later than Wednesday night. Only fixes after this
 
 **B. Packaging**
