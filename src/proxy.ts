@@ -4,6 +4,8 @@ import { createServerClient } from "@supabase/ssr";
 // Keeps the visitor's Supabase session fresh on every app request.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  // Without configuration there is no session to refresh; let the page render its own message.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return response;
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
       getAll: () => request.cookies.getAll(),
