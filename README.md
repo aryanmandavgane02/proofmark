@@ -97,4 +97,4 @@ npm test && npx playwright test && npm run rls-check && npm run eval
 
 ## Contribution and disclosures
 
-Built solo by Aryan Mandavgane with **Claude Code** (Anthropic) as a disclosed AI assistant for code, tests, seed data and documents, under his direction and review; commits it helped with carry a `Co-Authored-By` line. Services, libraries and AI use: [DISCLOSURES.md](DISCLOSURES.md). Round 2 build plan: [docs/PLAN.md](docs/PLAN.md). Round 1 plan: [docs/round1/](docs/round1/). Licence: MIT.
+Built solo by Aryan Mandavgane with **Claude Code** (Anthropic) as a disclosed AI assistant for code, tests, seed data and documents, under his direction and review; commits it helped with carry a `Co-Authored-By` line. Services, libraries and AI use: [DISCLOSURES.md](DISCLOSURES.md). Round 2 report (PDF): [docs/round2/](docs/round2/). Round 2 build plan: [docs/PLAN.md](docs/PLAN.md). Round 1 plan: [docs/round1/](docs/round1/). Round 3 preparation: [docs/ROUND3.md](docs/ROUND3.md). Licence: MIT.
