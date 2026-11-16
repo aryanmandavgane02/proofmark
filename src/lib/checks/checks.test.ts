@@ -144,6 +144,9 @@ describe("claims", () => {
     expect(f.severity).toBe("blocker");
     expect(f.fix_text).toBe("The protein bar 35,000+ customers trust");
   });
+  it("CLAIM-02 stops the product name at small words", () => {
+    expect(superlativesCheck(ctx("The best bar in India."), rule("CLAIM-02"))[0].fix_text).toBe("The bar 35,000+ customers trust");
+  });
   it("CLAIM-02 leaves ordinary words alone", () => {
     expect(superlativesCheck(ctx("Our most-loved flavour is back."), rule("CLAIM-02"))).toHaveLength(0);
   });

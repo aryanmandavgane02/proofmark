@@ -82,7 +82,7 @@ export function NewDraftForm({ samples, initial }: { samples: SeedDraft[]; initi
               {preview && (
                 <div className="mt-2 flex items-start gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={preview} alt="Preview of the image to check" className="h-32 w-32 rounded-lg border border-line object-cover" />
+                  <img src={preview} alt="Preview of the image to check" className="h-32 w-32 rounded-lg border border-line object-cover" onError={() => { setPreview(null); setSampleImage(false); setImgNote("This file does not look like a valid image. Choose another one."); if (fileRef.current) fileRef.current.value = ""; }} />
                   <button type="button" className="text-xs text-muted underline" onClick={() => { setPreview(null); setSampleImage(false); if (fileRef.current) fileRef.current.value = ""; }}>Remove image</button>
                 </div>
               )}

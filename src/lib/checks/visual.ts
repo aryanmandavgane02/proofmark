@@ -5,7 +5,10 @@ import { deltaE, hexToRgb, rgbToHex, saturation, type ColorShare } from "./color
 export function paletteCheck(colors: ColorShare[], ctx: CheckContext, rule: Rule): FindingDraft[] {
   const maxDelta = Number(rule.params.max_delta_e ?? 12);
   const minShare = Number(rule.params.min_share ?? 0.08);
-  if (!ctx.palette.length) return [];
+  if (!ctx.palette.length || !colors.length) return [];
+  // The rule is about large flat areas in designed graphics. In a photograph no single colour
+  // dominates, and natural colours (sky, skin, food) are not expected to match the palette.
+  if (isPhotograph(colors)) return [];
   const palette = ctx.palette.map((p) => ({ ...p, rgb: hexToRgb(p.hex) }));
   const out: FindingDraft[] = [];
   for (const c of colors) {
@@ -24,4 +27,9 @@ export function paletteCheck(colors: ColorShare[], ctx: CheckContext, rule: Rule
     });
   }
   return out;
+}
+
+/** A designed graphic has at least one large flat area of colour; a photograph does not. */
+export function isPhotograph(colors: ColorShare[]): boolean {
+  return (colors[0]?.share ?? 0) < 0.25;
 }

@@ -105,7 +105,7 @@ export function factsCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   return out;
 }
 
-const SUPERLATIVE = /(?:\b(?:India['’]s|the world['’]s|the country['’]s|the)\s+)?(?:#1|No\.?\s?1\b|number one|best|tastiest|healthiest|top-rated|leading|unbeatable)(?:\s+([a-z]+(?:\s[a-z]+)?))?/gi;
+const SUPERLATIVE = /(?:\b(?:India['’]s|the world['’]s|the country['’]s|the)\s+)?(?:#1|No\.?\s?1\b|number one|best|tastiest|healthiest|top-rated|leading|unbeatable)(?:\s+((?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+(?:\s(?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+)?))?/gi;
 
 /** CLAIM-02: rankings and superlatives need a cited source. */
 export function superlativesCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {

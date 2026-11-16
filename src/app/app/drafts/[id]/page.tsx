@@ -192,7 +192,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
           {run?.ai_status === "unavailable" && (
             <div role="status" className="rounded-xl border border-amber/40 bg-[#fff6e5] p-4 text-sm text-[#7a3d00]">
               <p className="font-semibold">AI checks did not run this time</p>
-              <p className="mt-1">{run.ai_error ?? "The AI service was unavailable."} Every code check below still ran, so claims, facts, terms and accessibility are covered.</p>
+              <p className="mt-1">{run.ai_error ?? "The AI service was unavailable."} Every code check below still ran, so claims, facts, terms and accessibility in the text are covered.{version!.image_path && " Text inside the image and logo use could not be checked, so look at the image yourself or run the checks again."}</p>
               <form action={rerunChecks} className="mt-2">
                 <input type="hidden" name="draft_id" value={id} />
                 <PendingButton className={btn.secondary} pendingText="Checking again…">Run the checks again</PendingButton>

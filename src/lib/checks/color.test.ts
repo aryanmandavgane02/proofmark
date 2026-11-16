@@ -29,6 +29,10 @@ describe("VIS-02 palette check", () => {
     expect(f.field).toBe("image");
     expect(f.fix_text).toMatch(/Saffron #F4A300/);
   });
+  it("does not judge photographs, where no colour dominates", () => {
+    const photo = [0.12, 0.11, 0.1, 0.09, 0.08].map((share, i) => ({ rgb: [40 * i, 200, 60] as [number, number, number], share }));
+    expect(paletteCheck(photo, ctx, rule)).toHaveLength(0);
+  });
   it("accepts brand colours, neutrals and small areas", () => {
     expect(paletteCheck([{ rgb: hexToRgb("#F4A300"), share: 0.6 }, { rgb: [255, 255, 255], share: 0.3 }, { rgb: hexToRgb("#1E88E5"), share: 0.02 }], ctx, rule)).toHaveLength(0);
   });
