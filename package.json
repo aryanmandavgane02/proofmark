@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx scripts/migrate.ts",
-    "warm": "NODE_OPTIONS=--conditions=react-server tsx scripts/warm-samples.ts"
+    "warm": "NODE_OPTIONS=--conditions=react-server tsx scripts/warm-samples.ts",
+    "rls-check": "NODE_OPTIONS=--conditions=react-server tsx scripts/rls-check.ts"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",

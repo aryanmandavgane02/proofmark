@@ -10,7 +10,7 @@ export default async function StartHere() {
   const s = await requireSession();
   const ws = s.workspace.id;
   const [{ data: drafts }, { data: decisions }, { data: events }] = await Promise.all([
-    s.supabase.from("drafts").select("id, title, channel, status, updated_at, sample_key").eq("workspace_id", ws).order("updated_at", { ascending: false }),
+    s.supabase.from("drafts").select("id, title, channel, status, updated_at, sample_key, reviewer_id").eq("workspace_id", ws).order("updated_at", { ascending: false }),
     s.supabase.from("decisions").select("action").eq("workspace_id", ws).eq("is_sample", false),
     s.supabase.from("events").select("type").eq("workspace_id", ws),
   ]);
@@ -19,12 +19,15 @@ export default async function StartHere() {
   const firstDraft = (drafts ?? []).find((d) => d.sample_key === "diwali-post") ?? drafts?.[drafts.length - 1];
   const draftHref = firstDraft ? `/app/drafts/${firstDraft.id}` : "/app/drafts/new?sample=diwali-post";
 
+  const inReview = (drafts ?? []).find((d) => d.status === "in_review");
+  const reviewerName = s.people.find((p) => p.id === inReview?.reviewer_id)?.name ?? "Ritu";
+
   const steps: Step[] = [
     { title: "Check a draft", detail: "Load the sample Diwali Instagram post and press Check. Findings appear in seconds, each with its rule and a fix.", done: !!drafts?.length, person: "Arjun", href: "/app/drafts/new?sample=diwali-post", cta: "Open the sample post" },
     { title: "Accept a suggested fix", detail: "Pick a finding and press Accept fix. Proofmark saves a new version and checks it again.", done: acts.has("accept"), person: "Arjun", href: draftHref, cta: "Go to the draft" },
     { title: "Dispute a finding", detail: "Disagree with one, for example the tone finding, and give a reason. A reviewer will decide.", done: acts.has("dispute"), person: "Arjun", href: draftHref, cta: "Go to the draft" },
     { title: "Submit for review", detail: "Blockers must be fixed or disputed first. Proofmark routes the draft to the right reviewer and says why.", done: types.has("draft.submitted"), person: "Arjun", href: draftHref, cta: "Go to the draft" },
-    { title: "Review and approve", detail: "Switch to the assigned reviewer, resolve the dispute with a reason, then approve. The approval is tied to this exact version.", done: types.has("draft.approved"), person: "Ritu", href: "/app/review", cta: "Open the review queue" },
+    { title: "Review and approve", detail: "Switch to the assigned reviewer, resolve any dispute with a reason, then approve. The approval is tied to this exact version.", done: types.has("draft.approved"), person: reviewerName, href: inReview ? `/app/drafts/${inReview.id}` : "/app/review", cta: inReview ? "Review the draft" : "Open the review queue" },
   ];
   const next = steps.find((st) => !st.done);
   const doneCount = steps.filter((st) => st.done).length;
@@ -50,12 +53,12 @@ export default async function StartHere() {
                 <span aria-hidden className={`mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full text-xs font-bold ${st.done ? "bg-accent text-white" : "bg-[#e2e6f6] text-primary-d"}`}>
                   {st.done ? "✓" : i + 1}
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[12rem] flex-1">
                   <p className="font-semibold text-ink">{st.title} <span className="font-normal text-muted">· as {st.person}</span></p>
                   <p className="text-sm text-muted">{st.detail}</p>
                 </div>
                 {person && (
-                  <form action={switchPerson}>
+                  <form action={switchPerson} className="w-full pl-9 sm:w-auto sm:pl-0">
                     <input type="hidden" name="person_id" value={person.id} />
                     <input type="hidden" name="back" value={st.href} />
                     <button className={isNext ? btn.primary : btn.secondary}>{st.done ? "Open again" : st.cta}</button>

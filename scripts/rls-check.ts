@@ -1,0 +1,64 @@
+// Proves the database enforces access rules: run with `npm run rls-check`.
+// Signs in two anonymous visitors, gives each a demo workspace, then tries actions that must be refused.
+import { config } from "dotenv";
+config({ path: ".env.local", quiet: true });
+import { createClient } from "@supabase/supabase-js";
+import { seedDemoWorkspace } from "../src/lib/seed/seed-workspace";
+
+const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+let failures = 0;
+const check = (name: string, ok: boolean) => { console.log(`${ok ? "PASS" : "FAIL"}  ${name}`); if (!ok) failures++; };
+
+async function visitor() {
+  const c = createClient(URL, ANON, { auth: { persistSession: false } });
+  const { data, error } = await c.auth.signInAnonymously();
+  if (error) throw error;
+  const ws = await seedDemoWorkspace(data.user!.id);
+  return { c, ws, uid: data.user!.id };
+}
+
+async function main() {
+  const a = await visitor();
+  const b = await visitor();
+  const people = (await a.c.from("people").select("id, name, role").eq("workspace_id", a.ws)).data!;
+  const id = (n: string) => people.find((p) => p.name === n)!.id;
+  const actAs = (n: string) => a.c.from("members").update({ active_person_id: id(n) }).eq("workspace_id", a.ws).eq("user_id", a.uid);
+
+  check("visitor B cannot read visitor A's workspace", ((await b.c.from("rules").select("id").eq("workspace_id", a.ws)).data ?? []).length === 0);
+  check("visitor B cannot read visitor A's people", ((await b.c.from("people").select("id").eq("workspace_id", a.ws)).data ?? []).length === 0);
+
+  await actAs("Arjun");
+  const factsCreator = (await a.c.from("facts").select("code, restricted").eq("workspace_id", a.ws)).data!;
+  check("creator cannot see confidential facts", factsCreator.length > 0 && !factsCreator.some((f) => f.restricted));
+  check("creator cannot edit rules", ((await a.c.from("rules").update({ severity: "minor" }).eq("workspace_id", a.ws).select("id")).data ?? []).length === 0);
+  check("creator cannot add facts", !!(await a.c.from("facts").insert({ workspace_id: a.ws, code: "F-99", statement: "x", kind: "text", source: "x", owner: "x" })).error);
+
+  const { data: draft } = await a.c.from("drafts").insert({ workspace_id: a.ws, title: "t", channel: "email", created_by: id("Arjun") }).select("id").single();
+  const { data: v } = await a.c.from("draft_versions").insert({ workspace_id: a.ws, draft_id: draft!.id, version: 1, body: "Hi", fingerprint: "f" }).select("id").single();
+  check("creator cannot mark a draft approved", ((await a.c.from("drafts").update({ status: "approved" }).eq("id", draft!.id).select("id")).data ?? []).length === 0);
+  check("creator cannot create an approval", !!(await a.c.from("approvals").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, fingerprint: "f", rulebook_version: 1 })).error);
+  check("creator cannot record an override", !!(await a.c.from("decisions").insert({ workspace_id: a.ws, draft_id: draft!.id, rule_code: "TONE-04", action: "override" })).error);
+  check("creator cannot switch to a person in another workspace", ((await a.c.from("members").update({ active_person_id: (await b.c.from("people").select("id").eq("workspace_id", b.ws).limit(1)).data![0].id }).eq("workspace_id", a.ws).select("user_id")).data ?? []).length === 0);
+
+  await actAs("Ritu");
+  const factsReviewer = (await a.c.from("facts").select("code, restricted").eq("workspace_id", a.ws)).data!;
+  check("reviewer can see confidential facts", factsReviewer.some((f) => f.restricted));
+  check("reviewer can create an approval", !(await a.c.from("approvals").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, fingerprint: "f", rulebook_version: 1 })).error);
+
+  await a.c.from("events").insert({ workspace_id: a.ws, type: "test" });
+  const before = (await a.c.from("events").select("id").eq("workspace_id", a.ws)).data!.length;
+  await a.c.from("events").delete().eq("workspace_id", a.ws);
+  await a.c.from("events").update({ type: "tampered" }).eq("workspace_id", a.ws);
+  const after = (await a.c.from("events").select("id, type").eq("workspace_id", a.ws)).data!;
+  check("audit trail cannot be deleted or edited", after.length === before && !after.some((e) => e.type === "tampered"));
+  check("AI result store is not readable by visitors", ((await a.c.from("check_cache").select("key").limit(1)).data ?? []).length === 0);
+  check("AI usage counter cannot be called by visitors", !!(await a.c.rpc("take_ai_request", { p_scope: "x", p_limit: 999 })).error);
+
+  // clean up the two test workspaces
+  const { createClient: admin } = await import("@supabase/supabase-js");
+  await admin(URL, process.env.SUPABASE_SERVICE_ROLE_KEY!).from("workspaces").delete().in("id", [a.ws, b.ws]);
+  console.log(failures ? `\n${failures} check(s) FAILED` : "\nAll access rules hold.");
+  process.exit(failures ? 1 : 0);
+}
+main().catch((e) => { console.error(e); process.exit(1); });
