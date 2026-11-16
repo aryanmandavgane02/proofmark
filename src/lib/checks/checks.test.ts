@@ -1,0 +1,226 @@
+import { describe, expect, it } from "vitest";
+import { runCodeChecks } from "./index";
+import { allCapsCheck, emojiCheck, glossaryCheck, hashtagCheck, pressureCheck, readabilityCheck } from "./style";
+import { absolutesCheck, disclaimerCheck, extractNumberClaims, factsCheck, healthClaimsCheck, superlativesCheck } from "./claims";
+import { altTextCheck } from "./accessibility";
+import { sentences, findPhrase, formatIndian, dayMonth } from "./text";
+import { seedContext, seedRules } from "@/lib/seed/context";
+import { SAMPLE_DRAFTS } from "@/lib/seed/urja";
+import type { Channel, Rule } from "./types";
+
+const rule = (code: string): Rule => seedRules().find((r) => r.code === code)!;
+const ctx = (body: string, channel: Channel = "linkedin", alt_text = "") => seedContext({ body, channel, alt_text });
+
+describe("text helpers", () => {
+  it("splits sentences with exact positions", () => {
+    const t = "One. Two two!  Three?";
+    const s = sentences(t);
+    expect(s.map((x) => x.text)).toEqual(["One.", "Two two!", "Three?"]);
+    for (const x of s) expect(t.slice(x.start, x.end)).toBe(x.text);
+  });
+  it("treats line breaks as sentence ends", () => {
+    expect(sentences("Subject: hello\nBody here.").map((s) => s.text)).toEqual(["Subject: hello", "Body here."]);
+  });
+  it("finds whole phrases only", () => {
+    expect(findPhrase("cheapest and cheap", "cheap").map((m) => m.start)).toEqual([13]);
+  });
+  it("formats Indian numbers and dates", () => {
+    expect(formatIndian(35000)).toBe("35,000");
+    expect(formatIndian(150000)).toBe("1,50,000");
+    expect(dayMonth("2026-11-30")).toBe("30 November");
+  });
+});
+
+describe("TERM-01 glossary", () => {
+  it("flags words to avoid and suggests the preferred term", () => {
+    const f = glossaryCheck(ctx("Our sugar-free bar is a guilt-free treat."), rule("TERM-01"));
+    expect(f.map((x) => x.quote)).toEqual(["sugar-free", "guilt-free"]);
+    expect(f[0].fix_text).toBe("no added sugar");
+  });
+  it("keeps sentence-start capitals in the fix", () => {
+    expect(glossaryCheck(ctx("Sugar-free and tasty."), rule("TERM-01"))[0].fix_text).toBe("No added sugar");
+  });
+  it("is case-sensitive for the brand name", () => {
+    expect(glossaryCheck(ctx("Love Urja bites!"), rule("TERM-01"))[0].fix_text).toBe("Urja Bites");
+    expect(glossaryCheck(ctx("Love Urja Bites."), rule("TERM-01"))).toHaveLength(0);
+  });
+  it("ignores the brand hashtag", () => {
+    expect(glossaryCheck(ctx("Try it #UrjaBites"), rule("TERM-01"))).toHaveLength(0);
+  });
+  it("gives exact positions", () => {
+    const body = "A cheap snack.";
+    const [f] = glossaryCheck(ctx(body), rule("TERM-01"));
+    expect(body.slice(f.start!, f.end!)).toBe("cheap");
+  });
+});
+
+describe("TONE checks", () => {
+  it("TONE-02 flags long sentences only", () => {
+    const long = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ") + ".";
+    expect(readabilityCheck(ctx(`Short one. ${long}`), rule("TONE-02"))).toHaveLength(1);
+    expect(readabilityCheck(ctx("Short one. Another short one."), rule("TONE-02"))).toHaveLength(0);
+  });
+  it("TONE-03 flags shouting but allows listed acronyms and codes", () => {
+    const f = allCapsCheck(ctx("This is AMAZING. Pay by UPI with code URJA15. T&C apply."), rule("TONE-03"));
+    expect(f.map((x) => x.quote)).toEqual(["AMAZING"]);
+    expect(f[0].fix_text).toBe("Amazing");
+  });
+  it("TONE-04 rewrites pressure language using the live offer's end date", () => {
+    const [f] = pressureCheck(ctx("Great bars. Hurry, offer ends soon!!!"), rule("TONE-04"));
+    expect(f.quote).toBe("Hurry, offer ends soon!!!");
+    expect(f.fix_text).toBe("Offer ends 30 November.");
+    expect(f.fact_code).toBe("F-13");
+  });
+  it("TONE-04 flags repeated exclamation marks", () => {
+    const f = pressureCheck(ctx("So tasty!!"), rule("TONE-04"));
+    expect(f).toHaveLength(1);
+    expect(f[0].fix_text).toBe("!");
+  });
+  it("TONE-04 allows a single exclamation mark", () => {
+    expect(pressureCheck(ctx("So tasty!"), rule("TONE-04"))).toHaveLength(0);
+  });
+});
+
+describe("SOC checks", () => {
+  it("SOC-01 reports count, missing brand tag and casing in one finding", () => {
+    const [f] = hashtagCheck(ctx("Snack time #protein #fitness #healthysnacks #diwali", "instagram"), rule("SOC-01"));
+    expect(f.message).toMatch(/4 hashtags/);
+    expect(f.message).toMatch(/#UrjaBites is missing/);
+    expect(f.message).toMatch(/#healthysnacks/);
+    expect(f.fix_text).toBe("#Protein #Fitness #UrjaBites");
+  });
+  it("SOC-01 does not treat #1 as a hashtag", () => {
+    expect(hashtagCheck(ctx("India's #1 snack #UrjaBites", "instagram"), rule("SOC-01"))).toHaveLength(0);
+  });
+  it("SOC-01 passes a compliant set", () => {
+    expect(hashtagCheck(ctx("Hi #UrjaBites #MadeInIndia", "instagram"), rule("SOC-01"))).toHaveLength(0);
+  });
+  it("SOC-02 flags more than two emoji", () => {
+    expect(emojiCheck(ctx("Yum 🍫🔥💪", "instagram"), rule("SOC-02"))).toHaveLength(1);
+    expect(emojiCheck(ctx("Yum 🍫🔥", "instagram"), rule("SOC-02"))).toHaveLength(0);
+  });
+});
+
+describe("claims", () => {
+  it("extracts number claims with units", () => {
+    const c = extractNumberClaims("Trusted by 50,000+ gym-goers. 20% off. Only ₹499. 15 g of protein. Rated 4.8/5.");
+    expect(c.map((x) => [x.unit, x.value])).toEqual([["count", 50000], ["%", 20], ["inr", 499], ["g", 15], ["rating", 4.8]]);
+  });
+  it("parses k and lakh", () => {
+    expect(extractNumberClaims("Loved by 40k fans")[0].value).toBe(40000);
+    expect(extractNumberClaims("Over 1 lakh customers")[0].value).toBe(100000);
+  });
+  it("CLAIM-01 flags a count above the approved fact and suggests the fact", () => {
+    const [f] = factsCheck(ctx("Trusted by 50,000+ gym-goers."), rule("CLAIM-01"));
+    expect(f.fact_code).toBe("F-12");
+    expect(f.fix_text).toBe("35,000+ customers");
+  });
+  it("CLAIM-01 accepts a count at or below the fact", () => {
+    expect(factsCheck(ctx("We just crossed 35,000 customers."), rule("CLAIM-01"))).toHaveLength(0);
+    expect(factsCheck(ctx("Over 30,000 customers love it."), rule("CLAIM-01"))).toHaveLength(0);
+  });
+  it("CLAIM-01 catches an expired offer and points to the current one", () => {
+    const [f] = factsCheck(ctx("Get 15% off this week."), rule("CLAIM-01"));
+    expect(f.fact_code).toBe("F-14");
+    expect(f.message).toMatch(/outdated/);
+    expect(f.fix_text).toBe("20% off");
+  });
+  it("CLAIM-01 accepts the current offer", () => {
+    expect(factsCheck(ctx("Get 20% off the 6-bar box."), rule("CLAIM-01"))).toHaveLength(0);
+  });
+  it("CLAIM-01 ignores percentages that are not offers", () => {
+    expect(factsCheck(ctx("Made with 100% natural cocoa."), rule("CLAIM-01"))).toHaveLength(0);
+  });
+  it("CLAIM-01 checks protein grams and prices", () => {
+    expect(factsCheck(ctx("Packed with 15 g of protein."), rule("CLAIM-01"))[0].fix_text).toBe("12 g of protein");
+    expect(factsCheck(ctx("A box costs ₹499."), rule("CLAIM-01"))[0].fix_text).toBe("₹540");
+    expect(factsCheck(ctx("A box costs ₹540."), rule("CLAIM-01"))).toHaveLength(0);
+  });
+  it("CLAIM-01 flags a rating that does not match", () => {
+    expect(factsCheck(ctx("Rated 4.9 stars by buyers."), rule("CLAIM-01"))[0].fact_code).toBe("F-16");
+  });
+  it("CLAIM-02 flags superlatives and proposes a fact-based line", () => {
+    const [f] = superlativesCheck(ctx("India's #1 protein bar, now in Pune."), rule("CLAIM-02"));
+    expect(f.severity).toBe("blocker");
+    expect(f.fix_text).toBe("The protein bar 35,000+ customers trust");
+  });
+  it("CLAIM-02 leaves ordinary words alone", () => {
+    expect(superlativesCheck(ctx("Our most-loved flavour is back."), rule("CLAIM-02"))).toHaveLength(0);
+  });
+  it("CLAIM-03 flags health claims but not the word treat", () => {
+    const f = healthClaimsCheck(ctx("It cures fatigue and boosts immunity. A tasty treat."), rule("CLAIM-03"));
+    expect(f.map((x) => x.quote)).toEqual(["cures", "boosts immunity"]);
+  });
+  it("ADV-01 flags guarantees", () => {
+    const [f] = absolutesCheck(ctx("It is 100% guaranteed to keep you full."), rule("ADV-01"));
+    expect(f.quote).toBe("100% guaranteed to");
+    expect(f.fix_text).toBe("made to");
+  });
+  it("DISC-01 asks for T&C on the actual offer sentence", () => {
+    const [f] = disclaimerCheck(ctx("Hurry, offer ends soon. Grab 20% off this Diwali."), rule("DISC-01"));
+    expect(f.quote).toBe("Grab 20% off this Diwali.");
+    expect(f.fix_text).toBe("Grab 20% off this Diwali. T&C apply.");
+  });
+  it("DISC-01 is satisfied when T&C is present", () => {
+    expect(disclaimerCheck(ctx("Grab 20% off. T&C apply."), rule("DISC-01"))).toHaveLength(0);
+  });
+});
+
+describe("A11Y-01 alt text", () => {
+  it("requires alt text on visual channels", () => {
+    expect(altTextCheck(ctx("Hi", "instagram", ""), rule("A11Y-01"))[0].field).toBe("alt_text");
+  });
+  it("does not require it for email without an image", () => {
+    expect(altTextCheck(ctx("Hi", "email", ""), rule("A11Y-01"))).toHaveLength(0);
+  });
+  it("rewrites 'image of' openings", () => {
+    const [f] = altTextCheck(ctx("Hi", "instagram", "Image of two bars on a plate"), rule("A11Y-01"));
+    expect(f.fix_text).toBe("Two bars on a plate");
+  });
+  it("accepts a good description", () => {
+    expect(altTextCheck(ctx("Hi", "instagram", "Two Urja Bites bars on a cream plate"), rule("A11Y-01"))).toHaveLength(0);
+  });
+});
+
+describe("whole pipeline on the sample drafts", () => {
+  const run = (key: string) => {
+    const d = SAMPLE_DRAFTS.find((s) => s.key === key)!;
+    return runCodeChecks(seedContext({ body: d.body, alt_text: d.alt_text, channel: d.channel }));
+  };
+  it("the clean control has no findings", () => {
+    expect(run("website")).toHaveLength(0);
+  });
+  it("the Diwali post finds issues in claims, tone, messaging and accessibility", () => {
+    const cats = new Set(run("diwali-post").map((f) => f.category));
+    expect([...cats].sort()).toEqual(["accessibility", "claims", "messaging", "tone"]);
+  });
+  it("the newsletter finds the expired offer, the wrong protein figure and the health claims", () => {
+    const codes = run("newsletter").map((f) => `${f.rule_code}${f.fact_code ? "/" + f.fact_code : ""}`);
+    expect(codes).toEqual(expect.arrayContaining(["CLAIM-01/F-14", "CLAIM-01/F-10", "CLAIM-03", "ADV-01", "DISC-01", "TONE-02"]));
+  });
+  it("blockers come first", () => {
+    const sev = run("newsletter").map((f) => f.severity);
+    expect(sev.indexOf("minor")).toBeGreaterThan(sev.lastIndexOf("blocker"));
+  });
+  it("every finding's offsets match its quote", () => {
+    for (const d of SAMPLE_DRAFTS) {
+      for (const f of runCodeChecks(seedContext({ body: d.body, alt_text: d.alt_text, channel: d.channel }))) {
+        if (f.field === "body" && f.start != null) expect(d.body.slice(f.start, f.end!)).toBe(f.quote);
+      }
+    }
+  });
+  it("every finding has a rule and a suggested correction", () => {
+    for (const d of SAMPLE_DRAFTS) {
+      for (const f of runCodeChecks(seedContext({ body: d.body, alt_text: d.alt_text, channel: d.channel }))) {
+        expect(f.rule_code).toBeTruthy();
+        expect(f.fix_text).toBeTruthy();
+      }
+    }
+  });
+  it("rules outside their channel do not run", () => {
+    expect(runCodeChecks(ctx("Hi #a #b #c #d #e", "email")).some((f) => f.rule_code === "SOC-01")).toBe(false);
+  });
+  it("is deterministic", () => {
+    expect(run("diwali-post")).toEqual(run("diwali-post"));
+  });
+});

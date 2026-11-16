@@ -5,7 +5,7 @@ export type Span = { text: string; start: number; end: number };
 /** Splits text into sentences, keeping exact positions. Line breaks also end a sentence. */
 export function sentences(text: string): Span[] {
   const out: Span[] = [];
-  const re = /[^.!?\n]+(?:[.!?]+|$)/g;
+  const re = /[^.!?\n]+(?:[.!?]+|(?=\n)|$)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     const raw = m[0];
