@@ -8,7 +8,7 @@ test("insights: real disputes and overrides flag a rule, and clearer wording is 
   await expect(page).toHaveURL(/\/app$/);
 
   // The page is useful on a first visit: sample history, labelled, already flags MSG-01
-  await page.getByRole("link", { name: "Insights" }).click();
+  await page.getByRole("link", { name: "Insights", exact: true }).click();
   await expect(page.getByText(/sample findings/)).toBeVisible();
   await expect(page.locator("#rule-MSG-01")).toContainText("May be unclear");
   await expect(page.getByText("Sample", { exact: true }).first()).toBeVisible();
