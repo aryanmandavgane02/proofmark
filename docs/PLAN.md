@@ -246,11 +246,11 @@ Each check is a pure function with unit tests.
 
 ### Phase 7 · Insights — Round 1 phase 5
 
-- [ ] Sample history, labelled as such, so the page is never empty
-- [ ] Repeated mistakes by rule, category and channel
-- [ ] Rules that may be unclear: override and dispute counts, flag above a threshold, clearer wording proposed, accept publishes a new rulebook version
-- [ ] Missing facts: unsupported claims grouped, with "add fact"
-- [ ] Decisions stored as test cases, count per rule
+- [x] Sample history, labelled as such, so the page is never empty
+- [x] Repeated mistakes by rule, category and channel
+- [x] Rules that may be unclear: override and dispute counts, flag above a threshold, clearer wording proposed, accept publishes a new rulebook version
+- [x] Missing facts: unsupported claims grouped, with "add fact"
+- [x] Decisions stored as test cases, count per rule
 
 **Done when (Round 1 wording):** a rule is flagged as unclear from real decisions.
 
@@ -333,3 +333,6 @@ Then, if still behind: guide import accepts pasted guideline text only, email si
 | Mon 16 Nov | Sample drafts served from stored results of real runs | The free AI tier is rate-limited. Stored results are part of the Round 1 design |
 | Mon 16 Nov | Phases, not clock times | Aryan works around other commitments; only the deadline is fixed |
 | Mon 16 Nov | Claude may commit and push to `main` after each working step | Keeps production current and history inside the window |
+| Mon 16 Nov | Events, comments, decisions and approvals are written by the server only | Direct database writes could forge someone else's name or fake the disputes that Insights counts |
+| Mon 16 Nov | Insights sample history lives in code, labelled "sample", never in the database | The page is useful on a first visit without polluting drafts, approvals or the audit trail |
+| Mon 16 Nov | Unclear-rule flag: 2 overrides or 3 disputes, and at least 25% of the rule's findings | Simple enough to explain on the page; pushback before the manager's last review stops counting |

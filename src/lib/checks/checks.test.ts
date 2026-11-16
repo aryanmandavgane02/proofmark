@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runCodeChecks } from "./index";
-import { allCapsCheck, emojiCheck, glossaryCheck, hashtagCheck, pressureCheck, readabilityCheck } from "./style";
+import { allCapsCheck, emojiCheck, glossaryCheck, hashtagCheck, pressureCheck, readabilityCheck, withoutPressure } from "./style";
 import { absolutesCheck, disclaimerCheck, extractNumberClaims, factsCheck, healthClaimsCheck, superlativesCheck } from "./claims";
 import { altTextCheck } from "./accessibility";
 import { sentences, findPhrase, formatIndian, dayMonth } from "./text";
@@ -70,6 +70,15 @@ describe("TONE checks", () => {
     expect(f.quote).toBe("Hurry, offer ends soon!!!");
     expect(f.fix_text).toBe("Offer ends 30 November.");
     expect(f.fact_code).toBe("F-13");
+  });
+  it("TONE-04 fixes read naturally, and a sentence that is only pressure is removed, not replaced with a dot", () => {
+    expect(withoutPressure("Last chance to try the Diwali box.", "last chance")).toBe("try the Diwali box.");
+    expect(withoutPressure("Hurry, our Cocoa Crunch bars are back!", "hurry")).toBe("our Cocoa Crunch bars are back.");
+    expect(withoutPressure("Don't miss our new Peanut Power bar.", "don't miss")).toBe("Try our new Peanut Power bar.");
+    expect(withoutPressure("Act now.", "act now")).toBeNull();
+    const [f] = pressureCheck(ctx("Great bars for your desk. Act now."), rule("TONE-04"));
+    expect(f).toMatchObject({ quote: "Act now.", fix_kind: "none" });
+    expect(pressureCheck(ctx("Last chance to try the Diwali box."), rule("TONE-04"))[0].fix_text).toBe("Try the Diwali box.");
   });
   it("TONE-04 flags repeated exclamation marks", () => {
     const f = pressureCheck(ctx("So tasty!!"), rule("TONE-04"));

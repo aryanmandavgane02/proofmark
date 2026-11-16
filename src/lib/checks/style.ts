@@ -68,6 +68,17 @@ export function allCapsCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   return out;
 }
 
+/** The sentence without its pressure phrase, or null when nothing worth keeping is left (e.g. "Act now."). */
+export function withoutPressure(sentence: string, phrase: string): string | null {
+  const esc = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]");
+  let rest = sentence.replace(new RegExp(`\\b${esc}\\b`, "i"), "").replace(/!+/g, ".").replace(/^[\s,:;–—-]+/, "").replace(/\s+([.,])/g, "$1").trim();
+  if (/^don['’]?t miss$/i.test(phrase)) rest = rest.replace(/^(?:out on\s+)?/i, "Try ");
+  rest = rest.replace(/^to\s+/i, "");
+  const words = rest.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
+  if (words.length < 3) return null;
+  return /[.?]$/.test(rest) ? rest : `${rest}.`;
+}
+
 /** TONE-04: pressure phrases and repeated exclamation marks. */
 export function pressureCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   const phrases = (rule.params.phrases as string[]) ?? [];
@@ -84,7 +95,7 @@ export function pressureCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
       if (!s || coveredSentences.has(s.start)) continue;
       coveredSentences.add(s.start);
       const aboutOffer = /offer|ends|sale|deal/i.test(s.text);
-      const fix = aboutOffer && activeOffer?.expires_on ? `Offer ends ${dayMonth(activeOffer.expires_on)}.` : s.text.replace(new RegExp(phrase, "i"), "").replace(/!+/g, ".").replace(/^[\s,]+/, "").trim();
+      const fix = aboutOffer && activeOffer?.expires_on ? `Offer ends ${dayMonth(activeOffer.expires_on)}.` : withoutPressure(s.text, phrase);
       out.push({
         ...base(rule),
         fact_code: aboutOffer && activeOffer ? activeOffer.code : null,
@@ -92,8 +103,8 @@ export function pressureCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
         start: s.start,
         end: s.end,
         message: `“${m.text}” is pressure language${/!{2,}/.test(s.text) ? ", and the sentence has more than one exclamation mark" : ""}.${aboutOffer && activeOffer ? ` State the real end date instead (fact ${activeOffer.code}).` : ""}`,
-        fix_kind: "replace",
-        fix_text: capitaliseLike(s.text, fix),
+        fix_kind: fix ? "replace" : "none",
+        fix_text: fix ? capitaliseLike(s.text, fix) : "Remove this sentence: without the pressure phrase it says nothing.",
       });
     }
   }

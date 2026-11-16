@@ -20,6 +20,9 @@ export function describeEvent(type: string, detail: Record<string, unknown>): st
     case "rule.approved": return `approved rule ${detail.code}.`;
     case "rule.rejected": return `rejected or retired rule ${detail.code}.`;
     case "rule.edited": return `edited rule ${detail.code}.`;
+    case "rule.clarity_proposed": return `asked the AI for clearer wording of ${detail.code} (${detail.disputed} disputed, ${detail.overridden} overridden).`;
+    case "rule.clarified": return `reworded ${detail.code} and published rulebook v${detail.version}.`;
+    case "rule.wording_kept": return `kept the wording of ${detail.code} after reviewing the pushback.`;
     case "fact.added": return `added fact ${detail.code}.`;
     case "fact.edited": return `edited fact ${detail.code}.`;
     case "term.added": return `added the glossary term \u201c${detail.preferred}\u201d.`;

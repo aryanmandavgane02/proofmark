@@ -75,16 +75,16 @@ export function cacheKey(kind: string, ctx: CheckContext, extra = ""): string {
   return createHash("sha256").update(JSON.stringify([PROMPT_VERSION, kind, SYSTEM, textPrompt(ctx), extra])).digest("hex");
 }
 
-async function readCache<T>(key: string): Promise<{ result: T; model: string } | null> {
+export async function readCache<T>(key: string): Promise<{ result: T; model: string } | null> {
   const { data } = await createAdminClient().from("check_cache").select("result, model").eq("key", key).maybeSingle();
   return data ? { result: data.result as T, model: data.model as string } : null;
 }
 
-async function writeCache(key: string, result: unknown, model: string) {
+export async function writeCache(key: string, result: unknown, model: string) {
   await createAdminClient().from("check_cache").upsert({ key, result, model });
 }
 
-async function takeRequest(workspaceId: string) {
+export async function takeRequest(workspaceId: string) {
   const db = createAdminClient();
   const { data: ws } = await db.rpc("take_ai_request", { p_scope: workspaceId, p_limit: WORKSPACE_DAILY_CAP });
   if (!ws) throw new AIUnavailableError("This workspace has used its AI checks for today. Code checks still ran.", "cap_reached");

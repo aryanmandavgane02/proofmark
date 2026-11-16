@@ -3,8 +3,11 @@ import { Card, PageTitle } from "@/components/ui";
 import { todayIST } from "@/lib/pipeline";
 import { ColorForm, FactForm, TermForm, type FactRow } from "./BrandForms";
 
-export default async function Facts() {
+export default async function Facts(props: PageProps<"/app/facts">) {
+  const sp = await props.searchParams;
   const s = await requireSession();
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.slice(0, 300);
+  const prefill = sp.add ? { statement: one(sp.statement) ?? "", value: one(sp.value) ?? "", unit: one(sp.unit) ?? "" } : undefined;
   const [{ data: facts }, { data: terms }, { data: assets }] = await Promise.all([
     s.supabase.from("facts").select("*").eq("workspace_id", s.workspace.id).order("code"),
     s.supabase.from("terms").select("*").eq("workspace_id", s.workspace.id),
@@ -21,7 +24,9 @@ export default async function Facts() {
       />
       <h2 className="mb-2 text-sm font-semibold text-primary-d">Fact ledger</h2>
       {manager ? (
-        <details className="mb-3"><summary className="cursor-pointer text-sm font-semibold text-primary">Add a fact</summary><div className="mt-2"><FactForm nextCode={nextCode} /></div></details>
+        <details className="mb-3" open={!!prefill} id="add-fact"><summary className="cursor-pointer text-sm font-semibold text-primary">Add a fact</summary>
+          {prefill && <p className="mt-2 text-sm text-muted">Pre-filled from a claim writers keep making (Insights). Check the wording, then add a real source and owner.</p>}
+          <div className="mt-2"><FactForm nextCode={nextCode} prefill={prefill} /></div></details>
       ) : (
         <p className="mb-3 text-sm text-muted">Only the brand manager (Meera) adds or edits facts.</p>
       )}

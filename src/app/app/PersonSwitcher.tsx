@@ -14,6 +14,7 @@ export function PersonSwitcher({ people, activeId }: { people: Person[]; activeI
       <label htmlFor="person" className="text-muted">Acting as</label>
       <input type="hidden" name="back" value={path} />
       <select
+        key={activeId} // remount after a switch: React resets forms after an action, which would show the old person
         id="person"
         name="person_id"
         defaultValue={activeId}

@@ -16,16 +16,16 @@ function Result({ state }: { state: BrandFormState }) {
 
 export type FactRow = { code: string; statement: string; value: number | null; unit: string | null; keywords: string[]; source: string; owner: string; expires_on: string | null; restricted: boolean };
 
-export function FactForm({ fact, nextCode }: { fact?: FactRow; nextCode?: string }) {
+export function FactForm({ fact, nextCode, prefill }: { fact?: FactRow; nextCode?: string; prefill?: { statement: string; value: string; unit: string } }) {
   const [state, action] = useActionState<BrandFormState, FormData>(saveFact, undefined);
   return (
     <form action={action} className="grid gap-2 rounded-lg border border-line bg-soft p-3 text-sm sm:grid-cols-2">
       <input type="hidden" name="mode" value={fact ? "edit" : "add"} />
       <label className="text-xs font-semibold text-muted">Code<input name="code" defaultValue={fact?.code ?? nextCode} readOnly={!!fact} className={input} /></label>
-      <label className="text-xs font-semibold text-muted sm:col-span-2">Approved fact (as it may be published)<input name="statement" required defaultValue={fact?.statement} className={input} placeholder="e.g. 40,000+ customers, as of Dec 2026." /></label>
-      <label className="text-xs font-semibold text-muted">Number, if any<input name="value" defaultValue={fact?.value ?? ""} className={input} placeholder="40000" /></label>
+      <label className="text-xs font-semibold text-muted sm:col-span-2">Approved fact (as it may be published)<input name="statement" required defaultValue={fact?.statement ?? prefill?.statement} className={input} placeholder="e.g. 40,000+ customers, as of Dec 2026." /></label>
+      <label className="text-xs font-semibold text-muted">Number, if any<input name="value" defaultValue={fact?.value ?? prefill?.value ?? ""} className={input} placeholder="40000" /></label>
       <label className="text-xs font-semibold text-muted">Kind of number
-        <select name="unit" defaultValue={fact?.unit ?? ""} className={input}><option value="">Not a number</option><option value="count">Count of people</option><option value="%">Percentage (offer)</option><option value="inr">Price in rupees</option><option value="g">Grams (protein)</option><option value="rating">Rating out of 5</option></select>
+        <select name="unit" defaultValue={fact?.unit ?? (["count", "%", "inr", "g", "rating"].includes(prefill?.unit ?? "") ? prefill?.unit : "")} className={input}><option value="">Not a number</option><option value="count">Count of people</option><option value="%">Percentage (offer)</option><option value="inr">Price in rupees</option><option value="g">Grams (protein)</option><option value="rating">Rating out of 5</option></select>
       </label>
       <label className="text-xs font-semibold text-muted sm:col-span-2">Keywords that link a claim to this fact (comma-separated)<input name="keywords" defaultValue={fact?.keywords.join(", ")} className={input} placeholder="customers, people, fans" /></label>
       <label className="text-xs font-semibold text-muted">Source<input name="source" required defaultValue={fact?.source} className={input} placeholder="Sales dashboard, 1 Dec 2026" /></label>
