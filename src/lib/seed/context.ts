@@ -7,7 +7,7 @@ export function seedRules(): Rule[] {
     code: r.code, category: r.category, title: r.title, statement: r.statement, severity: r.severity,
     channels: r.channels ?? [], check_kind: r.check_kind, check_type: r.check_type ?? null, params: r.params ?? {},
     source_doc: r.source_doc ?? BRAND_GUIDE, source_page: r.source_page ?? null, source_quote: r.source_quote,
-    builtin: r.builtin ?? false, status: "approved",
+    builtin: r.builtin ?? false, status: "approved", examples: r.examples ?? [],
   }));
 }
 

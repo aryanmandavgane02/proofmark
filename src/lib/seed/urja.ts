@@ -59,7 +59,7 @@ export const RULES: SeedRule[] = [
   // Messaging (guide pages 10–11)
   {
     code: "MSG-01", category: "messaging", title: "Taste first, then protein", severity: "minor", check_kind: "ai",
-    statement: "Lead with taste, then protein. We are a snack brand, not a supplement.",
+    statement: "Lead with taste: the first sentence should be about flavour or ingredients, and protein comes after. We are a snack brand, not a supplement.",
     source_page: 10, source_quote: "Lead with taste, then protein. We are a snack people enjoy, not a supplement they endure.",
   },
   {
@@ -208,7 +208,7 @@ export const SAMPLE_DRAFTS: SeedDraft[] = [
     key: "website",
     title: "Product page: Cocoa Crunch",
     channel: "website",
-    body: "Cocoa Crunch is our most-loved flavour for a reason: real cocoa, roasted peanuts and dates. Each bar has 12 g of protein and no added sugar. A box of six costs ₹540. Order a box for your week.",
+    body: "Cocoa Crunch is the flavour that started it all: real cocoa, roasted peanuts and dates. Each bar has 12 g of protein and no added sugar. A box of six costs ₹540. Order a box for your week.",
     alt_text: "A Cocoa Crunch bar broken in half on a cream plate.",
     note: "A clean control: the checker should find nothing.",
   },

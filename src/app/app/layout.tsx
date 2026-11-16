@@ -9,6 +9,7 @@ const NAV = [
   { href: "/app/review", label: "Review queue" },
   { href: "/app/rulebook", label: "Rulebook" },
   { href: "/app/facts", label: "Facts & terms" },
+  { href: "/app/ai", label: "AI & data" },
 ];
 
 export default async function AppLayout({ children }: LayoutProps<"/app">) {

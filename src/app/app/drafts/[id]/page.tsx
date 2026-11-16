@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { Card, CategoryChip, LabelChip, SeverityChip, StatusPill, btn, input, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
-import { acceptFix, addComment, approveDraft, disputeFinding, requestChanges, resolveDispute, saveEdit, submitForReview } from "@/app/actions";
+import { acceptFix, addComment, approveDraft, confirmIntent, disputeFinding, requestChanges, rerunChecks, resolveDispute, saveEdit, submitForReview } from "@/app/actions";
 import { Highlighted, type Mark } from "./Highlighted";
 import { PendingButton } from "./PendingButton";
 
@@ -32,7 +32,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     s.supabase.from("decisions").select("finding_id, action, reason, person_id, created_at").eq("draft_id", id),
   ]);
   const { data: run } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
-  const { data: rawFindings } = await s.supabase.from("findings").select("*").eq("draft_version_id", version!.id);
+  const { data: rawFindings } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
   const findings = ((rawFindings ?? []) as Finding[]).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || (a.start_at ?? 9e9) - (b.start_at ?? 9e9));
 
   const ruleBy = new Map((rules ?? []).map((r) => [r.code, r]));
@@ -176,8 +176,42 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold text-primary-d">{live.length ? `${live.length} finding${live.length > 1 ? "s" : ""}` : "No open findings"}</h2>
-            <span className="text-xs text-muted">{run?.ai_status === "skipped" ? "Code checks only" : run?.ai_model ? `Code checks + ${run.ai_model}` : ""}</span>
+            <span className="text-xs text-muted">{run?.ai_status === "off" ? "Code checks only (AI off)" : run?.ai_status === "unavailable" ? "Code checks only (AI unavailable)" : run?.ai_model ? "Code checks + AI" : "Code checks"}</span>
           </div>
+          {run?.ai_status === "unavailable" && (
+            <div role="status" className="rounded-xl border border-amber/40 bg-[#fff6e5] p-4 text-sm text-[#7a3d00]">
+              <p className="font-semibold">AI checks did not run this time</p>
+              <p className="mt-1">{run.ai_error ?? "The AI service was unavailable."} Every code check below still ran, so claims, facts, terms and accessibility are covered.</p>
+              <form action={rerunChecks} className="mt-2">
+                <input type="hidden" name="draft_id" value={id} />
+                <PendingButton className={btn.secondary} pendingText="Checking again…">Run the checks again</PendingButton>
+              </form>
+            </div>
+          )}
+          {version!.intent && (
+            <Card className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-muted">What this draft is for</h3>
+                <span className={`text-xs font-semibold ${version!.intent_confirmed ? "text-accent" : "text-[#7a3d00]"}`}>{version!.intent_confirmed ? "Confirmed by the creator" : "Suggested by AI, please confirm"}</span>
+              </div>
+              <dl className="mt-2 grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 text-sm">
+                <dt className="text-muted">Goal</dt><dd>{version!.intent.goal}</dd>
+                <dt className="text-muted">Audience</dt><dd>{version!.intent.audience}</dd>
+                <dt className="text-muted">Call to action</dt><dd>{version!.intent.call_to_action}</dd>
+              </dl>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-sm font-semibold text-primary">{version!.intent_confirmed ? "Edit" : "Confirm or correct it"}</summary>
+                <form action={confirmIntent} className="mt-2 grid gap-2">
+                  <input type="hidden" name="draft_id" value={id} />
+                  <input name="goal" defaultValue={version!.intent.goal} className={input} aria-label="Goal" maxLength={200} />
+                  <input name="audience" defaultValue={version!.intent.audience} className={input} aria-label="Audience" maxLength={200} />
+                  <input name="call_to_action" defaultValue={version!.intent.call_to_action} className={input} aria-label="Call to action" maxLength={200} />
+                  <PendingButton className={btn.secondary} pendingText="Saving…">This is right</PendingButton>
+                </form>
+              </details>
+              <p className="mt-2 text-xs text-muted">Suggested fixes are written to keep this purpose.</p>
+            </Card>
+          )}
           {findings.length === 0 && (
             <Card className="p-5 text-sm text-muted">Nothing breaks the approved rules, facts or terms. It can go to review as it is.</Card>
           )}
@@ -249,6 +283,36 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               </Card>
             );
           })}
+          {run && (
+            <details className="rounded-xl border border-line bg-surface p-4 text-sm">
+              <summary className="cursor-pointer font-semibold text-primary-d">How this was checked</summary>
+              <dl className="mt-3 grid grid-cols-[150px_1fr] gap-x-3 gap-y-1.5">
+                <dt className="text-muted">Rulebook</dt><dd>v{run.rulebook_version}</dd>
+                <dt className="text-muted">Code checks</dt><dd>{findings.filter((f) => f.label === "code").length} finding(s), {run.ms - (run.ai_ms ?? 0)} ms, no AI involved</dd>
+                <dt className="text-muted">AI checks</dt>
+                <dd>
+                  {run.ai_status === "off" && "Off: this workspace runs code checks only, so nothing was sent to an AI service."}
+                  {run.ai_status === "unavailable" && `Did not run: ${run.ai_error ?? "service unavailable"}`}
+                  {(run.ai_status === "ok" || run.ai_status === "cached") && <>{run.ai_model} · {run.ai_requests} request{run.ai_requests === 1 ? "" : "s"}{run.ai_status === "cached" ? " (stored result reused for identical content)" : ""} · {run.ai_ms} ms</>}
+                </dd>
+                <dt className="text-muted">Proof check</dt>
+                <dd>
+                  {(run.ai_status === "ok" || run.ai_status === "cached") ? (
+                    <>
+                      {findings.filter((f) => f.label !== "code").length} AI finding(s) passed: quote found in the draft, rule approved and applicable.
+                      {run.dropped.length > 0 ? <> {run.dropped.length} dropped:</> : " None dropped."}
+                      {run.dropped.length > 0 && (
+                        <ul className="mt-1 list-disc pl-5 text-muted">
+                          {run.dropped.map((d: { rule_code: string; quote: string; reason: string }, i: number) => <li key={i}><b>{d.rule_code}</b> &ldquo;{d.quote}&rdquo;: {d.reason}</li>)}
+                        </ul>
+                      )}
+                    </>
+                  ) : "Not needed: no AI findings."}
+                </dd>
+                <dt className="text-muted">Second opinion</dt><dd>Tone and messaging findings are checked again independently. If the two disagree, the finding is labelled &ldquo;needs human judgment&rdquo;.</dd>
+              </dl>
+            </details>
+          )}
         </div>
       </div>
     </div>

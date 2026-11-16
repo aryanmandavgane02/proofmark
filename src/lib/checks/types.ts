@@ -30,6 +30,7 @@ export type Rule = {
   source_quote: string;
   builtin: boolean;
   status: "draft" | "approved" | "rejected";
+  examples?: { bad: string; good: string }[];
 };
 
 export type Fact = {

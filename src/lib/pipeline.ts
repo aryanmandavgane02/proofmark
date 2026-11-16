@@ -1,7 +1,11 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { runCodeChecks } from "@/lib/checks";
+import { runCodeChecks, sortFindings } from "@/lib/checks";
+import { proofCheck, type Dropped } from "@/lib/checks/proof";
+import { getProvider } from "@/lib/ai/gemini";
+import { AIUnavailableError } from "@/lib/ai/provider";
+import { reviewText, secondOpinion } from "@/lib/ai/review";
 import type { Channel, CheckContext, Fact, FindingDraft, PaletteColor, Rule, Term } from "@/lib/checks/types";
 
 export function fingerprint(v: { body: string; alt_text: string; image_path: string | null; channel: string }): string {
@@ -34,7 +38,7 @@ type VersionRow = { id: string; draft_id: string; version: number; body: string;
  * Runs every check on one draft version and stores the run and its findings.
  * Decisions already made on the same issue in an earlier version (disputed, overridden, upheld) carry over.
  */
-export async function runChecks(db: SupabaseClient, input: { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow }) {
+export async function runChecks(db: SupabaseClient, input: { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean }) {
   const started = Date.now();
   const brand = await loadBrand(db, input.workspaceId);
   const ctx: CheckContext = {
@@ -46,8 +50,53 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
     today: todayIST(),
   };
 
-  const findings: FindingDraft[] = runCodeChecks(ctx);
+  const codeFindings: FindingDraft[] = runCodeChecks(ctx);
   const fp = fingerprint({ ...input.version, channel: input.channel });
+
+  // AI step: never blocks the code findings. Every AI finding must pass the proof check.
+  let aiFindings: FindingDraft[] = [];
+  let dropped: Dropped[] = [];
+  let ai_status: "ok" | "cached" | "unavailable" | "skipped" | "off" = "skipped";
+  let ai_requests = 0;
+  let ai_model: string | null = null;
+  let ai_error: string | null = null;
+  let intent: unknown = null;
+  const aiStarted = Date.now();
+  const provider = getProvider();
+  if (input.codeChecksOnly) ai_status = "off";
+  else if (!provider) {
+    ai_status = "unavailable";
+    ai_error = "No AI key is configured, so only code checks ran.";
+  } else {
+    try {
+      const text = await reviewText(provider, ctx, input.workspaceId);
+      ai_requests += text.requests;
+      ai_model = text.model;
+      intent = text.review.intent;
+      const proof = proofCheck(text.review.findings, ctx, codeFindings);
+      dropped = proof.dropped;
+      aiFindings = proof.kept;
+      const judgment = aiFindings.filter((f) => f.category === "tone" || f.category === "messaging");
+      if (judgment.length) {
+        try {
+          const second = await secondOpinion(provider, ctx, judgment, input.workspaceId);
+          ai_requests += second.requests;
+          judgment.forEach((f, i) => {
+            const v = second.verdicts.find((x) => x.index === i);
+            if (!v || !v.violates) f.label = "needs_judgment";
+          });
+        } catch {
+          judgment.forEach((f) => (f.label = "needs_judgment"));
+        }
+      }
+      ai_status = text.cached && ai_requests === 0 ? "cached" : "ok";
+    } catch (e) {
+      ai_status = "unavailable";
+      ai_error = e instanceof AIUnavailableError ? e.message : "The AI check failed, so only code checks ran.";
+    }
+  }
+  const findings = sortFindings([...codeFindings, ...aiFindings]);
+  if (intent) await db.from("draft_versions").update({ intent }).eq("id", input.version.id).is("intent", null);
 
   const { data: run, error } = await db
     .from("check_runs")
@@ -57,8 +106,12 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
       rulebook_version: input.rulebookVersion,
       fingerprint: fp,
       ms: Date.now() - started,
-      ai_status: "skipped",
-      ai_requests: 0,
+      ai_ms: ai_status === "off" ? null : Date.now() - aiStarted,
+      ai_status,
+      ai_requests,
+      ai_model,
+      ai_error,
+      dropped,
     })
     .select("id")
     .single();

@@ -86,7 +86,7 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
     .single();
   if (ve) return { error: ve.message };
 
-  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: d.channel, version });
+  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: d.channel, version, codeChecksOnly: s.workspace.code_checks_only });
   await logEvent(s, "draft.created", draft.id, { title: d.title, channel: d.channel, sample: d.sample_key || null });
   redirect(`/app/drafts/${draft.id}`);
 }
@@ -96,7 +96,7 @@ async function loadDraft(s: Session, draftId: string) {
   if (!draft) throw new Error("Draft not found");
   const { data: version } = await s.supabase
     .from("draft_versions")
-    .select("id, draft_id, version, body, alt_text, image_path")
+    .select("id, draft_id, version, body, alt_text, image_path, intent, intent_confirmed")
     .eq("draft_id", draftId)
     .eq("version", draft.current_version)
     .single();
@@ -113,6 +113,7 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
     .from("draft_versions")
     .insert({
       workspace_id: s.workspace.id, draft_id: draftId, version: next, body, alt_text, image_path: version.image_path,
+      intent: version.intent, intent_confirmed: version.intent_confirmed,
       fingerprint: fingerprint({ body, alt_text, image_path: version.image_path, channel: draft.channel }), change_note: change.note, created_by: s.person.id,
     })
     .select("id, draft_id, version, body, alt_text, image_path")
@@ -128,7 +129,7 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
     await s.supabase.from("approvals").update({ valid: false }).eq("draft_id", draftId).eq("valid", true);
     await logEvent(s, "approval.invalidated", draftId, { reason: "edited after approval", version: next });
   }
-  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version: v });
+  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version: v, codeChecksOnly: s.workspace.code_checks_only });
   await logEvent(s, "version.created", draftId, { version: next, note: change.note });
 }
 
@@ -183,10 +184,44 @@ export async function disputeFinding(formData: FormData) {
 
 // ── Review and approval ─────────────────────────────────────────────────────
 
+/** Findings from the latest check run of the current version. */
 async function currentFindings(s: Session, draftId: string) {
   const { version } = await loadDraft(s, draftId);
-  const { data } = await s.supabase.from("findings").select("*").eq("draft_version_id", version.id);
+  const { data: run } = await s.supabase.from("check_runs").select("id").eq("draft_version_id", version.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
   return { version, findings: data ?? [] };
+}
+
+/** Runs the checks again on the same version, for example after the AI service was unavailable. */
+export async function rerunChecks(formData: FormData) {
+  const s = await requireSession();
+  const draftId = String(formData.get("draft_id"));
+  const { draft, version } = await loadDraft(s, draftId);
+  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version, codeChecksOnly: s.workspace.code_checks_only });
+  await logEvent(s, "checks.rerun", draftId, { version: version.version });
+  revalidatePath(`/app/drafts/${draftId}`);
+}
+
+/** The creator confirms (or corrects) what the draft is for. Fixes are judged against this purpose. */
+export async function confirmIntent(formData: FormData) {
+  const s = await requireSession();
+  const draftId = String(formData.get("draft_id"));
+  const clip = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 200);
+  const intent = { goal: clip("goal"), audience: clip("audience"), call_to_action: clip("call_to_action") };
+  const { version } = await loadDraft(s, draftId);
+  await s.supabase.from("draft_versions").update({ intent, intent_confirmed: true }).eq("id", version.id);
+  await logEvent(s, "intent.confirmed", draftId, intent);
+  revalidatePath(`/app/drafts/${draftId}`);
+}
+
+/** Manager setting: run code checks only, so no content is sent to any AI service. */
+export async function setCodeChecksOnly(formData: FormData) {
+  const s = await requireSession();
+  if (s.person.role !== "manager") return;
+  const on = formData.get("on") === "true";
+  await s.supabase.from("workspaces").update({ code_checks_only: on }).eq("id", s.workspace.id);
+  await logEvent(s, "settings.code_checks_only", null, { on });
+  revalidatePath("/app", "layout");
 }
 
 export async function submitForReview(formData: FormData) {
