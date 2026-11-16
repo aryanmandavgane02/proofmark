@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   cacheComponents: false,
   partialPrefetching: false,
   serverExternalPackages: ["sharp"],
+  experimental: {
+    // Draft images up to 4 MB (Vercel accepts request bodies up to 4.5 MB).
+    serverActions: { bodySizeLimit: "4.4mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

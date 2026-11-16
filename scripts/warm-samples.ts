@@ -7,7 +7,10 @@ import { proofCheck } from "../src/lib/checks/proof";
 import { seedContext } from "../src/lib/seed/context";
 import { SAMPLE_DRAFTS } from "../src/lib/seed/urja";
 import { getProvider } from "../src/lib/ai/gemini";
-import { reviewText, secondOpinion } from "../src/lib/ai/review";
+import { reviewImage, reviewText, secondOpinion } from "../src/lib/ai/review";
+import { readFileSync } from "node:fs";
+import { analyseImage } from "../src/lib/images";
+import { URJA_LOGO_PNG_BASE64 } from "../src/lib/seed/logo-png";
 
 async function main() {
   const provider = getProvider();
@@ -18,7 +21,13 @@ async function main() {
     const { kept, dropped } = proofCheck(text.review.findings, ctx, runCodeChecks(ctx));
     const judgment = kept.filter((f) => f.category === "tone" || f.category === "messaging");
     if (judgment.length) await secondOpinion(provider, ctx, judgment, "warm-up");
-    console.log(`${d.key}: ${text.cached ? "already stored" : "stored"} · ${kept.length} AI finding(s) kept, ${dropped.length} dropped`);
+    let img = "";
+    if (d.image) {
+      const a = await analyseImage(readFileSync(`public${d.image}`));
+      const r = await reviewImage(provider, ctx, { ...a.forAI, hash: a.hash }, { mimeType: "image/png", data: URJA_LOGO_PNG_BASE64 }, "warm-up");
+      img = ` · image: ${r.requests ? "stored" : "already stored"}, ${r.review.findings.length} visual finding(s), text read: "${r.review.text_in_image.replace(/\s+/g, " ").slice(0, 60)}"`;
+    }
+    console.log(`${d.key}: ${text.cached ? "already stored" : "stored"} · ${kept.length} AI finding(s) kept, ${dropped.length} dropped${img}`);
   }
 }
 main().catch((e) => { console.error(e.message); process.exit(1); });

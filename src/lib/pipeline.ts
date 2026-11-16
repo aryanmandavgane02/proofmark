@@ -5,7 +5,12 @@ import { runCodeChecks, sortFindings } from "@/lib/checks";
 import { proofCheck, type Dropped } from "@/lib/checks/proof";
 import { getProvider } from "@/lib/ai/gemini";
 import { AIUnavailableError } from "@/lib/ai/provider";
-import { reviewText, secondOpinion } from "@/lib/ai/review";
+import { reviewImage, reviewText, secondOpinion } from "@/lib/ai/review";
+import { analyseImage, loadImage } from "@/lib/images";
+import { paletteCheck } from "@/lib/checks/visual";
+import { attachAltSuggestion, imageAIFindings, imageTextFindings } from "@/lib/checks/image-findings";
+import { ruleApplies } from "@/lib/checks/types";
+import { URJA_LOGO_PNG_BASE64 } from "@/lib/seed/logo-png";
 import type { Channel, CheckContext, Fact, FindingDraft, PaletteColor, Rule, Term } from "@/lib/checks/types";
 
 export function fingerprint(v: { body: string; alt_text: string; image_path: string | null; channel: string }): string {
@@ -53,6 +58,19 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
   const codeFindings: FindingDraft[] = runCodeChecks(ctx);
   const fp = fingerprint({ ...input.version, channel: input.channel });
 
+  // Image: colours are checked by code; everything else about the picture goes to the AI below.
+  let image: Awaited<ReturnType<typeof analyseImage>> | null = null;
+  let imageError: string | null = null;
+  if (input.version.image_path) {
+    try {
+      image = await analyseImage(await loadImage(input.version.image_path));
+      const vis = brand.rules.find((r) => r.check_type === "palette" && ruleApplies(r, input.channel));
+      if (vis) codeFindings.push(...paletteCheck(image.colors, ctx, vis));
+    } catch (e) {
+      imageError = e instanceof Error ? e.message : "The image could not be read.";
+    }
+  }
+
   // AI step: never blocks the code findings. Every AI finding must pass the proof check.
   let aiFindings: FindingDraft[] = [];
   let dropped: Dropped[] = [];
@@ -89,12 +107,26 @@ export async function runChecks(db: SupabaseClient, input: { workspaceId: string
           judgment.forEach((f) => (f.label = "needs_judgment"));
         }
       }
+      if (image) {
+        try {
+          const img = await reviewImage(provider, ctx, { ...image.forAI, hash: image.hash }, { mimeType: "image/png", data: URJA_LOGO_PNG_BASE64 }, input.workspaceId);
+          ai_requests += img.requests;
+          const inText = imageTextFindings(img.review.text_in_image, ctx);
+          const visual = imageAIFindings(img.review, ctx);
+          aiFindings.push(...inText.map((f) => ({ ...f, label: "needs_judgment" as const, message: `${f.message} (The rule was checked by code; the text was read from the image by AI, so please confirm it.)` })), ...visual.kept);
+          dropped.push(...visual.dropped);
+          attachAltSuggestion(codeFindings, img.review.alt_text);
+        } catch (e) {
+          imageError = e instanceof AIUnavailableError ? e.message : "The AI could not review the image.";
+        }
+      }
       ai_status = text.cached && ai_requests === 0 ? "cached" : "ok";
     } catch (e) {
       ai_status = "unavailable";
       ai_error = e instanceof AIUnavailableError ? e.message : "The AI check failed, so only code checks ran.";
     }
   }
+  if (imageError) ai_error = ai_error ? `${ai_error} ${imageError}` : imageError;
   const findings = sortFindings([...codeFindings, ...aiFindings]);
   if (intent) await db.from("draft_versions").update({ intent }).eq("id", input.version.id).is("intent", null);
 

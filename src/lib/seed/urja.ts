@@ -181,6 +181,15 @@ export type SeedDraft = { key: string; title: string; channel: "instagram" | "li
 
 export const SAMPLE_DRAFTS: SeedDraft[] = [
   {
+    key: "diwali-ad",
+    title: "Diwali ad creative",
+    channel: "ad",
+    body: "Celebrate Diwali with Urja Bites. Order your 6-bar box today. T&C apply.",
+    alt_text: "",
+    image: "/samples/diwali-ad.png",
+    note: "An image ad: off-brand colour and logo, claims inside the picture, no alt text.",
+  },
+  {
     key: "diwali-post",
     title: "Diwali offer post",
     channel: "instagram",

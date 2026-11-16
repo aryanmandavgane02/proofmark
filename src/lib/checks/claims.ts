@@ -112,7 +112,7 @@ export function superlativesCheck(ctx: CheckContext, rule: Rule): FindingDraft[]
   const out: FindingDraft[] = [];
   const countFact = ctx.facts.find((f) => f.unit === "count" && factIsCurrent(f, ctx.today));
   for (const m of ctx.body.matchAll(SUPERLATIVE)) {
-    const noun = m[1]?.trim();
+    const noun = m[1]?.trim().toLowerCase();
     const proof = ctx.facts.find((f) => factIsCurrent(f, ctx.today) && f.keywords.some((k) => ["ranking", "award", "#1", "best"].includes(k)));
     if (proof) continue;
     const fix = noun && countFact

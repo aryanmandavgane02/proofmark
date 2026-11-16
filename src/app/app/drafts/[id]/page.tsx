@@ -5,6 +5,7 @@ import { Card, CategoryChip, LabelChip, SeverityChip, StatusPill, btn, input, ti
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { acceptFix, addComment, approveDraft, confirmIntent, disputeFinding, requestChanges, rerunChecks, resolveDispute, saveEdit, submitForReview } from "@/app/actions";
 import { Highlighted, type Mark } from "./Highlighted";
+import { signedImageUrl } from "@/lib/images";
 import { PendingButton } from "./PendingButton";
 
 type Finding = {
@@ -33,6 +34,9 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
   ]);
   const { data: run } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const { data: rawFindings } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
+  // The visitor could read this version through row-level security, so they may see its image.
+  const imageUrl = version!.image_path ? await signedImageUrl(version!.image_path) : null;
+  const imageFindings = ((rawFindings ?? []) as Finding[]).filter((f) => f.field === "image" && LIVE.includes(f.status)).length;
   const findings = ((rawFindings ?? []) as Finding[]).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || (a.start_at ?? 9e9) - (b.start_at ?? 9e9));
 
   const ruleBy = new Map((rules ?? []).map((r) => [r.code, r]));
@@ -72,6 +76,13 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
         <div className="space-y-4">
           <Card className="p-5">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Content</h2>
+            {imageUrl && (
+              <figure className="mb-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt={version!.alt_text || "The draft's image (no alt text yet)"} className="max-h-96 w-full rounded-lg border border-line object-contain bg-soft" />
+                {imageFindings > 0 && <figcaption className="mt-1 text-xs text-[#7a3d00]">{imageFindings} finding{imageFindings > 1 ? "s" : ""} about this image are listed with &ldquo;In the image&rdquo; or &ldquo;Colour&rdquo;.</figcaption>}
+              </figure>
+            )}
             <Highlighted text={version!.body} marks={marks} />
             {(draft.channel === "instagram" || draft.channel === "ad" || version!.alt_text) && (
               <div className="mt-4 border-t border-line pt-3">
@@ -299,7 +310,8 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                 <dd>
                   {(run.ai_status === "ok" || run.ai_status === "cached") ? (
                     <>
-                      {findings.filter((f) => f.label !== "code").length} AI finding(s) passed: quote found in the draft, rule approved and applicable.
+                      {findings.filter((f) => f.label === "ai_verified").length} text finding(s) from AI passed: quote found in the draft, rule approved and applicable.
+                      {findings.some((f) => f.field === "image" && f.label === "needs_judgment") && <> {findings.filter((f) => f.field === "image" && f.label === "needs_judgment").length} image finding(s) cannot be verified by code, so a person confirms them.</>}
                       {run.dropped.length > 0 ? <> {run.dropped.length} dropped:</> : " None dropped."}
                       {run.dropped.length > 0 && (
                         <ul className="mt-1 list-disc pl-5 text-muted">

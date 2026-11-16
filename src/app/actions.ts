@@ -8,6 +8,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { seedDemoWorkspace } from "@/lib/seed/seed-workspace";
 import { requireSession } from "@/lib/session";
 import { fingerprint, runChecks } from "@/lib/pipeline";
+import { headers } from "next/headers";
+import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
+import { SAMPLE_DRAFTS } from "@/lib/seed/urja";
 import type { Channel } from "@/lib/checks/types";
 
 type Session = Awaited<ReturnType<typeof requireSession>>;
@@ -65,9 +68,30 @@ export type FormState = { error?: string } | undefined;
 
 export async function createDraft(_prev: FormState, formData: FormData): Promise<FormState> {
   const s = await requireSession();
-  const parsed = DraftInput.safeParse(Object.fromEntries(formData));
+  const fields = Object.fromEntries([...formData.entries()].filter(([, v]) => typeof v === "string"));
+  const parsed = DraftInput.safeParse(fields);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form" };
   const d = parsed.data;
+
+  // Optional image: an uploaded file, or the sample ad's image when a sample was loaded.
+  let image_path: string | null = null;
+  try {
+    const file = formData.get("image");
+    const sample = SAMPLE_DRAFTS.find((x) => x.key === d.sample_key && x.image);
+    if (file instanceof File && file.size > 0) {
+      if (!imageTypeOk(file.type)) return { error: "Upload a PNG, JPEG or WebP image." };
+      if (file.size > MAX_IMAGE_BYTES) return { error: "The image must be 4 MB or smaller." };
+      image_path = await storeImage(s.workspace.id, Buffer.from(await file.arrayBuffer()), file.type);
+    } else if (sample?.image && formData.get("use_sample_image") === "1") {
+      const h = await headers();
+      const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
+      const res = await fetch(new URL(sample.image, origin));
+      if (!res.ok) return { error: "Could not load the sample image." };
+      image_path = await storeImage(s.workspace.id, Buffer.from(await res.arrayBuffer()), "image/png");
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not store the image." };
+  }
 
   const { data: draft, error } = await s.supabase
     .from("drafts")
@@ -79,15 +103,15 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
   const { data: version, error: ve } = await s.supabase
     .from("draft_versions")
     .insert({
-      workspace_id: s.workspace.id, draft_id: draft.id, version: 1, body: d.body, alt_text: d.alt_text,
-      fingerprint: fingerprint({ body: d.body, alt_text: d.alt_text, image_path: null, channel: d.channel }), created_by: s.person.id,
+      workspace_id: s.workspace.id, draft_id: draft.id, version: 1, body: d.body, alt_text: d.alt_text, image_path,
+      fingerprint: fingerprint({ body: d.body, alt_text: d.alt_text, image_path, channel: d.channel }), created_by: s.person.id,
     })
     .select("id, draft_id, version, body, alt_text, image_path")
     .single();
   if (ve) return { error: ve.message };
 
   await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: d.channel, version, codeChecksOnly: s.workspace.code_checks_only });
-  await logEvent(s, "draft.created", draft.id, { title: d.title, channel: d.channel, sample: d.sample_key || null });
+  await logEvent(s, "draft.created", draft.id, { title: d.title, channel: d.channel, sample: d.sample_key || null, image: !!image_path });
   redirect(`/app/drafts/${draft.id}`);
 }
 
