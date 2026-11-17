@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Card, PageTitle, StatusPill, btn, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { resetDemo, switchPerson } from "@/app/actions";
+import { IconChart, IconCheck, IconFile, IconImage } from "@/components/icons";
 
 type Step = { title: string; detail: string; done: boolean; person: string; href: string; cta: string };
 
@@ -40,18 +41,18 @@ export default async function StartHere() {
       />
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-primary-d">Guided demo</h2>
+          <h2 className="flex items-center gap-2 font-semibold text-primary-d"><span aria-hidden className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet opacity-50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-violet" /></span>Guided demo</h2>
           <span className="text-sm text-muted">{doneCount} of {steps.length} done</span>
         </div>
-        <div className="mt-2 h-2 rounded-full bg-soft"><div className="h-2 rounded-full bg-accent" style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-soft"><div className="bar-grow h-full rounded-full bg-gradient-to-r from-accent via-[#14a08a] to-violet" style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
         <ol className="mt-4 space-y-3">
           {steps.map((st, i) => {
             const person = s.people.find((p) => p.name === st.person);
             const isNext = st === next;
             return (
-              <li key={st.title} className={`flex flex-wrap items-start gap-3 rounded-lg border p-3 ${isNext ? "border-primary bg-soft" : "border-line"}`}>
-                <span aria-hidden className={`mt-0.5 flex h-6 w-6 flex-none items-center justify-center rounded-full text-xs font-bold ${st.done ? "bg-accent text-white" : "bg-[#e2e6f6] text-primary-d"}`}>
-                  {st.done ? "✓" : i + 1}
+              <li key={st.title} className={`flex flex-wrap items-start gap-3 rounded-xl border p-3 transition ${isNext ? "border-violet/50 bg-gradient-to-r from-[#f1effd] to-[#eef4fb] shadow-card" : st.done ? "border-line bg-[#f6fbf9]" : "border-line hover:border-primary/30"}`}>
+                <span aria-hidden className={`mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs font-bold ${st.done ? "animate-pop bg-accent text-white shadow-[0_4px_10px_-4px_rgb(13_122_104/0.7)]" : isNext ? "bg-gradient-to-br from-primary to-violet text-white shadow-glow" : "bg-[#e2e6f6] text-primary-d"}`}>
+                  {st.done ? <IconCheck className="h-4 w-4" /> : i + 1}
                 </span>
                 <div className="min-w-[12rem] flex-1">
                   <p className="font-semibold text-ink">{st.title} <span className="font-normal text-muted">· as {st.person}</span></p>
@@ -71,14 +72,26 @@ export default async function StartHere() {
         {!next && <p className="mt-4 rounded-lg bg-[#d8f0ea] p-3 text-sm text-[#0a5c4f]">You have run the whole workflow. Try your own content in <Link className="underline" href="/app/drafts/new">New draft</Link>, or look at the rulebook and facts behind each finding.</p>}
       </Card>
 
-      <Card className="mt-4 p-5">
-        <h2 className="font-semibold text-primary-d">More to try</h2>
-        <ul className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
-          <li><Link className="font-semibold text-primary hover:underline" href="/app/drafts/new?sample=diwali-ad">Check an image ad</Link><span className="block text-muted">Logo, brand colours, text in the picture and alt text.</span></li>
-          <li><Link className="font-semibold text-primary hover:underline" href="/app/rulebook/import">Import rules from a PDF</Link><span className="block text-muted">As Meera: the AI drafts rules, code checks every quote, you approve and publish.</span></li>
-          <li><Link className="font-semibold text-primary hover:underline" href="/app/insights">See insights</Link><span className="block text-muted">Repeated mistakes, a rule flagged as unclear, and AI-proposed clearer wording.</span></li>
+      <section aria-labelledby="more" className="mt-6">
+        <h2 id="more" className="font-semibold text-primary-d">More to try</h2>
+        <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+          {[
+            { href: "/app/drafts/new?sample=diwali-ad", t: "Check an image ad", d: "Logo, brand colours, text in the picture and alt text.", Icon: IconImage, tint: "from-[#fde7d6] to-[#fff4ea] text-[#8a3a00]" },
+            { href: "/app/rulebook/import", t: "Import rules from a PDF", d: "As Meera: the AI drafts rules, code checks every quote, you approve and publish.", Icon: IconFile, tint: "from-[#e2e6f6] to-[#f1effd] text-primary-d" },
+            { href: "/app/insights", t: "See insights", d: "Repeated mistakes, a rule flagged as unclear, and AI-proposed clearer wording.", Icon: IconChart, tint: "from-[#d8f0ea] to-[#eef8f5] text-[#0a5c4f]" },
+          ].map((m) => (
+            <li key={m.href}>
+              <Link href={m.href} className="group flex h-full gap-3 rounded-2xl border border-line/80 bg-surface p-4 shadow-card transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift">
+                <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br ${m.tint} transition group-hover:scale-110`}><m.Icon className="h-5 w-5" /></span>
+                <span>
+                  <span className="block font-semibold text-primary group-hover:underline">{m.t}</span>
+                  <span className="block text-sm text-muted">{m.d}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
         </ul>
-      </Card>
+      </section>
 
       <div className="mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-primary-d">Drafts</h2>
@@ -87,7 +100,7 @@ export default async function StartHere() {
       <Card className="mt-3 divide-y divide-line">
         {(drafts ?? []).length === 0 && <p className="p-4 text-sm text-muted">No drafts yet. Start with step 1 above.</p>}
         {(drafts ?? []).map((d) => (
-          <Link key={d.id} href={`/app/drafts/${d.id}`} className="flex flex-wrap items-center gap-3 p-4 hover:bg-soft">
+          <Link key={d.id} href={`/app/drafts/${d.id}`} className="flex flex-wrap items-center gap-3 p-4 transition first:rounded-t-2xl last:rounded-b-2xl hover:bg-soft">
             <span className="font-medium text-ink">{d.title}</span>
             <span className="text-sm text-muted">{CHANNEL_LABEL[d.channel as Channel]}</span>
             <span className="ml-auto text-xs text-muted">{timeAgo(d.updated_at)}</span>

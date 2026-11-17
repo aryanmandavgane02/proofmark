@@ -21,7 +21,7 @@ function Source({ r }: { r: InsightRecord }) {
 }
 
 function Bar({ value, max }: { value: number; max: number }) {
-  return <span className="block h-2 rounded-full bg-soft" aria-hidden><span className="block h-2 rounded-full bg-primary" style={{ width: `${Math.max(4, (value / Math.max(1, max)) * 100)}%` }} /></span>;
+  return <span className="block h-2 rounded-full bg-soft" aria-hidden><span className="bar-grow block h-2 rounded-full bg-gradient-to-r from-primary to-violet" style={{ width: `${Math.max(4, (value / Math.max(1, max)) * 100)}%` }} /></span>;
 }
 
 export default async function Insights(props: PageProps<"/app/insights">) {
@@ -65,7 +65,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
           [i.totals.accepted, "suggested fixes accepted"],
           [i.totals.overridden, "findings overridden by a reviewer"],
         ].map(([n, label]) => (
-          <Card key={String(label)} className="p-4"><p className="text-2xl font-bold text-primary-d">{n}</p><p className="text-xs text-muted">{label}</p></Card>
+          <Card key={String(label)} className="p-4 transition hover:-translate-y-0.5 hover:shadow-lift"><p className="font-display text-3xl font-extrabold text-gradient">{n}</p><p className="text-xs text-muted">{label}</p></Card>
         ))}
       </div>
 

@@ -1,60 +1,164 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
+import { IconArrow, IconBolt, IconBook, IconCheck, IconPen, IconShield, IconTrail, IconUser } from "@/components/icons";
 import { getSession } from "@/lib/session";
 import { startDemo } from "./actions";
 import { StartButton } from "./StartButton";
 
 const steps = [
-  { t: "Submit a draft", d: "A post, an ad, an email or web copy, before it is published." },
-  { t: "Get cited findings", d: "Each issue shows the rule or fact it breaks, why, and a suggested fix you can accept." },
-  { t: "A person approves", d: "Disputes are resolved and content is approved by people. AI never approves anything." },
+  { t: "Submit a draft", d: "A post, an ad, an email or web copy, before it is published.", Icon: IconPen },
+  { t: "Get cited findings", d: "Each issue shows the rule or fact it breaks, why, and a suggested fix you can accept.", Icon: IconBook },
+  { t: "A person approves", d: "Disputes are resolved and content is approved by people. AI never approves anything.", Icon: IconUser },
 ];
+
+// Numbers from the repository's own tests (eval/RESULTS.md, e2e/, scripts/rls-check.ts)
+const stats = [
+  { n: "13", l: "code checks run before any AI" },
+  { n: "100%", l: "of planted problems found by code in the scored test set" },
+  { n: "22 / 22", l: "direct database attacks refused" },
+  { n: "0", l: "approvals made by AI: a person decides" },
+];
+
+const trust = [
+  { t: "Proof check", d: "An AI finding is shown only if its quote is really in the draft and its rule is approved.", Icon: IconShield },
+  { t: "Cited to the page", d: "Every rule links back to the exact sentence and page of the brand guide.", Icon: IconBook },
+  { t: "Full audit trail", d: "Each approval is tied to one exact version. Any later edit withdraws it.", Icon: IconTrail },
+];
+
+/** A looping, decorative preview of a check: the draft, two findings popping in, and the approval stamp. */
+function Preview() {
+  return (
+    <div aria-hidden className="relative animate-float">
+      <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-violet/25 via-primary/10 to-accent/25 blur-2xl" />
+      <div className="relative rounded-2xl border border-line/80 bg-surface/95 p-5 shadow-lift backdrop-blur">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-primary-d">Diwali offer post · Instagram</span>
+          <span className="flex items-center gap-1 rounded-full bg-[#e2e6f6] px-2 py-0.5 font-semibold text-primary-d"><IconBolt className="h-3 w-3" /> checked in 0.2 s</span>
+        </div>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink">
+          <mark className="rounded bg-[#fde2e0] px-0.5 text-ink underline decoration-red decoration-2 underline-offset-4">India&apos;s #1 protein bar</mark>, trusted by{" "}
+          <mark className="rounded bg-[#ffecc7] px-0.5 text-ink underline decoration-amber decoration-2 underline-offset-4">50,000+ gym-goers</mark>. Grab 20% off this Diwali.
+        </p>
+        <div className="mt-4 space-y-2.5">
+          <div className="animate-pop rounded-xl border border-line border-l-4 border-l-red bg-surface p-3" style={{ animationDelay: "0.5s" }}>
+            <div className="flex gap-1.5"><span className="rounded-full bg-red px-2 py-0.5 text-[10px] font-bold uppercase text-white">Blocker</span><span className="rounded-full bg-[#d8f0ea] px-2 py-0.5 text-[10px] font-bold uppercase text-[#0a5c4f]">Verified by code</span></div>
+            <p className="mt-1.5 text-xs text-ink">A ranking with no source. <b className="text-primary-d">CLAIM-02</b> · Brand guide p. 14</p>
+          </div>
+          <div className="animate-pop rounded-xl border border-line border-l-4 border-l-amber bg-surface p-3" style={{ animationDelay: "1s" }}>
+            <div className="flex gap-1.5"><span className="rounded-full bg-amber px-2 py-0.5 text-[10px] font-bold uppercase text-white">Major</span><span className="rounded-full bg-[#d8f0ea] px-2 py-0.5 text-[10px] font-bold uppercase text-[#0a5c4f]">Verified by code</span></div>
+            <p className="mt-1.5 text-xs text-ink">Fact F-12 says 35,000+. <span className="font-semibold text-accent">Fix: “35,000+ customers”</span></p>
+          </div>
+        </div>
+        <div className="animate-pop mt-4 flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#d8f0ea] to-[#e6f4ef] px-3 py-2 text-sm font-semibold text-[#0a5c4f]" style={{ animationDelay: "1.6s" }}>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white"><IconCheck className="h-4 w-4" /></span>
+          Approved by Ritu (legal) · version 2
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default async function Home() {
   const s = await getSession();
   const hasDemo = !!s?.workspace;
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-12 sm:px-6 sm:py-20">
-      <div className="flex items-center gap-3">
-        <LogoMark className="h-10 w-10" />
-        <span className="text-2xl font-bold text-primary-d">Proofmark</span>
+    <div className="relative isolate flex flex-1 flex-col overflow-hidden">
+      {/* Decorative background */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="dot-grid absolute inset-0" />
+        <div className="absolute -top-32 right-[-8rem] h-[28rem] w-[28rem] animate-drift rounded-full bg-violet/20 blur-3xl" />
+        <div className="absolute top-40 -left-32 h-[24rem] w-[24rem] animate-drift rounded-full bg-accent/15 blur-3xl [animation-delay:-6s]" />
       </div>
-      <h1 className="mt-10 text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">Brand guidelines as code.</h1>
-      <p className="mt-4 max-w-2xl text-lg text-muted">
-        Every draft is checked against approved rules, facts and assets before it is published. Every issue comes with its
-        reason, its source and a suggested fix. A person always makes the final call.
-      </p>
-      <div className="mt-8 flex flex-wrap items-center gap-3">
-        {hasDemo ? (
-          <>
-            <Link href="/app" className="inline-flex items-center rounded-lg bg-primary px-5 py-3 font-semibold text-white hover:bg-primary-d">
-              Continue your demo
-            </Link>
-            <span className="text-sm text-muted">Your private demo workspace is still here.</span>
-          </>
-        ) : (
-          <form action={startDemo}>
-            <StartButton />
-          </form>
-        )}
-      </div>
-      <p className="mt-3 text-sm text-muted">
-        No sign-up. You get a private copy of a fictional snack brand, <b>Urja Bites</b>, with its brand rules, approved facts and
-        sample drafts, and you can act as the creator, the brand manager or the reviewers.
-      </p>
-      <ol className="mt-14 grid gap-4 sm:grid-cols-3">
-        {steps.map((st, i) => (
-          <li key={st.t} className="rounded-xl border border-line bg-surface p-5">
-            <span className="text-sm font-bold text-accent">Step {i + 1}</span>
-            <h2 className="mt-1 font-semibold text-primary-d">{st.t}</h2>
-            <p className="mt-1 text-sm text-muted">{st.d}</p>
-          </li>
-        ))}
-      </ol>
-      <footer className="mt-auto pt-16 text-sm text-muted">
+
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
+        <div className="flex items-center gap-2.5">
+          <LogoMark className="h-9 w-9" />
+          <span className="font-display text-xl font-extrabold tracking-tight text-gradient">Proofmark</span>
+        </div>
+        <a className="rounded-lg px-3 py-1.5 text-sm font-semibold text-primary-d underline underline-offset-4 hover:bg-surface" href="https://github.com/aryanmandavgane02/proofmark">Source code</a>
+      </header>
+
+      <main className="stagger mx-auto grid w-full max-w-6xl flex-1 items-center gap-12 px-4 pb-10 pt-6 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pt-12">
+        <section>
+          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/80 px-3 py-1 text-xs font-semibold text-primary-d shadow-card">
+            <span aria-hidden className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" /><span className="relative inline-flex h-2 w-2 rounded-full bg-accent" /></span>
+            Live demo · CodeZen 2026
+          </span>
+          <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-ink sm:text-6xl">
+            Brand guidelines <span className="block text-gradient">as code.</span>
+          </h1>
+          <p className="mt-5 max-w-xl text-lg text-muted">
+            Every draft is checked against approved rules, facts and assets before it is published. Every issue comes with its
+            reason, its source and a suggested fix. A person always makes the final call.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {hasDemo ? (
+              <>
+                <Link href="/app" className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-violet px-6 py-3.5 font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:brightness-110">
+                  Continue your demo <IconArrow className="h-4 w-4" />
+                </Link>
+                <span className="text-sm text-muted">Your private demo workspace is still here.</span>
+              </>
+            ) : (
+              <form action={startDemo}>
+                <StartButton />
+              </form>
+            )}
+          </div>
+          <p className="mt-4 max-w-xl text-sm text-muted">
+            No sign-up. You get a private copy of a fictional snack brand, <b className="text-ink">Urja Bites</b>, with its brand rules, approved facts and
+            sample drafts, and you can act as the creator, the brand manager or the reviewers.
+          </p>
+        </section>
+        <Preview />
+      </main>
+
+      <section aria-label="In numbers" className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+        <ul className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {stats.map((x) => (
+            <li key={x.l} className="rounded-2xl border border-line/80 bg-surface/90 p-4 shadow-card backdrop-blur">
+              <p className="font-display text-2xl font-extrabold text-gradient sm:text-3xl">{x.n}</p>
+              <p className="mt-1 text-xs text-muted sm:text-sm">{x.l}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="how" className="mx-auto w-full max-w-6xl px-4 pt-14 sm:px-6">
+        <h2 id="how" className="text-center text-2xl font-extrabold tracking-tight text-primary-d">How it works</h2>
+        <ol className="stagger mt-6 grid gap-4 sm:grid-cols-3">
+          {steps.map((st, i) => (
+            <li key={st.t} className="group relative rounded-2xl border border-line/80 bg-surface p-5 shadow-card transition hover:-translate-y-1 hover:shadow-lift">
+              <div className="flex items-center gap-3">
+                <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet text-white shadow-glow transition group-hover:scale-110"><st.Icon className="h-5 w-5" /></span>
+                <span className="text-sm font-bold text-accent">Step {i + 1}</span>
+              </div>
+              <h3 className="mt-3 font-semibold text-primary-d">{st.t}</h3>
+              <p className="mt-1 text-sm text-muted">{st.d}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section aria-labelledby="trust" className="mx-auto w-full max-w-6xl px-4 pt-12 sm:px-6">
+        <h2 id="trust" className="text-center text-2xl font-extrabold tracking-tight text-primary-d">Why you can trust a finding</h2>
+        <ul className="stagger mt-6 grid gap-4 sm:grid-cols-3">
+          {trust.map((t) => (
+            <li key={t.t} className="flex gap-3 rounded-2xl border border-line/80 bg-surface/90 p-5 shadow-card">
+              <span aria-hidden className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#d8f0ea] text-[#0a5c4f]"><t.Icon className="h-5 w-5" /></span>
+              <div>
+                <h3 className="font-semibold text-primary-d">{t.t}</h3>
+                <p className="mt-0.5 text-sm text-muted">{t.d}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <footer className="mx-auto mt-auto w-full max-w-6xl px-4 pb-8 pt-16 text-sm text-muted sm:px-6">
         Built for CodeZen 2026 by team SoloStack. Demo data is fictional.{" "}
         <a className="underline" href="https://github.com/aryanmandavgane02/proofmark">Source code</a>
       </footer>
-    </main>
+    </div>
   );
 }

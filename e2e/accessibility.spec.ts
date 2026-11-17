@@ -3,6 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 async function audit(page: Page, name: string, problems: string[]) {
+  // Scan what people see: wait until entrance animations (fade-ins) have finished. Endless decorative ones are skipped.
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((x) => x.effect?.getTiming().iterations !== Infinity).map((x) => x.finished.catch(() => null))));
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   for (const v of r.violations) problems.push(`${name}: ${v.id} (${v.impact}) at ${v.nodes.slice(0, 2).map((n) => n.target.join(" ")).join("; ")}`);
 }

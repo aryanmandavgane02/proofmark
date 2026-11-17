@@ -209,7 +209,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             return (
               <Card className="p-4">
                 <div className="flex items-center justify-between text-sm"><span className="font-semibold text-primary-d">{done} of {findings.length} dealt with</span>{blocking.length === 0 && <span className="text-xs font-semibold text-accent">Nothing blocks review</span>}</div>
-                <div className="mt-1.5 h-2 rounded-full bg-soft" role="progressbar" aria-valuemin={0} aria-valuemax={findings.length} aria-valuenow={done} aria-label="Findings dealt with"><div className="h-2 rounded-full bg-accent" style={{ width: `${(done / findings.length) * 100}%` }} /></div>
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-soft" role="progressbar" aria-valuemin={0} aria-valuemax={findings.length} aria-valuenow={done} aria-label="Findings dealt with"><div className="bar-grow h-2 rounded-full bg-gradient-to-r from-accent via-[#14a08a] to-violet" style={{ width: `${(done / findings.length) * 100}%` }} /></div>
                 <ul className="mt-3 grid gap-1 text-sm">
                   <li><b className="text-red">{blocking.length} must be dealt with</b> before review or approval: fix it, or dispute it so a reviewer decides.</li>
                   <li><b className="text-amber">{should.length} should be fixed</b>: the reviewer sees them, but they do not block.</li>
@@ -273,7 +273,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             const resolved = decisionFor(f.id, f.status === "overridden" ? "override" : "uphold");
             const closed = !LIVE.includes(f.status);
             return (
-              <Card key={f.id} className={`p-4 ${closed ? "opacity-70" : ""}`}>
+              <Card key={f.id} className={`border-l-4 p-4 transition hover:shadow-lift ${f.severity === "blocker" ? "border-l-red" : f.severity === "major" ? "border-l-amber" : "border-l-[#8a93a8]"} ${closed ? "opacity-70" : ""}`}>
                 <div id={`f-${f.id}`} className="scroll-mt-24">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <SeverityChip severity={f.severity} />
@@ -302,7 +302,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   )}
                   {fact && !f.fix_text && <p className="mt-1 text-sm text-muted">Fact <b>{f.fact_code}</b>: {fact.statement} <span className="text-xs">({fact.source}; owner {fact.owner}{fact.status !== "approved" ? `; ${fact.status}` : ""})</span></p>}
                   {f.fix_text && (
-                    <div className="mt-2 rounded-lg bg-[#eef7f4] p-2.5 text-sm">
+                    <div className="mt-2 rounded-xl border border-[#cfe9e1] bg-gradient-to-r from-[#eef7f4] to-[#f4faf8] p-2.5 text-sm">
                       <span className="font-semibold text-[#0a5c4f]">Suggested {f.fix_kind === "none" ? "correction" : "fix"}:</span>{" "}
                       {f.fix_kind === "none" ? f.fix_text : <span className="font-medium">&ldquo;{f.fix_text.trim()}&rdquo;</span>}
                       {fact && <span className="mt-1 block text-xs text-[#0a5c4f]">Based on approved fact <b>{f.fact_code}</b>: {fact.statement} Source: {fact.source}; owner: {fact.owner}{fact.status !== "approved" ? ` (${fact.status})` : ""}.</span>}
