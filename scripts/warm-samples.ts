@@ -1,5 +1,6 @@
 // Runs every sample draft through the real AI checks once and stores the results, so the demo's
 // sample drafts answer instantly and the same way for every visitor. Usage: npm run warm
+// Facts can expire (the Diwali offer ends 30 Nov 2026), which changes the prompt: TODAY=2026-12-01 npm run warm stores the answers for after that date too.
 import { config } from "dotenv";
 config({ path: ".env.local", quiet: true });
 import { runCodeChecks } from "../src/lib/checks";
@@ -16,7 +17,7 @@ async function main() {
   const provider = getProvider();
   if (!provider) throw new Error("GEMINI_API_KEY is not set");
   for (const d of SAMPLE_DRAFTS) {
-    const ctx = seedContext({ body: d.body, alt_text: d.alt_text, channel: d.channel });
+    const ctx = seedContext({ body: d.body, alt_text: d.alt_text, channel: d.channel, ...(process.env.TODAY ? { today: process.env.TODAY } : {}) });
     const text = await reviewText(provider, ctx, "warm-up");
     const { kept, dropped } = proofCheck(text.review.findings, ctx, runCodeChecks(ctx));
     const judgment = kept.filter((f) => f.category === "tone" || f.category === "messaging");

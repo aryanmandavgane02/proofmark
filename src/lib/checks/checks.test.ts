@@ -79,6 +79,11 @@ describe("TONE checks", () => {
     const [f] = pressureCheck(ctx("Great bars for your desk. Act now."), rule("TONE-04"));
     expect(f).toMatchObject({ quote: "Act now.", fix_kind: "none" });
     expect(pressureCheck(ctx("Last chance to try the Diwali box."), rule("TONE-04"))[0].fix_text).toBe("Try the Diwali box.");
+    // Every pressure phrase is removed, so a fix never keeps a second one, even when no offer is live (after 30 Nov)
+    const phrases = rule("TONE-04").params.phrases as string[];
+    expect(withoutPressure("Hurry, offer ends soon!!!", phrases)).toBeNull();
+    expect(withoutPressure("Hurry, last chance to grab our Cocoa Crunch box.", phrases)).toBe("grab our Cocoa Crunch box.");
+    expect(pressureCheck({ ...ctx("Great bars. Hurry, offer ends soon!!!"), today: "2026-12-01" }, rule("TONE-04"))[0].fix_kind).toBe("none");
   });
   it("TONE-04 flags repeated exclamation marks", () => {
     const f = pressureCheck(ctx("So tasty!!"), rule("TONE-04"));

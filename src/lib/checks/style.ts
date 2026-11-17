@@ -68,11 +68,22 @@ export function allCapsCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   return out;
 }
 
-/** The sentence without its pressure phrase, or null when nothing worth keeping is left (e.g. "Act now."). */
-export function withoutPressure(sentence: string, phrase: string): string | null {
-  const esc = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]");
-  let rest = sentence.replace(new RegExp(`\\b${esc}\\b`, "i"), "").replace(/!+/g, ".").replace(/^[\s,:;–—-]+/, "").replace(/\s+([.,])/g, "$1").trim();
-  if (/^don['’]?t miss$/i.test(phrase)) rest = rest.replace(/^(?:out on\s+)?/i, "Try ");
+/**
+ * The sentence without its pressure phrases, or null when nothing worth keeping is left (e.g. "Act now.").
+ * Every listed phrase is removed, so a fix never keeps a second one ("Hurry, offer ends soon" → not "Offer ends soon").
+ */
+export function withoutPressure(sentence: string, phrase: string | string[]): string | null {
+  const phrases = Array.isArray(phrase) ? phrase : [phrase];
+  let rest = sentence;
+  let dontMiss = false;
+  for (const p of phrases) {
+    const esc = p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['’]");
+    const re = new RegExp(`\\b${esc}\\b`, "gi");
+    if (re.test(rest) && /^don['’]?t miss$/i.test(p)) dontMiss = true;
+    rest = rest.replace(re, "");
+  }
+  rest = rest.replace(/!+/g, ".").replace(/^[\s,:;–—-]+/, "").replace(/\s+([.,])/g, "$1").replace(/,\s*\./g, ".").replace(/\s{2,}/g, " ").trim();
+  if (dontMiss) rest = rest.replace(/^(?:out on\s+)?/i, "Try ");
   rest = rest.replace(/^to\s+/i, "");
   const words = rest.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().split(/\s+/).filter(Boolean);
   if (words.length < 3) return null;
@@ -95,7 +106,7 @@ export function pressureCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
       if (!s || coveredSentences.has(s.start)) continue;
       coveredSentences.add(s.start);
       const aboutOffer = /offer|ends|sale|deal/i.test(s.text);
-      const fix = aboutOffer && activeOffer?.expires_on ? `Offer ends ${dayMonth(activeOffer.expires_on)}.` : withoutPressure(s.text, phrase);
+      const fix = aboutOffer && activeOffer?.expires_on ? `Offer ends ${dayMonth(activeOffer.expires_on)}.` : withoutPressure(s.text, phrases);
       out.push({
         ...base(rule),
         fact_code: aboutOffer && activeOffer ? activeOffer.code : null,
