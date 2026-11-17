@@ -78,7 +78,9 @@ export function NewDraftForm({ samples, initial }: { samples: SeedDraft[]; initi
             <div>
               <label htmlFor="image" className="mb-1 block text-sm font-semibold">Image <span className="font-normal text-muted">(optional; PNG, JPEG or WebP)</span></label>
               <input id="image" ref={fileRef} name="image" type="file" accept="image/png,image/jpeg,image/webp" onChange={onFile} className="block w-full text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-surface file:px-3 file:py-1.5 file:font-semibold file:text-primary-d" />
-              {imgNote && <p className="mt-1 text-xs text-muted">{imgNote}</p>}
+              {imgNote && (/^(This file|Use a PNG)/.test(imgNote)
+                ? <p role="alert" className="mt-2 rounded-lg bg-red/10 p-2.5 text-sm font-semibold text-red">{imgNote}</p>
+                : <p className="mt-1 text-xs text-muted">{imgNote}</p>)}
               {preview && (
                 <div className="mt-2 flex items-start gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
