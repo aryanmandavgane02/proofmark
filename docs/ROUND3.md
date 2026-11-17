@@ -24,7 +24,7 @@ Round 2 user testing confirmed all three improvements (see `USER_TESTING.md`); n
 - **Already there:** findings store `fact_code`; approvals store the version and fingerprint; facts have `expires_on` and edits are logged.
 - **Plan:** when a fact is edited or expires, find approved versions whose text matched the old value (numbers via `extractNumberClaims`, plus `fact_code` on past findings); list them on the fact and on Insights; one click re-checks a draft against the new fact; notify the draft owner (in-app).
 - **Measure:** "editing F-12 lists N of N approved drafts that quoted the old figure" (recall 100% on a seeded set).
-- **Note:** fact F-13 (Diwali offer) expires 30 Nov 2026 — a natural live demo of this feature. Update the sample drafts' dates if Round 3 runs later.
+- **Note:** Round 3 runs 21–24 Nov 2026, before fact F-13 (Diwali offer) expires on 30 Nov. Demonstrate expiry by having the brand manager set F-13's expiry date to an earlier day on the Facts page.
 
 ### 3. Rule-change replay (rules checked by AI, whose behaviour depends on their wording)
 - **Already there:** decisions are stored as labelled test cases (`src/lib/insights.ts`, `testCasesJSON`, `/app/insights/cases`); proposals are in `rule_proposals`; the AI review and code checks are pure enough to re-run.
