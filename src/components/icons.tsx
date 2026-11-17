@@ -24,4 +24,5 @@ export const IconImage = (p: P) => <I {...p}><rect x="3" y="4" width="18" height
 export const IconFile = (p: P) => <I {...p}><path d="M14 3H6v18h12V7l-4-4Z" /><path d="M14 3v4h4" /><path d="M9 13h6M9 17h4" /></I>;
 export const IconUser = (p: P) => <I {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></I>;
 export const IconArrow = (p: P) => <I {...p}><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></I>;
+export const IconReset = (p: P) => <I {...p}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></I>;
 export const IconBolt = (p: P) => <I {...p}><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /></I>;

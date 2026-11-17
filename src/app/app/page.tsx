@@ -3,7 +3,8 @@ import { requireSession } from "@/lib/session";
 import { Card, PageTitle, StatusPill, btn, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { resetDemo, switchPerson } from "@/app/actions";
-import { IconChart, IconCheck, IconFile, IconImage } from "@/components/icons";
+import { IconChart, IconCheck, IconFile, IconImage, IconReset } from "@/components/icons";
+import { CloseDetails } from "./CloseDetails";
 
 type Step = { title: string; detail: string; done: boolean; person: string; href: string; cta: string };
 
@@ -81,7 +82,7 @@ export default async function StartHere() {
             { href: "/app/insights", t: "See insights", d: "Repeated mistakes, a rule flagged as unclear, and AI-proposed clearer wording.", Icon: IconChart, tint: "from-[#d8f0ea] to-[#eef8f5] text-[#0a5c4f]" },
           ].map((m) => (
             <li key={m.href}>
-              <Link href={m.href} className="group flex h-full gap-3 rounded-2xl border border-line/80 bg-surface p-4 shadow-card transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift">
+              <Link href={m.href} className="glow-card group flex h-full gap-3 rounded-2xl border border-line/80 bg-surface p-4 shadow-card transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift">
                 <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br ${m.tint} transition group-hover:scale-110`}><m.Icon className="h-5 w-5" /></span>
                 <span>
                   <span className="block font-semibold text-primary group-hover:underline">{m.t}</span>
@@ -109,9 +110,21 @@ export default async function StartHere() {
         ))}
       </Card>
 
-      <form action={resetDemo} className="mt-10 text-right">
-        <button className="text-xs text-muted underline">Reset this demo workspace</button>
-      </form>
+      <div className="mt-10 flex justify-end">
+        <details className="group w-full max-w-md rounded-2xl border border-line/80 bg-surface/90 p-1 shadow-card backdrop-blur open:p-4 sm:w-auto">
+          <summary className="ml-auto flex w-fit cursor-pointer list-none items-center gap-2 rounded-xl border border-red/30 bg-surface px-4 py-2 text-sm font-semibold text-red transition hover:-translate-y-px hover:bg-red/5 group-open:hidden [&::-webkit-details-marker]:hidden">
+            <IconReset className="h-4 w-4" /> Reset this demo workspace
+          </summary>
+          <p className="text-sm font-semibold text-ink">Start the demo again from the beginning?</p>
+          <p className="mt-1 text-sm text-muted">This deletes your drafts, decisions and rule changes in this workspace and gives you a fresh copy. It cannot be undone.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <form action={resetDemo}>
+              <button className="inline-flex items-center gap-2 rounded-lg bg-red px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_-6px_rgb(179_38_30/0.6)] transition hover:-translate-y-px hover:brightness-110"><IconReset className="h-4 w-4" /> Yes, reset everything</button>
+            </form>
+            <CloseDetails className={btn.secondary}>Cancel</CloseDetails>
+          </div>
+        </details>
+      </div>
     </>
   );
 }

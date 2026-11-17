@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 pt-3">
           <Link href="/app" className="group flex items-center gap-2">
             <LogoMark className="h-7 w-7 transition group-hover:rotate-[-8deg]" />
-            <span className="font-display text-lg font-extrabold tracking-tight text-gradient">Proofmark</span>
+            <span className="font-display text-lg font-extrabold tracking-tight text-gradient-live">Proofmark</span>
           </Link>
           <PersonSwitcher people={s.people} activeId={s.person.id} />
         </div>

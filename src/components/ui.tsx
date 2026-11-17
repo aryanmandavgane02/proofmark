@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export const btn = {
-  primary: "inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-violet px-4 py-2 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0",
+  primary: "shine inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-violet px-4 py-2 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0",
   secondary: "inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-primary-d shadow-card transition hover:-translate-y-px hover:border-primary/40 hover:bg-soft active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
   accent: "inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-[#0b6b5b] px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_18px_-6px_rgb(13_122_104/0.6)] transition hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
   danger: "inline-flex items-center justify-center gap-2 rounded-lg border border-red/40 bg-surface px-4 py-2 text-sm font-semibold text-red transition hover:-translate-y-px hover:bg-red/5 active:scale-[0.98]",

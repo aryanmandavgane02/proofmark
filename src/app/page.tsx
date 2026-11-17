@@ -29,8 +29,9 @@ const trust = [
 function Preview() {
   return (
     <div aria-hidden className="relative animate-float">
-      <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-violet/25 via-primary/10 to-accent/25 blur-2xl" />
-      <div className="relative rounded-2xl border border-line/80 bg-surface/95 p-5 shadow-lift backdrop-blur">
+      <div className="absolute -inset-6 animate-[pulse_5s_ease-in-out_infinite] rounded-[2rem] bg-gradient-to-br from-violet/35 via-primary/15 to-accent/35 blur-2xl" />
+      <div className="spin-border relative rounded-2xl shadow-lift">
+      <div className="relative rounded-[calc(1rem-1px)] bg-surface p-5">
         <div className="flex items-center justify-between text-xs">
           <span className="font-semibold text-primary-d">Diwali offer post · Instagram</span>
           <span className="flex items-center gap-1 rounded-full bg-[#e2e6f6] px-2 py-0.5 font-semibold text-primary-d"><IconBolt className="h-3 w-3" /> checked in 0.2 s</span>
@@ -54,6 +55,7 @@ function Preview() {
           Approved by Ritu (legal) · version 2
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -65,15 +67,13 @@ export default async function Home() {
     <div className="relative isolate flex flex-1 flex-col overflow-hidden">
       {/* Decorative background */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="dot-grid absolute inset-0" />
-        <div className="absolute -top-32 right-[-8rem] h-[28rem] w-[28rem] animate-drift rounded-full bg-violet/20 blur-3xl" />
-        <div className="absolute top-40 -left-32 h-[24rem] w-[24rem] animate-drift rounded-full bg-accent/15 blur-3xl [animation-delay:-6s]" />
+        <div className="dot-grid absolute inset-0 opacity-60" />
       </div>
 
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
         <div className="flex items-center gap-2.5">
           <LogoMark className="h-9 w-9" />
-          <span className="font-display text-xl font-extrabold tracking-tight text-gradient">Proofmark</span>
+          <span className="font-display text-xl font-extrabold tracking-tight text-gradient-live">Proofmark</span>
         </div>
         <a className="rounded-lg px-3 py-1.5 text-sm font-semibold text-primary-d underline underline-offset-4 hover:bg-surface" href="https://github.com/aryanmandavgane02/proofmark">Source code</a>
       </header>
@@ -85,7 +85,7 @@ export default async function Home() {
             Live demo · CodeZen 2026
           </span>
           <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] tracking-tight text-ink sm:text-6xl">
-            Brand guidelines <span className="block text-gradient">as code.</span>
+            Brand guidelines <span className="block text-gradient-live">as code.</span>
           </h1>
           <p className="mt-5 max-w-xl text-lg text-muted">
             Every draft is checked against approved rules, facts and assets before it is published. Every issue comes with its
@@ -94,7 +94,7 @@ export default async function Home() {
           <div className="mt-8 flex flex-wrap items-center gap-3">
             {hasDemo ? (
               <>
-                <Link href="/app" className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-violet px-6 py-3.5 font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:brightness-110">
+                <Link href="/app" className="shine inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-violet px-6 py-3.5 font-semibold text-white shadow-glow transition hover:-translate-y-0.5 hover:brightness-110">
                   Continue your demo <IconArrow className="h-4 w-4" />
                 </Link>
                 <span className="text-sm text-muted">Your private demo workspace is still here.</span>
@@ -116,7 +116,7 @@ export default async function Home() {
       <section aria-label="In numbers" className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <ul className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
           {stats.map((x) => (
-            <li key={x.l} className="rounded-2xl border border-line/80 bg-surface/90 p-4 shadow-card backdrop-blur">
+            <li key={x.l} className="glow-card rounded-2xl border border-line/80 bg-surface/90 p-4 shadow-card backdrop-blur transition hover:-translate-y-1 hover:shadow-lift">
               <p className="font-display text-2xl font-extrabold text-gradient sm:text-3xl">{x.n}</p>
               <p className="mt-1 text-xs text-muted sm:text-sm">{x.l}</p>
             </li>
@@ -128,7 +128,7 @@ export default async function Home() {
         <h2 id="how" className="text-center text-2xl font-extrabold tracking-tight text-primary-d">How it works</h2>
         <ol className="stagger mt-6 grid gap-4 sm:grid-cols-3">
           {steps.map((st, i) => (
-            <li key={st.t} className="group relative rounded-2xl border border-line/80 bg-surface p-5 shadow-card transition hover:-translate-y-1 hover:shadow-lift">
+            <li key={st.t} className="glow-card group relative rounded-2xl border border-line/80 bg-surface p-5 shadow-card transition hover:-translate-y-1 hover:shadow-lift">
               <div className="flex items-center gap-3">
                 <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet text-white shadow-glow transition group-hover:scale-110"><st.Icon className="h-5 w-5" /></span>
                 <span className="text-sm font-bold text-accent">Step {i + 1}</span>
@@ -144,7 +144,7 @@ export default async function Home() {
         <h2 id="trust" className="text-center text-2xl font-extrabold tracking-tight text-primary-d">Why you can trust a finding</h2>
         <ul className="stagger mt-6 grid gap-4 sm:grid-cols-3">
           {trust.map((t) => (
-            <li key={t.t} className="flex gap-3 rounded-2xl border border-line/80 bg-surface/90 p-5 shadow-card">
+            <li key={t.t} className="glow-card flex gap-3 rounded-2xl border border-line/80 bg-surface/90 p-5 shadow-card transition hover:-translate-y-1 hover:shadow-lift">
               <span aria-hidden className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#d8f0ea] text-[#0a5c4f]"><t.Icon className="h-5 w-5" /></span>
               <div>
                 <h3 className="font-semibold text-primary-d">{t.t}</h3>
