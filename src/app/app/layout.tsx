@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
               <LogoMark className="h-7 w-7 transition group-hover:rotate-[-8deg]" />
               <span className="font-display text-lg font-extrabold tracking-tight text-gradient-live">Proofmark</span>
             </Link>
-            <Link href="/" className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-primary-d shadow-card transition hover:-translate-y-px hover:border-primary/40 hover:bg-soft active:scale-[0.98]">
+            <Link href="/" className="shine inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-primary to-violet px-3 py-1.5 text-sm font-semibold text-white shadow-glow transition hover:-translate-y-px hover:brightness-110 active:translate-y-0 active:scale-[0.98]">
               <IconHome className="h-4 w-4" /> Home page
             </Link>
           </div>
