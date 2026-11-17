@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Card, PageTitle, StatusPill, btn, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { resetDemo, switchPerson } from "@/app/actions";
-import { IconChart, IconCheck, IconFile, IconImage, IconReset } from "@/components/icons";
+import { IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser } from "@/components/icons";
 import { CloseDetails } from "./CloseDetails";
 
 type Step = { title: string; detail: string; done: boolean; person: string; href: string; cta: string };
@@ -56,8 +56,16 @@ export default async function StartHere() {
                   {st.done ? <IconCheck className="h-4 w-4" /> : i + 1}
                 </span>
                 <div className="min-w-[12rem] flex-1">
-                  <p className="font-semibold text-ink">{st.title} <span className="font-normal text-muted">· as {st.person}</span></p>
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold text-ink">
+                    {st.title}
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#e2e6f6] px-2 py-0.5 text-xs font-semibold text-primary-d">
+                      <IconUser className="h-3.5 w-3.5" /> Done by {st.person}{person ? ` (${person.role === "reviewer" ? person.title.toLowerCase() : person.role === "manager" ? "brand manager" : "creator"})` : ""}
+                    </span>
+                  </p>
                   <p className="text-sm text-muted">{st.detail}</p>
+                  {isNext && person && person.id !== s.person.id && (
+                    <p className="mt-1 text-xs font-semibold text-violet">You&apos;re acting as {s.person.name}. The button switches you to {st.person}.</p>
+                  )}
                 </div>
                 {person && (
                   <form action={switchPerson} className="w-full pl-9 sm:w-auto sm:pl-0">
