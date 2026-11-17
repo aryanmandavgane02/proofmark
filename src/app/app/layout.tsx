@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { LogoMark } from "@/components/Logo";
 import { PersonSwitcher } from "./PersonSwitcher";
 import { NavLinks } from "./NavLinks";
+import { BackLink } from "./BackLink";
 import { IconHome } from "@/components/icons";
 
 
@@ -32,7 +33,10 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
           </div>
         )}
       </header>
-      <main className="stagger mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
+      <main className="stagger mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+        <BackLink />
+        {children}
+      </main>
     </div>
   );
 }

@@ -28,6 +28,15 @@ test("draft page: Back returns to where you came from", async ({ page, context }
   await page.getByRole("link", { name: "← Back" }).click();
   await expect(page).toHaveURL(/\/app\/review$/);
 
+  // Every other app page has Back too: Review → New draft → Back returns to Review; Start here has none
+  await page.goto("/app/review");
+  await page.getByRole("link", { name: "New draft", exact: true }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/new$/);
+  await page.getByRole("link", { name: "← Back" }).click();
+  await expect(page).toHaveURL(/\/app\/review$/);
+  await page.goto("/app");
+  await expect(page.getByRole("link", { name: "← Back" })).toHaveCount(0);
+
   // Opened directly in a new tab: Back goes to Start here, never out of the app
   const tab = await context.newPage();
   await tab.goto(draft);

@@ -42,7 +42,6 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
 
   return (
     <>
-      <Link href={`/app/drafts/${id}`} className="text-sm text-muted hover:underline">← Back to the draft</Link>
       <PageTitle title={`Versions of “${draft.title}”`} subtitle="Every change is a new version, checked again. Approvals belong to one exact version." />
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
         <Card className="divide-y divide-line">
