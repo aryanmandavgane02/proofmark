@@ -30,7 +30,7 @@ Proofmark was built in Round 2 (16–19 Nov 2026) from the plan submitted in Rou
 | Two reviewers instead of one reviewer role | Routing by risk is clearer when claims go to legal and visual findings go to design |
 | Checks use the latest **published** rulebook version | Edits and imports should not change results until the manager publishes them, and every check records its version |
 | Workflow records (check results, findings, decisions, comments, approvals, audit events) are written only by the server | Testing showed that writing to the database directly could bypass the workflow or forge someone else's name. The database now refuses these writes from visitors |
-| Findings that come from looking at an image are always labelled "needs human judgment" | The proof check can confirm a text quote, but not what an AI saw in a picture |
+| Findings based on what the AI saw in an image (text in the picture, logo use) are always labelled "needs human judgment"; colour findings are measured by code | The proof check can confirm a text quote, but not what an AI saw in a picture |
 | The brand-colour check skips photographs | Photos are full of non-brand colours; checking them produced false findings |
 | Insights show mistakes by **category** instead of by **team** | The demo has one creator team (the agency), so a team view would show one row. The data model keeps the person on every decision, so a team view can be added |
 | Insights include a labelled sample history | The page is useful on a first visit. It is kept in code, marked "Sample", and never mixed into drafts or the audit trail |
