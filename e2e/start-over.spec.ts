@@ -9,7 +9,9 @@ test("home page: continue the demo, or start over after confirming", async ({ pa
   await page.getByRole("button", { name: "Check this draft" }).click();
   await expect(page.getByText(/dealt with/).first()).toBeVisible({ timeout: 60_000 });
 
-  await page.goto("/");
+  // The logo in the app goes back to the home page
+  await page.getByRole("link", { name: "Proofmark home page" }).click();
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("link", { name: /Continue your demo/ })).toBeVisible();
 
   // Cancel keeps everything

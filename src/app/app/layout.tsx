@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
     <div className="flex min-h-full flex-1 flex-col">
       <header className="z-20 sm:sticky sm:top-0 border-b border-line/70 bg-surface/80 shadow-[0_1px_12px_-6px_rgb(31_42_107/0.15)] backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 pt-3">
-          <Link href="/app" className="group flex items-center gap-2">
+          <Link href="/" className="group flex items-center gap-2" title="Proofmark home page" aria-label="Proofmark home page">
             <LogoMark className="h-7 w-7 transition group-hover:rotate-[-8deg]" />
             <span className="font-display text-lg font-extrabold tracking-tight text-gradient-live">Proofmark</span>
           </Link>
