@@ -7,6 +7,7 @@ import { acceptFix, addComment, approveDraft, confirmIntent, disputeFinding, req
 import { Highlighted, type Mark } from "./Highlighted";
 import { signedImageUrl } from "@/lib/images";
 import { PendingButton } from "./PendingButton";
+import { BackLink } from "./BackLink";
 import { describeEvent } from "@/lib/events";
 
 type Finding = {
@@ -67,7 +68,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/app" className="text-sm text-muted hover:underline">← Start here</Link>
+        <BackLink />
       </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

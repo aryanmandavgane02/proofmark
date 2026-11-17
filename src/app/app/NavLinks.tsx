@@ -19,6 +19,14 @@ const NAV = [
 export function NavLinks() {
   const path = usePathname();
   const ref = useRef<HTMLElement>(null);
+  // Remember the previous page inside the app, for the "Back" link on drafts (per tab, never sent anywhere).
+  useEffect(() => {
+    try {
+      const current = sessionStorage.getItem("pm:current");
+      if (current && current !== path) sessionStorage.setItem("pm:prev", current);
+      sessionStorage.setItem("pm:current", path);
+    } catch {}
+  }, [path]);
   // On a phone the links scroll sideways: bring the current one into view.
   useEffect(() => {
     const nav = ref.current;
