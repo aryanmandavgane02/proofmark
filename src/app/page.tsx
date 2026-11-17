@@ -100,7 +100,7 @@ export default async function Home() {
                 </Link>
                 <span className="text-sm text-muted">Your private demo workspace is still here.</span>
                 <details className="group w-full">
-                  <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-primary-d underline underline-offset-4 group-open:hidden [&::-webkit-details-marker]:hidden">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-line bg-surface/90 px-5 py-2.5 text-sm font-semibold text-primary-d shadow-card backdrop-blur transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-surface hover:shadow-lift active:translate-y-0 active:scale-[0.98] group-open:hidden [&::-webkit-details-marker]:hidden">
                     <IconReset className="h-4 w-4" /> Start over with a fresh workspace
                   </summary>
                   <div className="mt-1 max-w-md rounded-2xl border border-line/80 bg-surface/95 p-4 shadow-card backdrop-blur">
