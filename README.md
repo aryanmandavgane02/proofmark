@@ -45,7 +45,7 @@ How it fits together, the check pipeline and the security model: [docs/ARCHITECT
 | What | Result |
 |---|---|
 | Unit tests (`npm test`) | 89 passing: every code check, the proof check, colours, image findings, PDF import verification, insights |
-| Browser tests (`npx playwright test`) | 11 passing, locally and against production: judge path, image ad, review workflow, brand setup, insights (two), switching person, home page and starting over, and accessibility: no WCAG 2.1 A/AA violations found by axe on any screen, no sideways scrolling at phone width, and the demo usable by keyboard alone |
+| Browser tests (`npx playwright test`) | 12 passing, locally and against production: judge path, image ad, review workflow, brand setup, insights (two), switching person, home page and starting over, the Back link, and accessibility: no WCAG 2.1 A/AA violations found by axe on any screen, no sideways scrolling at phone width, and the demo usable by keyboard alone |
 | Database access attacks (`npm run rls-check`) | 22 of 22 refused, e.g. a creator marking a blocker accepted, forging an approval, or writing an audit entry in someone else's name |
 | Scored test set (`npm run eval`) | 27 hand-labelled drafts. Code checks: 100% of problems found, 100% precision, 5/5 clean drafts untouched. Code + AI: 95% found, 93% precision, 3/5 clean drafts untouched (AI false alarms on judgment rules, two of three already labelled *needs human judgment*). Details and failure notes: [eval/RESULTS.md](eval/RESULTS.md) |
 
