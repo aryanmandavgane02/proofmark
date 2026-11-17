@@ -2,10 +2,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { IconBook, IconChart, IconFact, IconHome, IconInbox, IconPen, IconShield, IconTrail } from "@/components/icons";
+import { IconBook, IconChart, IconFact, IconFlag, IconInbox, IconPen, IconShield, IconTrail } from "@/components/icons";
 
 const NAV = [
-  { href: "/app", label: "Start here", Icon: IconHome },
+  { href: "/app", label: "Start here", Icon: IconFlag },
   { href: "/app/drafts/new", label: "New draft", Icon: IconPen },
   { href: "/app/review", label: "Review", Icon: IconInbox },
   { href: "/app/insights", label: "Insights", Icon: IconChart },

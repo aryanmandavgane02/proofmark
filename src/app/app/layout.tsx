@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { LogoMark } from "@/components/Logo";
 import { PersonSwitcher } from "./PersonSwitcher";
 import { NavLinks } from "./NavLinks";
+import { IconHome } from "@/components/icons";
 
 
 export default async function AppLayout({ children }: LayoutProps<"/app">) {
@@ -11,10 +12,15 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
     <div className="flex min-h-full flex-1 flex-col">
       <header className="z-20 sm:sticky sm:top-0 border-b border-line/70 bg-surface/80 shadow-[0_1px_12px_-6px_rgb(31_42_107/0.15)] backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 pt-3">
-          <Link href="/" className="group flex items-center gap-2" title="Proofmark home page" aria-label="Proofmark home page">
-            <LogoMark className="h-7 w-7 transition group-hover:rotate-[-8deg]" />
-            <span className="font-display text-lg font-extrabold tracking-tight text-gradient-live">Proofmark</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="group flex items-center gap-2" title="Proofmark home page" aria-label="Proofmark home page">
+              <LogoMark className="h-7 w-7 transition group-hover:rotate-[-8deg]" />
+              <span className="font-display text-lg font-extrabold tracking-tight text-gradient-live">Proofmark</span>
+            </Link>
+            <Link href="/" className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-primary-d shadow-card transition hover:-translate-y-px hover:border-primary/40 hover:bg-soft active:scale-[0.98]">
+              <IconHome className="h-4 w-4" /> Home page
+            </Link>
+          </div>
           <PersonSwitcher people={s.people} activeId={s.person.id} />
         </div>
         <div className="mx-auto max-w-6xl px-4 pb-2.5 pt-2">

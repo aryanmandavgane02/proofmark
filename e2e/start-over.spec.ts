@@ -21,8 +21,11 @@ test("home page: continue the demo, or start over after confirming", async ({ pa
   await page.getByRole("link", { name: /Continue your demo/ }).click();
   await expect(page.getByText("Diwali offer post").first()).toBeVisible();
 
+  // The "Home page" button in the app header also goes back
+  await page.getByRole("link", { name: "Home page", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+
   // Start fresh: a new, empty workspace
-  await page.goto("/");
   await page.getByText("Start over with a fresh workspace").click();
   await page.getByRole("button", { name: /Yes, start fresh/ }).click();
   await expect(page).toHaveURL(/\/app$/);
