@@ -15,19 +15,17 @@ export const getSession = cache(async () => {
   const uid = claims?.claims?.sub;
   if (!uid) return null;
   const user = { id: uid };
+  // One round trip: the membership, its workspace and the workspace's people (row-level security applies to each).
   const { data: member } = await supabase
     .from("members")
-    .select("workspace_id, active_person_id")
+    .select("workspace_id, active_person_id, workspace:workspaces(id, name, brand_name, is_demo, code_checks_only, rulebook_version, people(id, name, title, role, reviewer_area, sort))")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (!member) return { supabase, user, workspace: null, person: null, people: [] as Person[] };
-  const [{ data: workspace }, { data: people }] = await Promise.all([
-    supabase.from("workspaces").select("id, name, brand_name, is_demo, code_checks_only, rulebook_version").eq("id", member.workspace_id).single(),
-    supabase.from("people").select("id, name, title, role, reviewer_area").eq("workspace_id", member.workspace_id).order("sort"),
-  ]);
-  const list = (people ?? []) as Person[];
+  if (!member?.workspace) return { supabase, user, workspace: null, person: null, people: [] as Person[] };
+  const { people: raw, ...workspace } = member.workspace as unknown as Workspace & { people: (Person & { sort: number })[] };
+  const list: Person[] = [...(raw ?? [])].sort((a, b) => a.sort - b.sort).map(({ sort: _sort, ...p }) => { void _sort; return p; });
   return {
     supabase,
     user,
