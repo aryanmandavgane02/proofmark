@@ -55,7 +55,7 @@ Main tables (`supabase/migrations/`): `workspaces`, `people`, `members` (who is 
 
 ## Reliability
 
-- Unit tests (Vitest) for every code check, the proof check, colours, image findings, import verification and insights. Browser tests (Playwright) for the judge path, image ad, review workflow, brand setup and insights, plus accessibility (axe finds no WCAG 2.1 A/AA violations on any screen; no sideways scrolling at phone width; usable by keyboard alone), run against production after each deploy.
+- Unit tests (Vitest) for every code check, the proof check, colours, image findings, import verification and insights. Browser tests (Playwright) for the judge path, image ad, review workflow, brand setup, insights, switching person and starting over, plus accessibility (axe finds no WCAG 2.1 A/AA violations on any screen; no sideways scrolling at phone width; usable by keyboard alone), run against production after each deploy.
 - Scored test set (`eval/`, `npm run eval`): results in `eval/RESULTS.md`.
 - AI calls: 25-second timeout, one retry after a pause on rate-limit or overload errors, then a fallback model, stored answers keyed by the exact prompt, daily caps of 60 requests per workspace and 450 overall.
 - A daily GitHub job checks the live site and its database (`/api/health`), which also stops the free database from pausing.
