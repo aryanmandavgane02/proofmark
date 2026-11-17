@@ -67,6 +67,8 @@ export async function switchPerson(formData: FormData) {
   const personId = String(formData.get("person_id"));
   if (!s.people.some((p) => p.id === personId)) return;
   await s.supabase.from("members").update({ active_person_id: personId }).eq("workspace_id", s.workspace.id).eq("user_id", s.user.id);
+  // The header (in the shared layout) shows who you act as, so refresh the whole layout, not just the page.
+  revalidatePath("/app", "layout");
   const back = String(formData.get("back") ?? "/app");
   redirect(back.startsWith("/app") ? back : "/app");
 }

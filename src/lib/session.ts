@@ -9,16 +9,20 @@ export type Workspace = { id: string; name: string; brand_name: string; is_demo:
 /** The visitor's workspace and the person they are currently acting as, or null if they have none. */
 export const getSession = cache(async () => {
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return null;
+  // getClaims verifies the signed session token locally (the project uses asymmetric ES256 keys),
+  // so no round trip to the auth server on every request.
+  const { data: claims } = await supabase.auth.getClaims();
+  const uid = claims?.claims?.sub;
+  if (!uid) return null;
+  const user = { id: uid };
   const { data: member } = await supabase
     .from("members")
     .select("workspace_id, active_person_id")
-    .eq("user_id", auth.user.id)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (!member) return { supabase, user: auth.user, workspace: null, person: null, people: [] as Person[] };
+  if (!member) return { supabase, user, workspace: null, person: null, people: [] as Person[] };
   const [{ data: workspace }, { data: people }] = await Promise.all([
     supabase.from("workspaces").select("id, name, brand_name, is_demo, code_checks_only, rulebook_version").eq("id", member.workspace_id).single(),
     supabase.from("people").select("id, name, title, role, reviewer_area").eq("workspace_id", member.workspace_id).order("sort"),
@@ -26,7 +30,7 @@ export const getSession = cache(async () => {
   const list = (people ?? []) as Person[];
   return {
     supabase,
-    user: auth.user,
+    user,
     workspace: workspace as Workspace,
     person: list.find((p) => p.id === member.active_person_id) ?? list[0],
     people: list,
