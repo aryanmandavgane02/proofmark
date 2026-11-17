@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/Logo";
-import { IconArrow, IconBolt, IconBook, IconCheck, IconPen, IconShield, IconTrail, IconUser } from "@/components/icons";
+import { IconArrow, IconBolt, IconBook, IconCheck, IconPen, IconReset, IconShield, IconTrail, IconUser } from "@/components/icons";
 import { getSession } from "@/lib/session";
-import { startDemo } from "./actions";
+import { resetDemo, startDemo } from "./actions";
+import { CloseDetails } from "./app/CloseDetails";
 import { StartButton } from "./StartButton";
 
 const steps = [
@@ -98,6 +99,21 @@ export default async function Home() {
                   Continue your demo <IconArrow className="h-4 w-4" />
                 </Link>
                 <span className="text-sm text-muted">Your private demo workspace is still here.</span>
+                <details className="group w-full">
+                  <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-primary-d underline underline-offset-4 group-open:hidden [&::-webkit-details-marker]:hidden">
+                    <IconReset className="h-4 w-4" /> Start over with a fresh workspace
+                  </summary>
+                  <div className="mt-1 max-w-md rounded-2xl border border-line/80 bg-surface/95 p-4 shadow-card backdrop-blur">
+                    <p className="text-sm font-semibold text-ink">Start the demo again from the beginning?</p>
+                    <p className="mt-1 text-sm text-muted">This deletes your drafts, decisions and rule changes and gives you a fresh copy of the Urja Bites workspace. It cannot be undone.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <form action={resetDemo}>
+                        <button className="inline-flex items-center gap-2 rounded-lg bg-red px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_-6px_rgb(179_38_30/0.6)] transition hover:-translate-y-px hover:brightness-110"><IconReset className="h-4 w-4" /> Yes, start fresh</button>
+                      </form>
+                      <CloseDetails className="inline-flex items-center rounded-lg border border-line bg-surface px-4 py-2 text-sm font-semibold text-primary-d shadow-card transition hover:bg-soft">Cancel</CloseDetails>
+                    </div>
+                  </div>
+                </details>
               </>
             ) : (
               <form action={startDemo}>
