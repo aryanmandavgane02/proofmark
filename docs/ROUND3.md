@@ -14,7 +14,7 @@ Round 2 user testing confirmed all three improvements (see `USER_TESTING.md`); n
 
 ## The three improvements: starting points
 
-### 1. PDF documents and decks as a content format (text and fonts)
+### 1. PDF documents and decks as a content format (text and fonts; up to 20 pages; decks exported as PDF)
 - **Already there:** `src/lib/ai/import.ts` reads PDF text page by page with unpdf (used for brand-guide import). The check pipeline (`src/lib/pipeline.ts`) checks a body of text.
 - **Plan:** a `document` channel; store the PDF in the private bucket; run the code checks and AI review per page; findings carry a page number; extract font names per page (pdf.js `getOperatorList` / font objects) and compare with the brand typefaces (new asset kind `font`).
 - **Measure:** add 10+ PDF cases to `eval/cases.ts`; publish recall and precision for PDFs.
@@ -26,7 +26,7 @@ Round 2 user testing confirmed all three improvements (see `USER_TESTING.md`); n
 - **Measure:** "editing F-12 lists N of N approved drafts that quoted the old figure" (recall 100% on a seeded set).
 - **Note:** fact F-13 (Diwali offer) expires 30 Nov 2026 — a natural live demo of this feature. Update the sample drafts' dates if Round 3 runs later.
 
-### 3. Rule-change replay
+### 3. Rule-change replay (rules checked by AI, whose behaviour depends on their wording)
 - **Already there:** decisions are stored as labelled test cases (`src/lib/insights.ts`, `testCasesJSON`, `/app/insights/cases`); proposals are in `rule_proposals`; the AI review and code checks are pure enough to re-run.
 - **Plan:** before publishing new wording, re-run the affected rule (code check, or AI check with the new statement) on every stored case for that rule; show "would now pass / would now flag" and the count that changes; store the replay with the published version.
 - **Measure:** number of past decisions replayed and agreement with human decisions, before and after rewording (e.g. MSG-01 with the sample history).
