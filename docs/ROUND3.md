@@ -1,5 +1,7 @@
 # Round 3 preparation
 
+> Written at the end of Round 2. **The working plan for Round 3 is [ROUND3_PLAN.md](ROUND3_PLAN.md)**, written once the Round 3 rules were published. Those rules ask for no video, so the video below was dropped.
+
 What the Round 1 plan committed to for Round 3, where each piece starts in the code, and the known gaps found while checking Round 2. Written at the end of Round 2 so Round 3 can start immediately.
 
 ## What Round 1 promised for Round 3
@@ -45,6 +47,6 @@ Round 2 user testing confirmed all three improvements (see `USER_TESTING.md`); n
 | Score history chart for the test set (Round 1 promise) | `eval/history.json` |
 
 ## Finish checklist
-- Demonstration video (judge path, then each improvement before and after)
+- ~~Demonstration video~~ (not required: the Round 3 rules ask for no video)
 - Final report PDF (built like `round2/` with `build.sh`)
 - Updated README: Round 3 features, scores over time, limitations, roadmap, contribution
