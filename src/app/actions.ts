@@ -364,6 +364,9 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
     throw new Error(error.message);
   }
 
+  // Alerts about the replaced version are settled: the new version is checked against today's facts anyway.
+  await createAdminClient().from("fact_alerts").update({ status: "superseded", outcome: `Version ${next} replaced the version this alert was about; it is checked against today's facts.`, resolved_at: new Date().toISOString() })
+    .eq("draft_id", draftId).eq("workspace_id", s.workspace.id).eq("status", "open");
   const wasApproved = draft.status === "approved";
   await server(s).drafts({ current_version: next, updated_at: new Date().toISOString(), ...(wasApproved ? { status: "draft" } : {}) }, draftId);
   if (wasApproved) {
@@ -661,7 +664,9 @@ async function recheck(s: Session, alert: AlertRow): Promise<{ outcome: "sent_ba
     skipAI: `re-checked after fact ${alert.fact_code} ${alert.kind === "expired" ? "ended" : "changed"}; numbers and dates are checked by code.`,
   });
   const { data: found } = await s.supabase.from("findings").select("rule_code, fact_code, quote, start_at, end_at, page, message").eq("check_run_id", result.runId);
-  const relevant = (found ?? []).filter((f) => f.fact_code === alert.fact_code || (f.start_at != null && alert.evidence.some((e) => f.start_at < e.end && e.start < f.end_at)));
+  // Only a finding about facts counts (it cites this fact, or a fact where the old value was quoted): a finding from
+  // some other rule is not a reason to say the fact made the draft out of date.
+  const relevant = (found ?? []).filter((f) => f.fact_code === alert.fact_code || (!!f.fact_code && f.start_at != null && alert.evidence.some((e) => f.start_at < e.end && e.start < f.end_at)));
   await logEvent(s, "checks.rerun", draft.id, { version: version.version, reason: `fact ${alert.fact_code}` });
   if (relevant.length) {
     const f = relevant[0];

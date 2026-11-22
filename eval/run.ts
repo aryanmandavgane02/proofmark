@@ -11,6 +11,7 @@ import { seedContext, seedRules } from "../src/lib/seed/context";
 import { getProvider } from "../src/lib/ai/gemini";
 import { reviewText, secondOpinion } from "../src/lib/ai/review";
 import { ALERT_PHRASES, CASES, DOC_CASES, LABEL_CORRECTIONS, type DocCase, type EvalCase } from "./cases";
+import { ALERT_HELDOUT } from "./heldout-alerts";
 import { reliance } from "../src/lib/alerts";
 import { seedFacts } from "../src/lib/seed/context";
 import { LIBRARY, LIBRARY_DECK } from "../src/lib/seed/library";
@@ -169,7 +170,20 @@ function scoreAlerts() {
     else if (found) { pfp++; misses.push(`false alert: ${p.fact} on “${p.text}”`); }
     else if (p.relies) { pfn++; misses.push(`missed: ${p.fact} in “${p.text}”`); }
   }
+  // The held-out set: written by an independent labeller who never saw the detector, committed before its first run.
+  let htp = 0, hfp = 0, hfn = 0, htn = 0;
+  const heldMisses: string[] = [];
+  for (const p of ALERT_HELDOUT) {
+    const fact = facts.find((f) => f.code === p.fact);
+    if (!fact) continue;
+    const found = reliance(fact, p.text, undefined, facts, "any").length > 0;
+    if (found && p.relies) htp++;
+    else if (found) { hfp++; heldMisses.push(`false alert: ${p.fact} on “${p.text}”`); }
+    else if (p.relies) { hfn++; heldMisses.push(`missed: ${p.fact} in “${p.text}”`); }
+    else htn++;
+  }
   return {
+    held: { n: ALERT_HELDOUT.length, recall: htp / Math.max(1, htp + hfn), precision: htp / Math.max(1, htp + hfp), right: htp + htn, misses: heldMisses },
     pairs: visible.length * LIBRARY.length, recall: tp / Math.max(1, tp + fn), precision: tp / Math.max(1, tp + fp), tp, fp, fn,
     f12: `${quoted.filter((q) => quotedExpected.includes(q)).length}/${quotedExpected.length}`, f12False: quoted.filter((q) => !quotedExpected.includes(q)).length,
     phrases: ALERT_PHRASES.length, phraseRecall: ptp / Math.max(1, ptp + pfn), phrasePrecision: ptp / Math.max(1, ptp + pfp), misses,
@@ -186,6 +200,7 @@ async function main() {
   const histFile = "eval/history.json";
   const history: (Omit<Run, "cases"> | Omit<DocRun, "cases">)[] = existsSync(histFile) ? JSON.parse(readFileSync(histFile, "utf8")) : [];
   for (const r of [...runs, ...docRuns]) { const { cases: _c, ...summary } = r; void _c; history.push(summary); }
+  if (alerts.held.n) history.push({ mode: "alerts held-out", when: new Date().toISOString(), recall: alerts.held.recall, precision: alerts.held.precision, cleanOk: "—", passed: `${alerts.held.right}/${alerts.held.n}` } as never);
   writeFileSync(histFile, JSON.stringify(history, null, 2) + "\n");
 
   const latest = runs.at(-1)!;
@@ -244,9 +259,11 @@ async function main() {
     `| Editing F-12 (the customer count): approved samples that quote it, found | ${alerts.f12}, with ${alerts.f12False} false alert${alerts.f12False === 1 ? "" : "s"} |`,
     `| Every fact against every sample: reliance found (recall) | ${pct(alerts.recall)} (${alerts.tp} of ${alerts.tp + alerts.fn}) |`,
     `| Every fact against every sample: alerts that are right (precision) | ${pct(alerts.precision)} (${alerts.fp} false) |`,
-    `| Single sentences: recall and precision | ${pct(alerts.phraseRecall)} and ${pct(alerts.phrasePrecision)} |`,
+    `| Single sentences written while building it: recall and precision | ${pct(alerts.phraseRecall)} and ${pct(alerts.phrasePrecision)} |`,
+    ...(alerts.held.n ? [`| **Held-out sentences (${alerts.held.n}, written and labelled independently before the first run): recall and precision** | **${pct(alerts.held.recall)} and ${pct(alerts.held.precision)}** (${alerts.held.right} of ${alerts.held.n} right) |`] : []),
     "",
-    alerts.misses.length ? `Misses and false alerts: ${alerts.misses.join("; ")}.` : "No misses and no false alerts on these sets.",
+    alerts.misses.length ? `Misses and false alerts: ${alerts.misses.join("; ")}.` : "No misses and no false alerts on the library and the sentences written while building it.",
+    ...(alerts.held.n ? ["", `Held-out set (\`eval/heldout-alerts.ts\`): ${alerts.held.misses.length ? `still wrong: ${alerts.held.misses.join("; ")}.` : "every sentence right."} Its first run, on the detector as it was before seeing the set, is kept in the history below.`] : []),
     "The samples were labelled before the detector was run, but the single sentences were written while it was built: they show the cases it is meant to handle, decoys included, not how often it is right on any real content. Numbers written in words (“thirty-five thousand”) are not read, by the facts check or by alerts; this is a known limit.",
     "",
     "## What the failures show",

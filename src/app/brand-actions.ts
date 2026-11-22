@@ -15,7 +15,7 @@ import { verifyImportedRules } from "@/lib/checks/import-verify";
 import { CHANNELS } from "@/lib/checks/types";
 import { sameFamily } from "@/lib/documents/fonts";
 import { factChange } from "@/lib/alerts";
-import { raiseAlerts, raiseExpiry, type FactRow } from "@/lib/alerts-server";
+import { raiseAlerts, raiseExpiry, refreshOpenAlerts, type FactRow } from "@/lib/alerts-server";
 import { todayIST } from "@/lib/pipeline";
 
 export type BrandFormState = { error?: string; ok?: string } | undefined;
@@ -199,9 +199,12 @@ export async function saveFact(_prev: BrandFormState, formData: FormData): Promi
   if (isEdit && old) {
     const now = { ...old, ...row } as FactRow;
     const change = factChange(old, now);
+    await refreshOpenAlerts(s.workspace.id, now);
     const others = (before ?? []).map((x) => (x.code === f.code ? now : x)) as FactRow[];
     const names = (r: { drafts: { title: string }[] }) => r.drafts.slice(0, 4).map((d) => `“${d.title}”`).join(", ") + (r.drafts.length > 4 ? ` and ${r.drafts.length - 4} more` : "");
-    if (change.alerts) {
+    if (old.restricted || now.restricted) {
+      if (change.alerts || change.expiryChanged) said.push("Confidential facts do not raise out-of-date alerts, because alerts are shown to creators.");
+    } else if (change.alerts) {
       const r = await raiseAlerts({ workspaceId: s.workspace.id, fact: old, now, facts: before as FactRow[], kind: "changed", trigger: `changed:${new Date().toISOString()}`, how: old.kind === "number" ? "value" : "any", by: s.person.id });
       said.push(r.count
         ? `${r.count} approved draft${r.count === 1 ? "" : "s"} relied on the old ${old.kind === "number" ? "value" : "wording"}: ${names(r)}. ${r.count === 1 ? "It is" : "They are"} listed under the fact with a re-check button, and the owners were told.`
@@ -209,9 +212,10 @@ export async function saveFact(_prev: BrandFormState, formData: FormData): Promi
     } else if (change.wordingChanged) {
       said.push("The number did not change, so approved drafts that quote it are still correct.");
     }
-    if (change.expiryChanged || (old.expires_on && !now.expires_on)) {
+    if (!old.restricted && !now.restricted && (change.expiryChanged || (old.expires_on && !now.expires_on))) {
       const r = await raiseExpiry(s.workspace.id, now, others, todayIST(), s.person.id);
-      if (now.expires_on) said.push(r.count
+      if (!now.expires_on) said.push("The end date was removed, so its “ends soon” alerts are closed.");
+      else said.push(r.count
         ? `${r.count} approved draft${r.count === 1 ? "" : "s"} mention${r.count === 1 ? "s" : ""} it and ${r.kind === "expired" ? `${r.count === 1 ? "is" : "are"} now out of date` : `need${r.count === 1 ? "s" : ""} a re-check before it ends after ${longDate(now.expires_on)}`}: ${names(r)}.`
         : "No approved draft mentions it.");
     }

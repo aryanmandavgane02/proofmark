@@ -11,12 +11,14 @@ type Step = { title: string; detail: string; done: boolean; person: string; href
 export default async function StartHere() {
   const s = await requireSession();
   const ws = s.workspace.id;
-  const [{ data: allDrafts }, { data: decisions }, { data: events }, { count: openAlerts }] = await Promise.all([
+  const [{ data: allDrafts }, { data: decisions }, { data: events }, { data: openAlertRows }] = await Promise.all([
     s.supabase.from("drafts").select("id, title, channel, status, updated_at, sample_key, reviewer_id, is_sample").eq("workspace_id", ws).order("updated_at", { ascending: false }),
     s.supabase.from("decisions").select("action").eq("workspace_id", ws).eq("is_sample", false),
     s.supabase.from("events").select("type").eq("workspace_id", ws),
-    s.supabase.from("fact_alerts").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("status", "open"),
+    s.supabase.from("fact_alerts").select("draft_id").eq("workspace_id", ws).eq("status", "open"),
   ]);
+  const outOfDate = new Set((openAlertRows ?? []).map((a) => a.draft_id));
+  const openAlerts = (openAlertRows ?? []).length;
   // The approved sample library is there for outdated-content alerts; the guided steps count only the visitor's drafts.
   const drafts = (allDrafts ?? []).filter((d) => !d.is_sample);
   const library = (allDrafts ?? []).filter((d) => d.is_sample);
@@ -134,6 +136,7 @@ export default async function StartHere() {
           <Link key={d.id} href={`/app/drafts/${d.id}`} className="flex flex-wrap items-center gap-3 p-4 transition first:rounded-t-2xl last:rounded-b-2xl hover:bg-soft">
             <span className="font-medium text-ink">{d.title}</span>
             <span className="text-sm text-muted">{CHANNEL_LABEL[d.channel as Channel]}</span>
+            {outOfDate.has(d.id) && <span className="rounded bg-[#fde0dd] px-1.5 py-0.5 text-xs font-semibold text-[#8a1c12]">Out of date</span>}
             <span className="ml-auto text-xs text-muted">{timeAgo(d.updated_at)}</span>
             <StatusPill status={d.status} />
           </Link>
@@ -149,6 +152,7 @@ export default async function StartHere() {
                 <span className="font-medium text-ink">{d.title}</span>
                 <span className="text-sm text-muted">{CHANNEL_LABEL[d.channel as Channel]}</span>
                 <span className="rounded bg-soft px-1.5 py-0.5 text-xs text-muted">Sample</span>
+                {outOfDate.has(d.id) && <span className="rounded bg-[#fde0dd] px-1.5 py-0.5 text-xs font-semibold text-[#8a1c12]">Out of date</span>}
                 <span className="ml-auto text-xs text-muted">{timeAgo(d.updated_at)}</span>
                 <StatusPill status={d.status} />
               </Link>

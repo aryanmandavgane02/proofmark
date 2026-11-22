@@ -91,7 +91,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
           <h1 className="text-2xl font-bold text-primary-d">{draft.title}</h1>
           <p className="mt-1 text-sm text-muted">
             {CHANNEL_LABEL[draft.channel as Channel]}{isDocument && version!.page_count ? ` · ${version!.page_count} page${version!.page_count > 1 ? "s" : ""}` : ""} · version {draft.current_version} · checked against rulebook v{run?.rulebook_version ?? s.workspace.rulebook_version}
-            {run && <> · {run.ms} ms</>}
+            {run && run.ms > 0 && <> · {run.ms} ms</>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -319,7 +319,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             </Card>
           )}
           {findings.length === 0 && !aiRunning && (
-            <Card className="p-5 text-sm text-muted">Nothing breaks the approved rules, facts or terms. It can go to review as it is.</Card>
+            <Card className="p-5 text-sm text-muted">Nothing breaks the approved rules, facts or terms.{draft.status === "approved" ? "" : " It can go to review as it is."}</Card>
           )}
           {[...findings].sort((a, b) => Number(!LIVE.includes(a.status)) - Number(!LIVE.includes(b.status)) || (ORDER[a.severity] ?? 3) - (ORDER[b.severity] ?? 3)).map((f) => {
             const rule = ruleBy.get(f.rule_code);

@@ -131,3 +131,31 @@ test("alerts: changing only the wording of a number raises nothing", async ({ pa
   await expect(page.locator("tr").filter({ hasText: "because F-12 changed" })).toHaveCount(0);
   await expect(f12.getByText("Used in 5 approved drafts")).toBeVisible();
 });
+
+test("alerts: a confidential fact never raises alerts that creators could read", async ({ page }) => {
+  test.setTimeout(90_000);
+  await startDemo(page);
+  await page.goto("/app/facts");
+  await actAs(page, "Meera · Brand manager");
+  const f18 = page.locator("#fact-F-18");
+  await f18.getByText("Edit", { exact: true }).click();
+  await f18.locator('input[name="statement"]').fill("Delhi launch planned for February 2027 (confidential until announced).");
+  await f18.getByRole("button", { name: "Save fact" }).click();
+  await expect(page.getByText(/F-18 updated\. Confidential facts do not raise out-of-date alerts/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("tr").filter({ hasText: "because F-18" })).toHaveCount(0);
+});
+
+test("alerts: editing an alerted draft settles its alert, because the new version is checked anyway", async ({ page }) => {
+  test.setTimeout(120_000);
+  await startDemo(page);
+  await page.goto("/app/insights");
+  await page.locator("#outdated li").filter({ hasText: "Dussehra offer post" }).getByRole("link", { name: "Dussehra offer post" }).click();
+  await expect(page.getByText(/This approved draft may be out of date/)).toBeVisible();
+  await page.getByText("Edit the text yourself").click();
+  await page.getByLabel("Content", { exact: true }).fill("Cocoa, dates and a festive crunch for your family. Order a box at urjabites.in. #UrjaBites");
+  await page.getByRole("button", { name: "Save as a new version and re-check" }).click();
+  await expect(page.getByText(/· version 2 ·/)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/This approved draft may be out of date/)).toHaveCount(0);
+  await page.goto("/app/insights");
+  await expect(page.locator("#outdated li").filter({ hasText: "Dussehra offer post" }).getByRole("button", { name: "Re-check" })).toHaveCount(0);
+});

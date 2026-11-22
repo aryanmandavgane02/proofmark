@@ -47,6 +47,8 @@ export async function raiseAlerts(p: {
   workspaceId: string; fact: FactRow; now: FactRow; facts: FactRow[]; kind: "changed" | "expiring" | "expired";
   trigger: string; how: "value" | "any"; by: string | null;
 }): Promise<Raised> {
+  // Confidential facts never raise alerts: alerts and notifications quote the fact, and creators can read them.
+  if (p.fact.restricted || p.now.restricted) return { count: 0, drafts: [] };
   const db = createAdminClient();
   const content = await approvedContent(p.workspaceId);
   const hits = content
@@ -132,4 +134,9 @@ export async function closeAlert(workspaceId: string, alertId: string, status: "
 export async function notify(workspaceId: string, personId: string | null, text: string, link: string | null) {
   if (!personId) return;
   await createAdminClient().from("notifications").insert({ workspace_id: workspaceId, person_id: personId, text: text.slice(0, 500), link });
+}
+
+/** Open alerts show the fact as it is now, also after a second edit. */
+export async function refreshOpenAlerts(workspaceId: string, fact: FactRow) {
+  await createAdminClient().from("fact_alerts").update({ after: pick(fact) }).eq("workspace_id", workspaceId).eq("fact_code", fact.code).eq("status", "open");
 }
