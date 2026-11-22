@@ -84,6 +84,10 @@ export function extractNumberClaims(text: string): NumberClaim[] {
   for (const m of text.matchAll(/(\d(?:\.\d)?)\s?(?:\/\s?5|out of 5|stars?|★|⭐)/gi)) {
     add({ unit: "rating", value: parseFloat(m[1]), plus: false, text: m[0], start: m.index!, end: m.index! + m[0].length });
   }
+  // The noun first, as on a stats slide: "Customer base: 35K+", "Customers – 35,000". Last, so a rating still wins.
+  for (const m of text.matchAll(new RegExp(`\\b(${COUNT_NOUNS})(?:\\s+(?:base|count|community|served))?\\s*[:\\u2013\\u2014-]\\s*(\\d{1,3}(?:,\\d{2,3})+|\\d+(?:\\.\\d+)?\\s?(?:(?:${MULTIPLIERS})(?![a-z]))?)(\\+|\\s?plus)?`, "gi"))) {
+    add({ unit: "count", value: parseNum(m[2]), plus: !!m[3], text: m[0], start: m.index!, end: m.index! + m[0].length, noun: m[1] });
+  }
   return out.filter((c) => !Number.isNaN(c.value)).sort((a, b) => a.start - b.start);
 }
 

@@ -113,3 +113,11 @@ describe("forms found by the held-out set", () => {
     expect(quotesOf(fact("F-15"), "Diwali price: just ₹432 for the 6-bar box.", undefined, facts)).toHaveLength(1);
   });
 });
+
+describe("counts written noun first", () => {
+  it("reads 'Customer base: 35K+' and keeps 'Customers: 4.6 stars' a rating", async () => {
+    const { extractNumberClaims } = await import("@/lib/checks/claims");
+    expect(extractNumberClaims("Customer base: 35K+ (as of Oct '26)").map((c) => [c.unit, c.value])).toEqual([["count", 35000]]);
+    expect(extractNumberClaims("Customers: 4.6 stars on urjabites.in").map((c) => [c.unit, c.value])).toEqual([["rating", 4.6]]);
+  });
+});

@@ -2,10 +2,13 @@
 
 export type Span = { text: string; start: number; end: number };
 
-/** Splits text into sentences, keeping exact positions. Line breaks also end a sentence. */
+/**
+ * Splits text into sentences, keeping exact positions. Line breaks also end a sentence. A full stop inside a word or
+ * a number ("urjabites.in", "4.6") does not: a sentence ends at . ! or ? followed by a space, a line break or the end.
+ */
 export function sentences(text: string): Span[] {
   const out: Span[] = [];
-  const re = /[^.!?\n]+(?:[.!?]+|(?=\n)|$)/g;
+  const re = /(?:[^.!?\n]|[.!?](?=[^\s.!?]))+(?:[.!?]+|(?=\n)|$)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     const raw = m[0];

@@ -89,13 +89,14 @@ export function quotesOf(fact: FactShape, body: string, pages: DocPage[] | undef
 const STOP = new Set(["the", "a", "an", "of", "in", "on", "at", "for", "to", "and", "or", "with", "by", "as", "is", "are", "our", "your", "we", "you", "it", "this", "that", "from", "be", "has", "have"]);
 const words = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
 
-/** Three-word phrases from a fact's wording, without numbers and not only small words ("no added sugar"). */
+/** Three-word phrases from a fact's wording, without numbers and with at least two real words ("no added sugar"). */
 export function factPhrases(fact: FactShape): string[] {
   const out: string[] = [];
   const toks = words(fact.statement);
   for (let i = 0; i + 3 <= toks.length; i++) {
     const w = toks.slice(i, i + 3);
-    if (w.some((t) => /\d/.test(t)) || w.every((t) => STOP.has(t))) continue;
+    // At least two real words: "on urjabites in" is a web address and small words, not a phrase of the fact.
+    if (w.some((t) => /\d/.test(t)) || w.filter((t) => !STOP.has(t)).length < 2) continue;
     out.push(w.join(" "));
   }
   return out;

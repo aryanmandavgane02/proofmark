@@ -1,5 +1,6 @@
 // Code checks for terminology, tone and social-media style rules.
 import type { CheckContext, FindingDraft, Rule } from "./types";
+import { CHANNEL_LABEL } from "./types";
 import { capitaliseLike, dayMonth, findPhrase, sentenceAt, sentences, wordCount } from "./text";
 
 function base(rule: Rule): Pick<FindingDraft, "category" | "severity" | "rule_code" | "field" | "label"> {
@@ -33,7 +34,8 @@ export function glossaryCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
 /** TONE-02: sentences that are too long to read comfortably. */
 export function readabilityCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   const max = Number(rule.params.max_sentence_words ?? 25);
-  return sentences(ctx.body)
+  const all = sentences(ctx.body).filter((s) => wordCount(s.text) > 0);
+  const tooLong = all
     .filter((s) => wordCount(s.text) > max)
     .map((s) => ({
       ...base(rule),
@@ -44,6 +46,20 @@ export function readabilityCheck(ctx: CheckContext, rule: Rule): FindingDraft[] 
       fix_kind: "none" as const,
       fix_text: "Split it into two or three sentences, one idea each.",
     }));
+  // Reading level per channel: the average sentence length the guide allows on this channel (shorter for ads).
+  const perChannel = (rule.params.max_avg_words ?? {}) as Record<string, number>;
+  const avgMax = Number(perChannel[ctx.channel]);
+  if (!all.length || !avgMax) return tooLong;
+  const avg = all.reduce((n, s) => n + wordCount(s.text), 0) / all.length;
+  if (avg <= avgMax) return tooLong;
+  const longest = [...all].sort((a, b) => wordCount(b.text) - wordCount(a.text))[0];
+  if (tooLong.some((f) => f.start === longest.start)) return tooLong; // already flagged as too long
+  return [...tooLong, {
+    ...base(rule), quote: longest.text, start: longest.start, end: longest.end,
+    message: `Sentences here average ${Math.round(avg)} words; for ${CHANNEL_LABEL[ctx.channel].toLowerCase()} the guide asks for ${avgMax} or fewer on average. This is the longest one.`,
+    fix_kind: "none" as const,
+    fix_text: "Shorten the longest sentences, one idea each, until the average fits.",
+  }];
 }
 
 /** TONE-03: whole words in capital letters. */

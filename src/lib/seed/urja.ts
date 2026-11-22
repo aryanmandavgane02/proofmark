@@ -39,7 +39,7 @@ export const RULES: SeedRule[] = [
   },
   {
     code: "TONE-02", category: "tone", title: "Plain, short sentences", severity: "minor", check_kind: "code", check_type: "readability",
-    params: { max_sentence_words: 25, max_avg_words: { instagram: 14, linkedin: 20, email: 18, website: 18, ad: 12 } },
+    params: { max_sentence_words: 25, max_avg_words: { instagram: 14, linkedin: 20, email: 18, website: 18, ad: 12, document: 20 } },
     statement: "Use plain words and keep sentences short.",
     source_page: 8, source_quote: "Use plain words and short sentences. If a sentence needs a second breath, split it.",
   },

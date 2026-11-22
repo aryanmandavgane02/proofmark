@@ -241,3 +241,29 @@ describe("whole pipeline on the sample drafts", () => {
     expect(run("diwali-post")).toEqual(run("diwali-post"));
   });
 });
+
+describe("reading level per channel (TONE-02)", () => {
+  const avgFindings = (body: string, channel: "ad" | "website" | "instagram") =>
+    runCodeChecks(seedContext({ body, channel, alt_text: "A Cocoa Crunch bar on a cream plate." })).filter((f) => f.rule_code === "TONE-02");
+  it("flags an ad whose sentences are long on average, quoting the longest", () => {
+    const body = "Roasted cocoa, crunchy peanuts and dates come together in one honest bar for busy afternoons. Try a box of six from our Pune kitchen at urjabites.in today.";
+    const f = avgFindings(body, "ad");
+    expect(f).toHaveLength(1);
+    expect(f[0].message).toMatch(/average \d+ words; for advertisement the guide asks for 12 or fewer/);
+    expect(f[0].quote).toBe("Roasted cocoa, crunchy peanuts and dates come together in one honest bar for busy afternoons.");
+  });
+  it("allows the same text on the website, where sentences may be longer", () => {
+    expect(avgFindings("Roasted cocoa, crunchy peanuts and dates come together in one honest bar for busy afternoons. Try a box of six from our Pune kitchen at urjabites.in today.", "website")).toEqual([]);
+  });
+  it("does not flag a sentence twice when it is already too long", () => {
+    const long = "Our bars, which are made with roasted cocoa and dates and peanuts that we buy from small farms and roast in our own kitchen every single morning, are great.";
+    expect(avgFindings(long, "instagram")).toHaveLength(1);
+  });
+});
+
+describe("sentences", () => {
+  it("does not end a sentence inside a web address or a decimal", async () => {
+    const { sentences } = await import("./text");
+    expect(sentences("Rated 4.6 out of 5. Order at urjabites.in today. Done!").map((s) => s.text)).toEqual(["Rated 4.6 out of 5.", "Order at urjabites.in today.", "Done!"]);
+  });
+});
