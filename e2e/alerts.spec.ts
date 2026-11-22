@@ -22,7 +22,7 @@ const DECOYS = ["Ratings post", "Kitchen story", "Product page: Peanut Power"];
 test("alerts: editing F-12 lists every approved draft that quoted it, and one click re-checks it", async ({ page }) => {
   test.setTimeout(120_000);
   await startDemo(page);
-  await page.getByRole("button", { name: /Change a fact and see what goes out of date/ }).click();
+  await page.getByRole("button", { name: /Out-of-date alerts/ }).click();
   await expect(page).toHaveURL(/\/app\/facts/);
   await expect(page.getByLabel("Acting as").locator("option:checked")).toHaveText("Meera · Brand manager");
   const f12 = page.locator("#fact-F-12");

@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Card, PageTitle, StatusPill, btn, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { resetDemo, switchPerson } from "@/app/actions";
-import { IconBell, IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser, IconPages } from "@/components/icons";
+import { IconBell, IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser, IconPages, IconSpark } from "@/components/icons";
 import { CloseDetails } from "./CloseDetails";
 
 type Step = { title: string; detail: string; done: boolean; person: string; href: string; cta: string };
@@ -23,6 +23,7 @@ export default async function StartHere() {
   const drafts = (allDrafts ?? []).filter((d) => !d.is_sample);
   const library = (allDrafts ?? []).filter((d) => d.is_sample);
   const meera = s.people.find((p) => p.role === "manager");
+  const arjun = s.people.find((p) => p.role === "creator");
   const acts = new Set((decisions ?? []).map((d) => d.action));
   const types = new Set((events ?? []).map((e) => e.type));
   const firstDraft = (drafts ?? []).find((d) => d.sample_key === "diwali-post") ?? drafts?.[drafts.length - 1];
@@ -88,27 +89,41 @@ export default async function StartHere() {
         {!next && <p className="mt-4 rounded-lg bg-[#d8f0ea] p-3 text-sm text-[#0a5c4f]">You have run the whole workflow. Try your own content in <Link className="underline" href="/app/drafts/new">New draft</Link>, or look at the rulebook and facts behind each finding.</p>}
       </Card>
 
+      <section aria-labelledby="new" className="mt-6">
+        <h2 id="new" className="flex flex-wrap items-center gap-2 font-semibold text-primary-d">
+          New since Round 2 <span className="rounded-full bg-violet/10 px-2 py-0.5 text-xs font-semibold text-violet">3 improvements, one click each</span>
+        </h2>
+        <ul className="mt-3 grid gap-3 md:grid-cols-3">
+          {[
+            { person: arjun, href: "/app/drafts/new?mode=document&sample=diwali-deck", t: "PDF documents and decks", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet",
+              d: "A 10-page deck checked page by page: every finding with its page, fonts outside the brand typefaces flagged, and the reviewer approves the exact file." },
+            { person: meera, href: "/app/facts#fact-F-12", t: "Out-of-date alerts", Icon: IconBell, tint: "from-[#fde0dd] to-[#fff4ea] text-[#8a1c12]",
+              d: `Edit F-12, the customer count: every approved draft that quoted it is listed, its owner is told, and one click re-checks it.${openAlerts ? ` ${openAlerts} approved draft${openAlerts === 1 ? " is" : "s are"} already out of date.` : ""}` },
+            { person: meera, href: "/app/insights#rule-MSG-01", t: "Rule-change replay", Icon: IconSpark, tint: "from-[#e2e6f6] to-[#eef8f5] text-primary-d",
+              d: "Reword the unclear \u201ctaste first\u201d rule: before it is published, every past decision is replayed, with what would change and agreement with people." },
+          ].filter((c) => c.person).map((c) => (
+            <li key={c.t}>
+              <form action={switchPerson} className="h-full">
+                <input type="hidden" name="person_id" value={c.person!.id} />
+                <input type="hidden" name="back" value={c.href} />
+                <button className="glow-card group flex h-full w-full gap-3 rounded-2xl border border-violet/30 bg-surface p-4 text-left shadow-card transition hover:-translate-y-1 hover:border-violet/60 hover:shadow-lift">
+                  <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br ${c.tint} transition group-hover:scale-110`}><c.Icon className="h-5 w-5" /></span>
+                  <span>
+                    <span className="block font-semibold text-primary group-hover:underline">{c.t}</span>
+                    <span className="block text-sm text-muted">{c.d}</span>
+                    <span className="mt-1 block text-xs font-semibold text-violet">As {c.person!.name}{c.person!.id === s.person.id ? "" : " (switches for you)"}</span>
+                  </span>
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section aria-labelledby="more" className="mt-6">
         <h2 id="more" className="font-semibold text-primary-d">More to try</h2>
-        {meera && (
-          <form action={switchPerson} className="mt-3">
-            <input type="hidden" name="person_id" value={meera.id} />
-            <input type="hidden" name="back" value="/app/facts#fact-F-12" />
-            <button className="glow-card group flex w-full gap-3 rounded-2xl border border-line/80 bg-surface p-4 text-left shadow-card transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift">
-              <span aria-hidden className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br from-[#fde0dd] to-[#fff4ea] text-[#8a1c12] transition group-hover:scale-110"><IconBell className="h-5 w-5" /></span>
-              <span>
-                <span className="block font-semibold text-primary group-hover:underline">Change a fact and see what goes out of date</span>
-                <span className="block text-sm text-muted">
-                  As Meera, edit F-12 (the customer count): every approved draft that quoted it is listed, its owner is told, and one click re-checks it.
-                  {openAlerts ? ` ${openAlerts} approved draft${openAlerts === 1 ? " is" : "s are"} already out of date.` : ""}
-                </span>
-              </span>
-            </button>
-          </form>
-        )}
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            { href: "/app/drafts/new?mode=document&sample=diwali-deck", t: "Check a PDF deck", d: "A 10-page deck: every page checked, each finding with its page, fonts outside the brand typefaces flagged.", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet" },
             { href: "/app/drafts/new?sample=diwali-ad", t: "Check an image ad", d: "Logo, brand colours, text in the picture and alt text.", Icon: IconImage, tint: "from-[#fde7d6] to-[#fff4ea] text-[#8a3a00]" },
             { href: "/app/rulebook/import", t: "Import rules from a PDF", d: "As Meera: the AI drafts rules, code checks every quote, you approve and publish.", Icon: IconFile, tint: "from-[#e2e6f6] to-[#f1effd] text-primary-d" },
             { href: "/app/insights", t: "See insights", d: "Repeated mistakes, a rule flagged as unclear, and AI-proposed clearer wording.", Icon: IconChart, tint: "from-[#d8f0ea] to-[#eef8f5] text-[#0a5c4f]" },

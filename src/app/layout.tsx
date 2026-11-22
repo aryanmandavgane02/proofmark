@@ -16,7 +16,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} ${display.variable} h-full antialiased`}>
       <body className="relative min-h-full flex flex-col font-sans isolate">
-        <Backdrop />
+        <div className="print:hidden"><Backdrop /></div>
         {children}
       </body>
     </html>

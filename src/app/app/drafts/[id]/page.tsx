@@ -10,6 +10,7 @@ import { PendingButton } from "./PendingButton";
 import { describeEvent } from "@/lib/events";
 import { settleStaleRun } from "@/lib/pipeline";
 import { AIRunning } from "./AIRunning";
+import { CopyText } from "./CopyText";
 import { DocumentView } from "./DocumentView";
 import { CorrectedPdfForm } from "./CorrectedPdfForm";
 import type { DocPage } from "@/lib/checks/types";
@@ -47,6 +48,8 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     s.supabase.from("assets").select("name, note").eq("workspace_id", s.workspace.id).eq("kind", "font"),
   ]);
   const { data: openAlerts } = await s.supabase.from("fact_alerts").select("*, draft:drafts(title, is_sample, status)").eq("draft_id", id).eq("status", "open");
+  // The brand's approved logo, shown beside findings about logo use so the reviewer can compare.
+  const { data: logo } = await s.supabase.from("assets").select("name, file_path").eq("workspace_id", s.workspace.id).eq("kind", "logo").limit(1).maybeSingle();
   const { data: latestRun } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const run = await settleStaleRun(latestRun);
   const aiRunning = run?.ai_status === "running";
@@ -222,6 +225,10 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   <dt>AI services used</dt><dd>{approval.ai_services.length ? approval.ai_services.join(", ") : "none (code checks only)"}</dd>
                 </dl>
                 <p className="mt-2 text-xs">{isDocument ? "This approval is for this exact file. A corrected PDF becomes a new version and needs a new approval." : "Any later edit creates a new version and needs a new approval."}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {!isDocument && <CopyText text={version!.body} />}
+                  <Link href={`/app/drafts/${id}/record`} className="rounded-lg border border-[#0a5c4f]/30 bg-surface px-3 py-1.5 text-xs font-semibold text-[#0a5c4f] hover:bg-[#eef7f4]">Approval record (printable)</Link>
+                </div>
               </div>
             )}
           </Card>
@@ -349,6 +356,13 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                         </span>
                       ))}
                     </div>
+                  )}
+                  {f.field === "image" && logo?.file_path && /logo/i.test(rule?.title ?? "") && (
+                    <figure className="mt-2 flex items-center gap-3 text-xs text-muted">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logo.file_path} alt={`The approved ${logo.name}`} className="h-12 w-auto rounded border border-line bg-[#FFF4E0] p-1.5" />
+                      <figcaption>The approved logo, for comparison with the one in the image.</figcaption>
+                    </figure>
                   )}
                   {rule && (
                     <details className="mt-2 text-sm">
