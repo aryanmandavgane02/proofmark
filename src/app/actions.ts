@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -113,6 +114,15 @@ const DraftInput = z.object({
 
 export type FormState = { error?: string } | undefined;
 
+/**
+ * The key that stops one submission from making two drafts: the form's token plus what was sent. The same form sent twice
+ * (double click, retry) gives the same key and opens the draft it already made; the same form sent again with other
+ * content (for example after going back in the browser and editing) gives a new key and makes a new draft.
+ */
+function submissionKey(token: string, parts: (string | number | null | undefined)[]) {
+  return createHash("sha256").update([token, ...parts.map((p) => String(p ?? ""))].join("\u0000")).digest("hex");
+}
+
 async function draftForToken(s: Session, token: string) {
   const { data } = await s.supabase.from("drafts").select("id").eq("workspace_id", s.workspace.id).eq("client_token", token).maybeSingle();
   return data?.id as string | undefined;
@@ -124,7 +134,11 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
   const parsed = DraftInput.safeParse(fields);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form" };
   const d = parsed.data;
-  const token = d.client_token || null;
+  const upload = formData.get("image");
+  const token = d.client_token
+    ? submissionKey(d.client_token, [d.title, d.channel, d.body, d.alt_text, d.sample_key, formData.get("use_sample_image") as string | null,
+        upload instanceof File ? `${upload.name}:${upload.size}` : null])
+    : null;
 
   // The same form submitted twice (double click, refresh, retry) opens the draft it already created.
   if (token) {

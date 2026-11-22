@@ -129,8 +129,10 @@ export async function approveAllVerified(formData: FormData) {
   if (!s) notice("/app/rulebook", MANAGER_ONLY);
   const importId = String(formData.get("import_id"));
   const { data } = await s.supabase.from("rules").update({ status: "approved", updated_at: new Date().toISOString() }).eq("workspace_id", s.workspace.id).eq("import_id", importId).eq("status", "draft").select("code");
-  await logEvent(s, "rule.approved", { code: (data ?? []).map((r) => r.code).join(", ") });
+  if (!data?.length) notice("/app/rulebook", "Nothing left to approve: every rule from this import has already been reviewed.", "info");
+  await logEvent(s, "rule.approved", { code: data.map((r) => r.code).join(", ") });
   revalidatePath("/app/rulebook");
+  notice("/app/rulebook", `Approved ${data.length} rule${data.length === 1 ? "" : "s"}. Publish them to make them live.`, "success");
 }
 
 export async function publishRulebook(formData: FormData) {

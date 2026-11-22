@@ -37,6 +37,29 @@ test("same form submitted twice creates one draft", async ({ page }) => {
   await expect(page.locator("main a[href^='/app/drafts/']").filter({ hasText: title })).toHaveCount(1);
 });
 
+test("going back after creating a draft and sending other content makes a second draft", async ({ page }) => {
+  await startDemo(page);
+  await page.goto("/app/drafts/new");
+  const first = `Back one ${Date.now()}`;
+  await page.getByLabel("Title").fill(first);
+  await page.getByLabel("Content").fill("Cocoa Crunch is made with roasted cocoa and dates. Order at urjabites.in.");
+  await page.getByRole("button", { name: "Check this draft" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  const firstUrl = page.url();
+  // The browser's Back button can bring back the same form (and its token); new content must still make a new draft.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/app\/drafts\/new$/);
+  const second = `Back two ${Date.now()}`;
+  await page.getByLabel("Title").fill(second);
+  await page.getByLabel("Content").fill("Cocoa Crunch is baked, never fried. Order at urjabites.in.");
+  await page.getByRole("button", { name: "Check this draft" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  expect(page.url()).not.toBe(firstUrl);
+  await expect(page.getByText(second).first()).toBeVisible();
+  await page.goto("/app");
+  await expect(page.locator("main a[href^='/app/drafts/']").filter({ hasText: /Back (one|two) / })).toHaveCount(2);
+});
+
 test("whitespace-only content is refused with a message", async ({ page }) => {
   await startDemo(page);
   await page.goto("/app/drafts/new");

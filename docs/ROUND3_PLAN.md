@@ -131,6 +131,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [x] Explicit function time limits for the pages that run checks
 - [x] **Demo access box** on the landing page (organisers' tip): no login, no password; the four demo people and what each can do
 - [x] Tests: the first reliability cases (double submit, stale tab, refresh during a check)
+- [x] Recheck of Phase 1: AI errors are always one plain sentence (never the API's raw JSON); the New draft key covers the content as well as the form token, because the browser's Back button brings back the same form; the elapsed seconds only render in the browser; a run still "running" after 90 s is treated as finished without AI (the server itself stops at 60 s); "Approve all verified" says what it did, or that nothing was left
 
 ### Phase 2 · Improvement 1: PDF documents and decks
 
@@ -269,4 +270,5 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | Seed an approved-content library in each demo workspace, labelled as sample | Improvement 2 needs approved content to protect, and judges start with an empty workspace |
 | Sun 22 Nov | No demo credentials needed; a "Demo access" box explains the one-click demo and the four people | Organisers suggested putting demo credentials on the site; ours has no login, so we make that explicit instead |
 | Sun 22 Nov | Background AI shipped (Phase 1); verified on production | A fresh check on production took 29.5 s of AI time (Gemini's free tier was slow, about 15 s per request): judges now see code findings at once instead of a 30 s spinner. Documents will need a longer AI budget than posts |
+| Sun 22 Nov | The New draft key is the form token plus what was sent | Found while rechecking Phase 1: going Back in the browser brings back the same form and token, so a second, edited draft would have opened the first one instead. Covered by a browser test now |
 | Sun 22 Nov | Pages joined with a page map instead of checking pages separately | Every existing check keeps working, and an offer on page 3 with "T&C apply" on page 10 is not a false alarm |

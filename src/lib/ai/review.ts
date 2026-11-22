@@ -87,9 +87,9 @@ export async function writeCache(key: string, result: unknown, model: string) {
 export async function takeRequest(workspaceId: string) {
   const db = createAdminClient();
   const { data: ws } = await db.rpc("take_ai_request", { p_scope: workspaceId, p_limit: WORKSPACE_DAILY_CAP });
-  if (!ws) throw new AIUnavailableError("This workspace has used its AI checks for today. Code checks still ran.", "cap_reached");
+  if (!ws) throw new AIUnavailableError("This workspace has used its AI checks for today.", "cap_reached");
   const { data: all } = await db.rpc("take_ai_request", { p_scope: "global", p_limit: GLOBAL_DAILY_CAP });
-  if (!all) throw new AIUnavailableError("The demo has used its AI checks for today. Code checks still ran.", "cap_reached");
+  if (!all) throw new AIUnavailableError("The demo has used its AI checks for today.", "cap_reached");
 }
 
 export async function reviewText(provider: AIProvider, ctx: CheckContext, workspaceId: string, deadline?: number) {

@@ -1,13 +1,15 @@
 import "server-only";
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
-import { AIUnavailableError, type AIProvider, type ImagePart } from "./provider";
+import { AIUnavailableError, friendlyAIError, type AIProvider, type ImagePart } from "./provider";
 
 // Fastest model first; the second is a fallback when the first is rate-limited or down.
 export const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 const TIMEOUT_MS = 25_000;
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new AIUnavailableError("The AI model took too long to answer.", "timeout")), ms))]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<T>((_, rej) => { timer = setTimeout(() => rej(new AIUnavailableError("The AI took too long to answer.", "timeout")), ms); });
+  return Promise.race([p, late]).finally(() => clearTimeout(timer));
 }
 
 export class GeminiProvider implements AIProvider {
@@ -23,7 +25,7 @@ export class GeminiProvider implements AIProvider {
       for (let attempt = 0; attempt < 2; attempt++) {
         // Never start a request that cannot finish before the caller's deadline.
         const left = input.deadline ? input.deadline - Date.now() : TIMEOUT_MS;
-        if (left < 2_500) throw new AIUnavailableError("The AI took too long to answer, so only code checks are shown. Run the checks again to retry.", "timeout");
+        if (left < 2_500) throw new AIUnavailableError("The AI took too long to answer.", "timeout");
         try {
           const parts = [
             ...(input.images ?? []).map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } })),
@@ -49,8 +51,8 @@ export class GeminiProvider implements AIProvider {
         }
       }
     }
-    const msg = lastError instanceof Error ? lastError.message : String(lastError);
-    throw new AIUnavailableError(`The AI model is unavailable right now (${msg.slice(0, 120)}).`, /429|RESOURCE_EXHAUSTED/.test(msg) ? "rate_limited" : "error");
+    const { message, reason } = friendlyAIError(lastError);
+    throw new AIUnavailableError(message, reason);
   }
 }
 

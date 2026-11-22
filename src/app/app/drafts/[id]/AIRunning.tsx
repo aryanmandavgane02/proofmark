@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 
 /**
  * While the AI half of a check runs in the background, refresh the page every two seconds so its findings
- * appear on their own. The server marks a run that has not finished after two minutes as done without AI.
+ * appear on their own. The server marks a run that has not finished after 90 seconds as done without AI.
+ * The elapsed time is only shown once the browser has its own clock reading, so server and browser never disagree.
  */
 export function AIRunning({ startedAt }: { startedAt: string }) {
   const router = useRouter();
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     const t = setInterval(() => {
       setNow(Date.now());
@@ -16,7 +17,7 @@ export function AIRunning({ startedAt }: { startedAt: string }) {
     }, 2000);
     return () => clearInterval(t);
   }, [router]);
-  const seconds = Math.max(0, Math.round((now - new Date(startedAt).getTime()) / 1000));
+  const seconds = now === null ? 0 : Math.max(0, Math.round((now - new Date(startedAt).getTime()) / 1000));
   return (
     <div role="status" aria-live="polite" className="flex items-start gap-3 rounded-xl border border-violet/30 bg-[#f1effd] p-4 text-sm text-primary-d">
       <span aria-hidden className="mt-0.5 h-4 w-4 flex-none animate-spin rounded-full border-2 border-violet/30 border-t-violet" />

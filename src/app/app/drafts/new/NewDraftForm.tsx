@@ -11,7 +11,7 @@ function Submit() {
   return <button className={btn.primary} disabled={pending}>{pending ? "Checking…" : "Check this draft"}</button>;
 }
 
-export function NewDraftForm({ samples, initial }: { samples: SeedDraft[]; initial: SeedDraft | null }) {
+export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedDraft[]; initial: SeedDraft | null; clientToken: string }) {
   const [state, action] = useActionState<FormState, FormData>(createDraft, undefined);
   const [v, setV] = useState({
     title: initial?.title ?? "", channel: (initial?.channel ?? "instagram") as Channel, body: initial?.body ?? "", alt_text: initial?.alt_text ?? "", sample_key: initial?.key ?? "",
@@ -21,8 +21,6 @@ export function NewDraftForm({ samples, initial }: { samples: SeedDraft[]; initi
   const [preview, setPreview] = useState<string | null>(initial?.image ?? null);
   const [sampleImage, setSampleImage] = useState<boolean>(!!initial?.image);
   const [imgNote, setImgNote] = useState<string>("");
-  // One token per form: if the same form is submitted twice (double click, retry), only one draft is created.
-  const [clientToken] = useState(() => crypto.randomUUID());
 
   // Large photos are shrunk in the browser (longest side 2000 px, JPEG) so uploads stay under 4 MB.
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -58,6 +56,7 @@ export function NewDraftForm({ samples, initial }: { samples: SeedDraft[]; initi
       <Card className="p-5">
         <form action={action} className="space-y-4">
           <input type="hidden" name="sample_key" value={v.sample_key} />
+          {/* One token per form, made on the server: the same form submitted twice creates one draft. */}
           <input type="hidden" name="client_token" value={clientToken} />
           <input type="hidden" name="use_sample_image" value={sampleImage ? "1" : "0"} />
           <div className="grid gap-4 sm:grid-cols-[1fr_200px]">

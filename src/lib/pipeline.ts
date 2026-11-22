@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { locateQuote, proofCheck, type Dropped } from "@/lib/checks/proof";
 import { overlaps } from "@/lib/checks/text";
 import { getProvider } from "@/lib/ai/gemini";
-import { AIUnavailableError } from "@/lib/ai/provider";
+import { AIUnavailableError, friendlyAIError } from "@/lib/ai/provider";
 import { reviewImage, reviewText, secondOpinion } from "@/lib/ai/review";
 import { analyseImage, loadImage } from "@/lib/images";
 import { paletteCheck } from "@/lib/checks/visual";
@@ -54,8 +54,8 @@ export type RunResult = { runId: string; count: number; fingerprint: string; ai?
 
 /** The whole AI step (text review, second opinion, image review, retries) must finish within this. */
 export const AI_BUDGET_MS = 40_000;
-/** A run still "running" after this long is treated as finished without AI (for example, the server stopped). */
-export const AI_STALE_MS = 120_000;
+/** A run still "running" after this long is treated as finished without AI (for example, the server stopped). The server itself stops by 60 s. */
+export const AI_STALE_MS = 90_000;
 
 type FindingRowInput = { workspaceId: string; draftId: string; versionId: string; runId: string; carried: Map<string, string> };
 
@@ -162,7 +162,7 @@ export async function runChecks(db: SupabaseClient, input: RunInput): Promise<Ru
   const provider = getProvider();
   const needsAI = !reused && !input.codeChecksOnly && !!provider;
   const ai_status = reused ? "reused" : input.codeChecksOnly ? "off" : !provider ? "unavailable" : "running";
-  let ai_error: string | null = !provider && !input.codeChecksOnly && !reused ? "No AI key is configured, so only code checks ran." : null;
+  let ai_error: string | null = !provider && !input.codeChecksOnly && !reused ? "No AI key is configured." : null;
   if (imageError && !needsAI) ai_error = ai_error ? `${ai_error} ${imageError}` : imageError;
 
   // Results are written by the server only (visitors can read but not write them).
@@ -253,7 +253,7 @@ async function runAIStage(p: {
     ai_status = text.cached && ai_requests === 0 ? "cached" : "ok";
   } catch (e) {
     ai_status = "unavailable";
-    ai_error = e instanceof AIUnavailableError ? e.message : "The AI check failed, so only code checks ran.";
+    ai_error = e instanceof AIUnavailableError ? e.message : friendlyAIError(e).message;
   }
   if (imageError) ai_error = ai_error ? `${ai_error} ${imageError}` : imageError;
 
@@ -275,7 +275,7 @@ async function runAIStage(p: {
 export async function settleStaleRun<T extends { id: string; ai_status: string; created_at: string; ai_error?: string | null }>(run: T | null): Promise<T | null> {
   if (!run || run.ai_status !== "running") return run;
   if (Date.now() - new Date(run.created_at).getTime() < AI_STALE_MS) return run;
-  const ai_error = "The AI checks did not finish in time, so only code checks are shown. Run the checks again to retry.";
+  const ai_error = "The AI checks did not finish in time.";
   await createAdminClient().from("check_runs").update({ ai_status: "unavailable", ai_error }).eq("id", run.id).eq("ai_status", "running");
   return { ...run, ai_status: "unavailable", ai_error };
 }
