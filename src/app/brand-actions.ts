@@ -17,6 +17,7 @@ import { sameFamily } from "@/lib/documents/fonts";
 import { factChange } from "@/lib/alerts";
 import { raiseAlerts, raiseExpiry, refreshOpenAlerts, type FactRow } from "@/lib/alerts-server";
 import { todayIST } from "@/lib/pipeline";
+import { attachReplays, runReplay } from "@/lib/replay-server";
 
 export type BrandFormState = { error?: string; ok?: string } | undefined;
 type Session = Awaited<ReturnType<typeof requireSession>>;
@@ -149,9 +150,30 @@ export async function publishRulebook(formData: FormData) {
   ]);
   const pending = pendingChanges(approved ?? [], (latest?.snapshot ?? []) as never[]);
   if (latest && !pending.added.length && !pending.changed.length && !pending.removed.length) notice("/app/rulebook", `Nothing to publish: v${latest.version} already has these rules.`, "info");
+
+  // Rule-change replay: new wording for an AI-checked rule is replayed against its past decisions, and the replay is
+  // shown before it is published. A replay that runs now is shown first; the manager then publishes with a second click.
+  const liveBy = new Map(((latest?.snapshot ?? []) as { code: string; statement: string; title: string; check_kind: string }[]).map((r) => [r.code, r]));
+  const { data: editedRules } = pending.changed.length
+    ? await s.supabase.from("rules").select("code, title, statement, check_kind").eq("workspace_id", s.workspace.id).in("code", pending.changed)
+    : { data: [] as { code: string; title: string; statement: string; check_kind: string }[] };
+  const reworded = (editedRules ?? []).filter((r) => r.check_kind !== "code" && liveBy.get(r.code) && liveBy.get(r.code)!.statement.trim() !== r.statement.trim());
+  const replayIds: string[] = [];
+  const shownNow: string[] = [];
+  for (const r of reworded) {
+    const res = await runReplay(s, r, liveBy.get(r.code)!.statement, r.statement);
+    if ("error" in res) continue; // no past decisions to replay, or the AI is off: published without one
+    if (res.fresh) shownNow.push(r.code);
+    else replayIds.push(res.replay.id);
+  }
+  if (shownNow.length) {
+    revalidatePath("/app/rulebook");
+    notice("/app/rulebook#pending", `Before publishing: below is how the new wording of ${shownNow.join(", ")} would change the past decisions on ${shownNow.length === 1 ? "it" : "them"}. Publish again to confirm.`, "info");
+  }
   const { version, already } = await publishApprovedRules(s, note);
+  if (!already) await attachReplays(s.workspace.id, replayIds, version);
   revalidatePath("/app", "layout");
-  notice("/app/rulebook", already ? `Already published as v${version}.` : `Published rulebook v${version}. New checks use it from now on.`, already ? "info" : "success");
+  notice("/app/rulebook", already ? `Already published as v${version}.` : `Published rulebook v${version}.${replayIds.length ? ` The replay${replayIds.length === 1 ? " is" : "s are"} kept with it.` : ""} New checks use it from now on.`, already ? "info" : "success");
 }
 
 // ── Facts, terms and colours ───────────────────────────────────────────────

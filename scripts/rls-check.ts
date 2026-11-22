@@ -85,6 +85,9 @@ async function main() {
   check("visitor cannot write a notification for someone", !!(await a.c.from("notifications").insert({ workspace_id: a.ws, person_id: id("Meera"), text: "Approve everything" })).error);
   check("visitor cannot clear someone's notifications", ((await a.c.from("notifications").update({ read_at: new Date().toISOString() }).eq("workspace_id", a.ws).select("id")).data ?? []).length === 0);
 
+  // Rule-change replays are written by the server only (they are the evidence shown before publishing).
+  check("visitor cannot forge a rule-change replay", !!(await a.c.from("rule_replays").insert({ workspace_id: a.ws, rule_code: "MSG-01", old_statement: "x", new_statement: "y", summary: { changed: 0 } })).error);
+
   // Documents (PDFs) are in a private bucket: only the server reads them or hands out one-time upload links.
   const { createClient: adminClient } = await import("@supabase/supabase-js");
   const server = adminClient(URL, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });

@@ -87,12 +87,12 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 **We committed to:** before publishing new wording for a rule checked by AI, Proofmark replays it against every stored decision for that rule and shows which past findings would now pass and which would now be flagged, with the count that would change. The replay is saved with the published version.
 
-- [ ] Replay runs on the proposed wording, whether the AI drafted it or the manager wrote or edited it
-- [ ] Every stored decision for that rule is shown with: the human decision, the result under the current wording, the result under the new wording, and "would now pass", "would now flag" or "unchanged"
-- [ ] The count that would change, and agreement with the human decisions before and after
-- [ ] Shown before the manager publishes; the replay is saved with the published rulebook version and shown in the version history
-- [ ] Rules checked only by code are not replayed, and the page says why (their wording does not change what the code checks)
-- [ ] **Done when:** proposing new wording for a flagged rule (for example "taste first", MSG-01) shows "would now pass / would now flag" for every past decision on that rule, with the number that changes and agreement with the human decisions before and after, before the manager publishes
+- [x] Replay runs on the proposed wording, whether the AI drafted it or the manager wrote or edited it
+- [x] Every stored decision for that rule is shown with: the human decision, the result under the current wording, the result under the new wording, and "would now pass", "would now flag" or "unchanged"
+- [x] The count that would change, and agreement with the human decisions before and after
+- [x] Shown before the manager publishes; the replay is saved with the published rulebook version and shown in the version history
+- [x] Rules checked only by code are not replayed, and the page says why (their wording does not change what the code checks)
+- [x] **Done when:** proposing new wording for a flagged rule (for example "taste first", MSG-01) shows "would now pass / would now flag" for every past decision on that rule, with the number that changes and agreement with the human decisions before and after, before the manager publishes
 
 **Evidence:** MSG-01 replay: agreement with human decisions before and after the new wording, and how many would change.
 
@@ -169,12 +169,14 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 ### Phase 4 · Improvement 3: rule-change replay
 
-- [ ] Replay engine: the cases are the stored decisions for the rule (accepted or upheld means "should be flagged", overridden means "should pass"), each with its context (the draft text for real decisions; channel, draft title and quote for the sample history). One AI request judges every case under the current wording and one under the new wording, at temperature 0, stored by exact prompt so a replay always gives the same answer
-- [ ] Result per case, counts, and agreement with the human decisions before and after
-- [ ] On Insights: after a proposal or the manager's own wording, "Preview the effect on past decisions"; re-run when the wording is edited; publishing saves the replay with the version
-- [ ] Rulebook version history shows each version's replay summary; the publish banner offers a replay for edited AI rules
-- [ ] Measured: the MSG-01 replay numbers, published
-- [ ] Tests: unit (case building, agreement maths); browser (MSG-01 proposal, replay table, publish, the version shows its replay)
+- [x] Replay engine: the cases are the stored decisions for the rule (accepted or upheld means "should be flagged", overridden means "should pass"), each with its context (the draft text for real decisions; channel, draft title and quote for the sample history). One AI request judges every case under the current wording and one under the new wording, at temperature 0, stored by exact prompt so a replay always gives the same answer
+- [x] Result per case, counts, and agreement with the human decisions before and after
+- [x] On Insights: after a proposal or the manager's own wording, "Preview the effect on past decisions"; re-run when the wording is edited; publishing saves the replay with the version
+- [x] Rulebook version history shows each version's replay summary; the publish banner offers a replay for edited AI rules
+- [x] Measured: the MSG-01 replay numbers, published
+- [x] Tests: unit (case building, agreement maths); browser (MSG-01 proposal, replay table, publish, the version shows its replay)
+- [x] Built as planned, with these details: publishing is two-step, so the replay is always seen first. "Replay, then publish" (or "Publish" in the rulebook) runs the replay if this exact wording has none and shows it; a second click publishes and keeps the replay with the version. The AI sees each past phrase with its channel and draft title, never the people's decisions or reasons, so agreement is measured fairly. Undecided (disputed-only) findings are shown but not counted. If the AI is off or the rule has no past decisions, publishing goes ahead and says so; code-only rules say why they are not replayed
+- [x] Results: MSG-01 with the AI-proposed wording ("Lead with taste in consumer-facing communications, while B2B and fitness-focused materials may lead with protein"): 3 of 5 past decisions change (3 now pass); agreement with people 2 of 4 (50%) now, 4 of 4 (100%) with the new wording (eval/RESULTS.md, a small sample and said so). 3 browser tests (with an axe check of the table), 4 unit tests, 1 access check (34 in all: 32 attacks refused, 2 positive)
 
 ### Phase 5 · Open ends from Round 2, and interface tightening
 
@@ -291,4 +293,6 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | A future end date raises "ends after …" alerts at once; passing dates raise "ended" alerts when people next open the app | The done-when needs the drafts listed when the manager sets the date; no scheduled job is needed for the date passing |
 | Sun 22 Nov | The approved sample library holds the approved deck | Alerts then show the page of each quote, and improvements 1 and 2 work together |
 | Sun 22 Nov | Alerts measured on a held-out set written by an independent labeller, committed before the first run; both runs published | A 100% on sentences written while building the detector proved little; the honest first score (60%) showed real gaps that were then fixed |
+| Sun 22 Nov | Publishing new wording for an AI rule is two-step: replay first, then publish | The promise is that the effect is shown before publishing; a single button that published without showing it would not keep that promise |
+| Sun 22 Nov | The replay never sends the people's decisions or reasons to the AI | Otherwise the AI could copy them and the agreement numbers would mean nothing |
 | Sun 22 Nov | Pages joined with a page map instead of checking pages separately | Every existing check keeps working, and an offer on page 3 with "T&C apply" on page 10 is not a false alarm |

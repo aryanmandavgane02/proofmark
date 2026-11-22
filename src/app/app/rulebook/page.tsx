@@ -5,6 +5,9 @@ import { CATEGORIES, CHANNELS, CHANNEL_LABEL } from "@/lib/checks/types";
 import { approveAllVerified, publishRulebook, reviewRule } from "@/app/brand-actions";
 import { PendingButton } from "../drafts/[id]/PendingButton";
 import { pendingChanges as diffRules } from "@/lib/rulebook";
+import { previewReplay } from "@/app/insight-actions";
+import { ReplaySummary, ReplayTable } from "../ReplayTable";
+import type { StoredReplay } from "@/lib/replay-server";
 
 // Publishing and importing run here; importing reads a PDF and asks the AI once.
 export const maxDuration = 60;
@@ -52,11 +55,14 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
   const sp = await props.searchParams;
   const s = await requireSession();
   const manager = s.person.role === "manager";
-  const [{ data: rulesRaw }, { data: versions }, importRes] = await Promise.all([
+  const [{ data: rulesRaw }, { data: versions }, importRes, { data: replayRows }] = await Promise.all([
     s.supabase.from("rules").select("code, category, title, statement, severity, channels, params, check_kind, source_doc, source_page, source_quote, builtin, status, import_id").eq("workspace_id", s.workspace.id).order("code"),
     s.supabase.from("rulebook_versions").select("version, note, published_at, published_by, snapshot").eq("workspace_id", s.workspace.id).order("version", { ascending: false }),
     sp.import ? s.supabase.from("imports").select("*").eq("id", String(sp.import)).maybeSingle() : Promise.resolve({ data: null }),
+    s.supabase.from("rule_replays").select("*").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(100),
   ]);
+  const replays = (replayRows ?? []) as StoredReplay[];
+  const norm = (t: string) => t.trim().replace(/\s+/g, " ");
   const rules = (rulesRaw ?? []) as RuleRow[];
   const latest = versions?.[0];
   const live = new Map(((latest?.snapshot ?? []) as RuleRow[]).map((r) => [r.code, r]));
@@ -68,6 +74,8 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
   const { added, changed, removed } = diffRules(approved, [...live.values()]);
   const pendingChanges = added.length + changed.length + removed.length;
   const drafts = rules.filter((r) => r.status === "draft");
+  // Edited rules whose wording changed: AI-checked ones are replayed against their past decisions before publishing.
+  const reworded = approved.filter((r) => changed.includes(r.code) && live.get(r.code) && norm(live.get(r.code)!.statement) !== norm(r.statement));
   const fromImport = imp ? drafts.filter((r) => r.import_id === imp.id) : [];
 
   return (
@@ -102,17 +110,36 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
       )}
 
       {manager && pendingChanges > 0 && (
-        <Card className="mb-6 border-amber/50 bg-[#fff6e5] p-5">
+        <div id="pending" className="scroll-mt-24"><Card className="mb-6 border-amber/50 bg-[#fff6e5] p-5">
           <h2 className="font-semibold text-[#7a3d00]">{pendingChanges} change{pendingChanges > 1 ? "s" : ""} not live yet</h2>
           <p className="mt-1 text-sm text-[#7a3d00]">
             {added.length > 0 && <>New: {added.join(", ")}. </>}{changed.length > 0 && <>Edited: {changed.join(", ")}. </>}{removed.length > 0 && <>Retired: {removed.join(", ")}. </>}
             Drafts keep being checked against v{latest?.version ?? 1} until you publish.
           </p>
+          {reworded.map((r) => {
+            const replay = replays.find((x) => x.rule_code === r.code && x.old_statement === norm(live.get(r.code)!.statement) && x.new_statement === norm(r.statement));
+            return (
+              <div key={r.code} id={`replay-${r.code}`} className="mt-3 scroll-mt-24 rounded-lg border border-amber/40 bg-surface p-3">
+                <p className="text-sm"><b className="font-mono">{r.code}</b> new wording: &ldquo;{r.statement}&rdquo;</p>
+                {r.check_kind === "code" ? (
+                  <p className="mt-1 text-xs text-muted">Not replayed: {r.code} is checked only by code, so its wording does not change what is flagged.</p>
+                ) : replay ? (
+                  <div className="mt-2"><ReplayTable replay={replay} /></div>
+                ) : (
+                  <form action={previewReplay} className="mt-2 flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="rule_code" value={r.code} /><input type="hidden" name="statement" value={r.statement} /><input type="hidden" name="from" value="rulebook" />
+                    <PendingButton className={btn.secondary} pendingText="Replaying…">Preview the effect on past decisions</PendingButton>
+                    <span className="text-xs text-muted">Publishing also replays it first if you skip this.</span>
+                  </form>
+                )}
+              </div>
+            );
+          })}
           <form action={publishRulebook} className="mt-3 flex flex-wrap gap-2">
             <input name="note" maxLength={200} className={`${input} max-w-md`} placeholder="What changed, e.g. Added the November 2026 update" aria-label="What changed" />
             <PendingButton className={btn.primary} pendingText="Publishing…">{`Publish as v${(latest?.version ?? 1) + 1}`}</PendingButton>
           </form>
-        </Card>
+        </Card></div>
       )}
 
       {drafts.length > 0 && (
@@ -169,11 +196,27 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
 
       <h2 className="mb-2 mt-8 text-sm font-semibold text-primary-d">Published versions</h2>
       <Card className="divide-y divide-line">
-        {(versions ?? []).map((v) => (
-          <div key={v.version} className="flex flex-wrap gap-3 p-3 text-sm">
-            <b>v{v.version}</b><span className="flex-1">{v.note}</span><span className="text-muted">{(v.snapshot as unknown[]).length} rules · {by.get(v.published_by) ?? "—"} · {timeAgo(v.published_at)}</span>
-          </div>
-        ))}
+        {(versions ?? []).map((v) => {
+          const kept = replays.filter((x) => x.published_version === v.version);
+          return (
+            <div key={v.version} className="p-3 text-sm">
+              <div className="flex flex-wrap gap-3">
+                <b>v{v.version}</b><span className="flex-1">{v.note}</span><span className="text-muted">{(v.snapshot as unknown[]).length} rules · {by.get(v.published_by) ?? "—"} · {timeAgo(v.published_at)}</span>
+              </div>
+              {kept.map((x) => (
+                <details key={x.id} className="mt-2 rounded-lg bg-soft p-2">
+                  <summary className="cursor-pointer text-xs font-semibold text-primary">Replay of {x.rule_code} kept with v{v.version}</summary>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs text-muted">Was: &ldquo;{x.old_statement}&rdquo;</p>
+                    <p className="text-xs">Now: &ldquo;{x.new_statement}&rdquo;</p>
+                    <ReplayTable replay={x} />
+                  </div>
+                </details>
+              ))}
+              {kept.length > 0 && <div className="mt-1 text-xs text-muted">{kept.map((x) => <ReplaySummary key={x.id} replay={x} />)}</div>}
+            </div>
+          );
+        })}
       </Card>
     </>
   );

@@ -151,3 +151,12 @@ export function testCasesJSON(cases: TestCases[]) {
     ...t.shouldPass.map((r) => ({ rule: t.rule.code, channel: r.channel, text: r.quote, expected: "pass", decided_by: r.decisions.at(-1)?.by, reason: r.decisions.at(-1)?.reason ?? null, sample: r.sample })),
   ]);
 }
+
+/** What the AI is shown when asked for clearer wording: each pushed-back finding, its outcome and the reason given. */
+export function clarifyEvidence(u: UnclearRule): { quote: string; channel: string; outcome: "upheld" | "overridden" | "disputed" | "accepted"; reason: string | null }[] {
+  return u.evidence.map((r) => {
+    const last = r.decisions.at(-1)!;
+    const outcome = r.decisions.some((d) => d.action === "override") ? "overridden" : r.decisions.some((d) => d.action === "uphold") ? "upheld" : "disputed";
+    return { quote: r.quote, channel: r.channel, outcome, reason: [...r.decisions].reverse().find((d) => d.reason)?.reason ?? last.reason ?? null };
+  });
+}

@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 11:49 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 12:01 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,7 +11,7 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 2/3 |
 | AI findings dropped by the proof check | — | 13 |
-| Average time per draft | 2 ms | 92 ms |
+| Average time per draft | 2 ms | 80 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
@@ -29,7 +29,7 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 | Clean document with no false alarm | 2/2 | 2/2 |
 | Documents fully right | 4/4 | 4/4 |
 | AI findings dropped by the proof check | — | 6 |
-| Average time per document (reading the PDF included) | 43 ms | 99 ms |
+| Average time per document (reading the PDF included) | 44 ms | 90 ms |
 
 | Document | Expected (page and rule) | Missed | False alarms | Result |
 |---|---|---|---|---|
@@ -59,6 +59,30 @@ Held-out set (`eval/heldout-alerts.ts`) now: still wrong: missed: F-11 in “Swe
 The samples were labelled before the detector was run, but the sentences in the third row were written while it was built: they show the cases it is meant to handle, decoys included.
 The held-out set is the honest measure. Its first run, on the detector before anyone had seen the set (22 Nov), found 60% with 86% precision (30 of 40 right). The misses showed general gaps, which were then fixed in the shared number reader and in alerts: counts written as “35 thousand”, “35 hazaar+ logon” (Hinglish) or in words (“thirty-five thousand”); more words for people (“Indians”, “shoppers”); ratings written with a star (“4.6★”); an offer named by its end date (“only till Nov 30”); a price worked out from an offer (₹432 is ₹540 with 20% off); and an unrelated 20% or 15% sale no longer counts as the Diwali or Dussehra offer unless the draft names that offer or its end date. The result after those fixes is in the table; because the fixes were made after seeing the set, it is no longer a blind score. Both runs are in the history below.
 Still missed: a Hindi word for the fact's ingredient (“khajur” for dates) and the cities named by their people (“Bangaloreans, Mumbaikars & Punekars”). Both are found if the brand manager adds those words to the fact's keywords on the Facts page.
+
+## Rule-change replay (Round 3)
+
+MSG-01 (“taste first”), flagged as unclear by the sample decisions in every demo workspace. The AI proposed clearer wording from those decisions, as on the Insights page; then each past decision was judged under the current and the new wording (gemini-3.1-flash-lite, without seeing what people decided).
+
+- Current wording: “Lead with taste: the first sentence should be about flavour or ingredients, and protein comes after. We are a snack brand, not a supplement.”
+- Proposed wording: “Lead with taste in consumer-facing communications, while B2B and fitness-focused materials may lead with protein.”
+
+| Measure | Result |
+|---|---|
+| Past decisions replayed | 5 (4 decided by a person, 1 disputed and not decided yet) |
+| Would change if published | 3 (3 would now pass, 0 would now be flagged) |
+| Agreement with people, current wording | 2 of 4 (50%) |
+| Agreement with people, proposed wording | 4 of 4 (100%) |
+
+| Past finding | People decided | Current wording | Proposed wording |
+|---|---|---|---|
+| “Protein that tastes like Diwali.” (instagram, Diwali teaser reel caption) | should be flagged | flagged | flagged |
+| “Packed with 12 g of protein.” (website, Gym partner flyer) | should pass | flagged | passes |
+| “Your 12 g protein fix.” (instagram, Navratri countdown post) | should be flagged | flagged | flagged |
+| “12 g of protein for your 4 pm slump.” (linkedin, Office snacking LinkedIn post) | should pass | flagged | passes |
+| “Each box has 12 g of protein per bar.” (email, Corporate gifting email) | not decided yet | flagged | passes |
+
+Four decided cases are a small sample: the replay shows what a change would do to known decisions; it is not a general accuracy score. AI answers are stored by exact prompt, so this replay gives the same result each time.
 
 ## What the failures show
 
@@ -145,3 +169,8 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-22 11:49 | pdf code | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 11:49 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 11:49 | alerts held-out | 90% | 100% | — | 38/40 |
+| 2026-11-22 12:01 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 12:01 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-22 12:01 | pdf code | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 12:01 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 12:01 | alerts held-out | 90% | 100% | — | 38/40 |

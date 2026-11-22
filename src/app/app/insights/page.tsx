@@ -4,7 +4,9 @@ import { Card, CategoryChip, PageTitle, btn, input, timeAgo } from "@/components
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { UNCLEAR, type InsightRecord } from "@/lib/insights";
 import { loadInsights } from "@/lib/insights-data";
-import { acceptWording, keepWording, proposeWording } from "@/app/insight-actions";
+import { acceptWording, keepWording, previewReplay, proposeWording } from "@/app/insight-actions";
+import { ReplayTable } from "../ReplayTable";
+import type { StoredReplay } from "@/lib/replay-server";
 import { PendingButton } from "../drafts/[id]/PendingButton";
 import { AlertList, type AlertView } from "../AlertList";
 import { syncExpiredFacts } from "@/lib/alerts-server";
@@ -42,6 +44,9 @@ export default async function Insights(props: PageProps<"/app/insights">) {
     s.supabase.from("fact_alerts").select("*, draft:drafts(title, is_sample, status)").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(60),
   ]);
   const alerts = (alertRows ?? []) as AlertView[];
+  // Replays: the one for each open proposal's wording, and the ones kept with published versions.
+  const { data: replayRows } = await s.supabase.from("rule_replays").select("*").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(50);
+  const replays = (replayRows ?? []) as StoredReplay[];
   const openAlerts = alerts.filter((a) => a.status === "open");
   const closedAlerts = alerts.filter((a) => a.status !== "open").slice(0, 8);
   const who = new Map(s.people.map((p) => [p.id, p.name]));
@@ -145,20 +150,36 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                 {manager ? (
                   <div className="mt-4 rounded-lg border border-line bg-soft p-4">
                     {u.rule.check_kind !== "ai" && <p className="mb-2 text-xs text-muted">This rule is {u.rule.check_kind === "code" ? "checked by code" : "checked by code and AI"}. New wording changes what writers, reviewers{u.rule.check_kind === "both" ? " and the AI" : ""} read; the code check itself stays the same.</p>}
-                    {open ? (
+                    {open ? (() => {
+                      const replay = replays.find((r) => r.rule_code === u.rule.code && r.old_statement === u.rule.statement.trim().replace(/\s+/g, " ") && r.new_statement === open.statement.trim().replace(/\s+/g, " "));
+                      return (
                       <>
-                        <p className="text-sm font-semibold text-primary-d">Proposed clearer wording <span className="font-normal text-muted">(drafted by {open.ai_model ?? "AI"} {timeAgo(open.created_at)}; you can edit it)</span></p>
+                        <p className="text-sm font-semibold text-primary-d">Proposed clearer wording <span className="font-normal text-muted">({open.ai_model ? `drafted by ${open.ai_model}` : "written by the brand manager"} {timeAgo(open.created_at)}; you can edit it)</span></p>
                         {open.rationale && <p className="mt-1 text-sm text-muted">{open.rationale}</p>}
                         <form action={acceptWording} className="mt-2 grid gap-2">
                           <input type="hidden" name="rule_code" value={u.rule.code} /><input type="hidden" name="view" value={view} />
                           <input type="hidden" name="proposal_id" value={open.id} /><input type="hidden" name="why" value={why} />
                           <textarea name="statement" defaultValue={open.statement} rows={3} maxLength={400} className={input} aria-label={`New wording for ${u.rule.code}`} />
-                          <div className="flex flex-wrap gap-2">
-                            <PendingButton className={btn.accent} pendingText="Publishing…">{`Accept and publish as v${rulebookVersion + 1}`}</PendingButton>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {u.rule.check_kind !== "code" && (
+                              <button formAction={previewReplay} className={btn.secondary}>{replay ? "Replay again" : "Preview the effect on past decisions"}</button>
+                            )}
+                            <PendingButton className={btn.accent} pendingText="Working…">{replay || u.rule.check_kind === "code" ? `Accept and publish as v${rulebookVersion + 1}` : "Replay, then publish"}</PendingButton>
                           </div>
                         </form>
+                        {u.rule.check_kind === "code" ? (
+                          <p className="mt-2 text-xs text-muted">Not replayed: {u.rule.code} is checked only by code, so its wording does not change what is flagged.</p>
+                        ) : replay ? (
+                          <div id={`replay-${u.rule.code}`} className="mt-4 scroll-mt-24">
+                            <h4 className="mb-1 text-sm font-semibold text-primary-d">Effect on past decisions, if published</h4>
+                            <ReplayTable replay={replay} />
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-xs text-muted">Before anything is published, Proofmark replays the wording against every past decision on {u.rule.code} and shows what would change.</p>
+                        )}
                       </>
-                    ) : (
+                      );
+                    })() : (
                       <>
                         <form action={proposeWording} className="flex flex-wrap items-center gap-3">
                           <input type="hidden" name="rule_code" value={u.rule.code} /><input type="hidden" name="view" value={view} />
@@ -170,7 +191,10 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                           <form action={acceptWording} className="mt-2 grid gap-2">
                             <input type="hidden" name="rule_code" value={u.rule.code} /><input type="hidden" name="view" value={view} /><input type="hidden" name="why" value={why} />
                             <textarea name="statement" defaultValue={u.rule.statement} rows={3} maxLength={400} className={input} aria-label={`New wording for ${u.rule.code}`} />
-                            <div><PendingButton className={btn.accent} pendingText="Publishing…">{`Save and publish as v${rulebookVersion + 1}`}</PendingButton></div>
+                            <div className="flex flex-wrap gap-2">
+                              {u.rule.check_kind !== "code" && <button formAction={previewReplay} className={btn.secondary}>Preview the effect on past decisions</button>}
+                              <PendingButton className={btn.accent} pendingText="Working…">{u.rule.check_kind === "code" ? `Save and publish as v${rulebookVersion + 1}` : "Replay, then publish"}</PendingButton>
+                            </div>
                           </form>
                         </details>
                       </>
@@ -201,6 +225,15 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                   <p><b className="font-mono">{p.rule_code}</b> · rulebook v{p.published_version} · {who.get(p.decided_by ?? "") ?? "—"} {p.decided_at ? timeAgo(p.decided_at) : ""}</p>
                   <p className="text-muted line-through decoration-muted/60">{p.old_statement}</p>
                   <p>{p.statement}</p>
+                  {(() => {
+                    const kept = replays.find((r) => r.rule_code === p.rule_code && r.published_version === p.published_version);
+                    return kept ? (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs font-semibold text-primary">Replay kept with v{p.published_version}</summary>
+                        <div className="mt-2"><ReplayTable replay={kept} /></div>
+                      </details>
+                    ) : null;
+                  })()}
                 </div>
               ))}
             </Card>

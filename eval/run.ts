@@ -13,6 +13,10 @@ import { reviewText, secondOpinion } from "../src/lib/ai/review";
 import { ALERT_PHRASES, CASES, DOC_CASES, LABEL_CORRECTIONS, type DocCase, type EvalCase } from "./cases";
 import { ALERT_HELDOUT } from "./heldout-alerts";
 import { reliance } from "../src/lib/alerts";
+import { clarifyEvidence, computeInsights, sampleRecords } from "../src/lib/insights";
+import { replayCases, replayRows, summarize } from "../src/lib/replay";
+import { judgeCases } from "../src/lib/ai/replay";
+import { proposeClearerRule } from "../src/lib/ai/clarify";
 import { seedFacts } from "../src/lib/seed/context";
 import { LIBRARY, LIBRARY_DECK } from "../src/lib/seed/library";
 import type { DocPage } from "../src/lib/checks/types";
@@ -190,6 +194,25 @@ function scoreAlerts() {
   };
 }
 
+/**
+ * Rule-change replay for MSG-01 ("taste first"), on the sample decisions every demo workspace has: the AI proposes clearer
+ * wording from them (as on the Insights page), then every past decision is judged under the old and the new wording.
+ */
+async function scoreReplay() {
+  const provider = getProvider();
+  if (!provider) return null;
+  const rules = seedRules();
+  const msg = rules.find((r) => r.code === "MSG-01")!;
+  const records = sampleRecords();
+  const info = rules.map((r) => ({ code: r.code, title: r.title, statement: r.statement, category: r.category, check_kind: r.check_kind }));
+  const unclear = computeInsights(records, info).unclear.find((u) => u.rule.code === "MSG-01")!;
+  const proposal = await proposeClearerRule(provider, info.find((r) => r.code === "MSG-01")!, clarifyEvidence(unclear), "eval");
+  const cases = replayCases(records, "MSG-01");
+  const [b, a] = await Promise.all([judgeCases(provider, msg, msg.statement, cases, "eval"), judgeCases(provider, msg, proposal.statement, cases, "eval")]);
+  const rows = replayRows(cases, b.judged, a.judged);
+  return { before: msg.statement, after: proposal.statement, rows, summary: summarize(rows), model: a.model };
+}
+
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 async function main() {
@@ -197,6 +220,7 @@ async function main() {
   const runs = [await run(false), ...(codeOnly ? [] : [await run(true)])];
   const docRuns = [await runDocs(false), ...(codeOnly ? [] : [await runDocs(true)])];
   const alerts = scoreAlerts();
+  const replay = codeOnly ? null : await scoreReplay();
   const histFile = "eval/history.json";
   const history: (Omit<Run, "cases"> | Omit<DocRun, "cases">)[] = existsSync(histFile) ? JSON.parse(readFileSync(histFile, "utf8")) : [];
   for (const r of [...runs, ...docRuns]) { const { cases: _c, ...summary } = r; void _c; history.push(summary); }
@@ -268,6 +292,28 @@ async function main() {
     "The held-out set is the honest measure. Its first run, on the detector before anyone had seen the set (22 Nov), found 60% with 86% precision (30 of 40 right). The misses showed general gaps, which were then fixed in the shared number reader and in alerts: counts written as “35 thousand”, “35 hazaar+ logon” (Hinglish) or in words (“thirty-five thousand”); more words for people (“Indians”, “shoppers”); ratings written with a star (“4.6★”); an offer named by its end date (“only till Nov 30”); a price worked out from an offer (₹432 is ₹540 with 20% off); and an unrelated 20% or 15% sale no longer counts as the Diwali or Dussehra offer unless the draft names that offer or its end date. The result after those fixes is in the table; because the fixes were made after seeing the set, it is no longer a blind score. Both runs are in the history below.",
     "Still missed: a Hindi word for the fact's ingredient (“khajur” for dates) and the cities named by their people (“Bangaloreans, Mumbaikars & Punekars”). Both are found if the brand manager adds those words to the fact's keywords on the Facts page.",
     "",
+    ...(replay ? [
+      "## Rule-change replay (Round 3)",
+      "",
+      `MSG-01 (\u201ctaste first\u201d), flagged as unclear by the sample decisions in every demo workspace. The AI proposed clearer wording from those decisions, as on the Insights page; then each past decision was judged under the current and the new wording (${replay.model}, without seeing what people decided).`,
+      "",
+      `- Current wording: \u201c${replay.before}\u201d`,
+      `- Proposed wording: \u201c${replay.after}\u201d`,
+      "",
+      "| Measure | Result |",
+      "|---|---|",
+      `| Past decisions replayed | ${replay.summary.cases} (${replay.summary.decided} decided by a person, ${replay.summary.cases - replay.summary.decided} disputed and not decided yet) |`,
+      `| Would change if published | ${replay.summary.changed} (${replay.summary.nowPass} would now pass, ${replay.summary.nowFlag} would now be flagged) |`,
+      `| Agreement with people, current wording | ${replay.summary.agreeBefore} of ${replay.summary.decided} (${pct(replay.summary.agreeBefore / Math.max(1, replay.summary.decided))}) |`,
+      `| Agreement with people, proposed wording | ${replay.summary.agreeAfter} of ${replay.summary.decided} (${pct(replay.summary.agreeAfter / Math.max(1, replay.summary.decided))}) |`,
+      "",
+      "| Past finding | People decided | Current wording | Proposed wording |",
+      "|---|---|---|---|",
+      ...replay.rows.map((r) => `| \u201c${r.quote}\u201d (${r.channel}, ${r.title}) | ${r.human ? (r.human === "flag" ? "should be flagged" : "should pass") : "not decided yet"} | ${r.before === "flag" ? "flagged" : "passes"} | ${r.after === "flag" ? "flagged" : "passes"} |`),
+      "",
+      "Four decided cases are a small sample: the replay shows what a change would do to known decisions; it is not a general accuracy score. AI answers are stored by exact prompt, so this replay gives the same result each time.",
+      "",
+    ] : []),
     "## What the failures show",
     "",
     "- Code checks were right on every case. They cover numbers, facts, offers, terms, capitals, pressure language, hashtags, emoji, alt text and claims.",
@@ -299,6 +345,7 @@ async function main() {
   for (const r of runs) console.log(`${r.mode}: recall ${pct(r.recall)}, precision ${pct(r.precision)}, clean ${r.cleanOk}, passed ${r.passed}, fixes ${r.fixes}, dropped ${r.dropped}`);
   for (const r of docRuns) console.log(`${r.mode}: recall ${pct(r.recall)}, precision ${pct(r.precision)}, typeface pages ${r.fonts} (false ${r.fontFalse}), clean ${r.cleanOk}, passed ${r.passed}, dropped ${r.dropped}`);
   for (const c of docRuns.at(-1)!.cases.filter((c) => !c.pass)) console.log(`  FAIL ${c.id}: missed [${c.missed}] false [${c.falseAlarms.join("; ")}]`);
+  if (replay) console.log(`replay MSG-01: ${replay.summary.changed} of ${replay.summary.cases} change; agreement ${replay.summary.agreeBefore}/${replay.summary.decided} -> ${replay.summary.agreeAfter}/${replay.summary.decided}`);
   console.log(`alerts: F-12 ${alerts.f12} (false ${alerts.f12False}); all pairs recall ${pct(alerts.recall)}, precision ${pct(alerts.precision)}; sentences ${pct(alerts.phraseRecall)}/${pct(alerts.phrasePrecision)}${alerts.misses.length ? `; ${alerts.misses.join("; ")}` : ""}`);
   for (const c of latest.cases.filter((c) => !c.pass)) console.log(`  FAIL ${c.id}: missed [${c.missed}] false [${c.falseAlarms.join("; ")}]`);
 }

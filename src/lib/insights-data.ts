@@ -35,5 +35,8 @@ export async function loadInsights(s: Session, includeSample: boolean) {
     proposals: (proposals ?? []) as Proposal[],
     rulebookVersion: published.version,
     hasReal: real.length > 0,
+    /** Every past finding with its decisions (for replaying a rule's wording), and the live rules. */
+    records,
+    rules: published.rules,
   };
 }

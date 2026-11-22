@@ -8,6 +8,11 @@ import { proofCheck } from "../src/lib/checks/proof";
 import { seedContext } from "../src/lib/seed/context";
 import { SAMPLE_DOCUMENTS, SAMPLE_DRAFTS } from "../src/lib/seed/urja";
 import { readPdf } from "../src/lib/documents/read";
+import { seedRules } from "../src/lib/seed/context";
+import { clarifyEvidence, computeInsights, sampleRecords } from "../src/lib/insights";
+import { replayCases } from "../src/lib/replay";
+import { judgeCases } from "../src/lib/ai/replay";
+import { proposeClearerRule } from "../src/lib/ai/clarify";
 import { getProvider } from "../src/lib/ai/gemini";
 import { reviewImage, reviewText, secondOpinion } from "../src/lib/ai/review";
 import { readFileSync } from "node:fs";
@@ -41,6 +46,18 @@ async function main() {
     const judgment = kept.filter((f) => f.category === "tone" || f.category === "messaging");
     if (judgment.length) await secondOpinion(provider, ctx, judgment, "warm-up");
     console.log(`${d.key} (PDF, ${doc.pageCount} page${doc.pageCount > 1 ? "s" : ""}): ${text.cached ? "already stored" : "stored"} · ${kept.length} AI finding(s) kept, ${dropped.length} dropped`);
+  }
+  // Insights on a first visit: clearer wording for MSG-01 from the sample decisions, and its replay.
+  const rules = seedRules();
+  const info = rules.map((r) => ({ code: r.code, title: r.title, statement: r.statement, category: r.category, check_kind: r.check_kind }));
+  const records = sampleRecords();
+  const unclear = computeInsights(records, info).unclear.find((u) => u.rule.code === "MSG-01");
+  if (unclear) {
+    const proposal = await proposeClearerRule(provider, unclear.rule, clarifyEvidence(unclear), "warm-up");
+    const msg = rules.find((r) => r.code === "MSG-01")!;
+    const cases = replayCases(records, "MSG-01");
+    const [b, a] = await Promise.all([judgeCases(provider, msg, msg.statement, cases, "warm-up"), judgeCases(provider, msg, proposal.statement, cases, "warm-up")]);
+    console.log(`MSG-01 wording and replay: ${b.requests + a.requests ? "stored" : "already stored"} · ${cases.length} past decisions`);
   }
 }
 main().catch((e) => { console.error(e.message); process.exit(1); });
