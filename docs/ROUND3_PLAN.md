@@ -178,6 +178,8 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [x] Built as planned, with these details: publishing is two-step, so the replay is always seen first. "Replay, then publish" (or "Publish" in the rulebook) runs the replay if this exact wording has none and shows it; a second click publishes and keeps the replay with the version. The AI sees each past phrase with its channel and draft title, never the people's decisions or reasons, so agreement is measured fairly. Undecided (disputed-only) findings are shown but not counted. If the AI is off or the rule has no past decisions, publishing goes ahead and says so; code-only rules say why they are not replayed
 - [x] Results: MSG-01 with the AI-proposed wording ("Lead with taste in consumer-facing communications, while B2B and fitness-focused materials may lead with protein"): 3 of 5 past decisions change (3 now pass); agreement with people 2 of 4 (50%) now, 4 of 4 (100%) with the new wording (eval/RESULTS.md, a small sample and said so). 3 browser tests (with an axe check of the table), 4 unit tests, 1 access check (34 in all: 32 attacks refused, 2 positive)
 
+> **Checkpoint, Sun 22 Nov evening:** phases 0 to 4 done and rechecked (all three improvements live). Typecheck, lint, build, 136 unit tests, 34 access checks and 34 browser tests on production all pass. Phase 5 starts next session.
+
 ### Phase 5 · Open ends from Round 2, and interface tightening
 
 - [ ] Reading level per channel: the configured average sentence length per channel is enforced
