@@ -14,6 +14,7 @@ import { DocumentView } from "./DocumentView";
 import { CorrectedPdfForm } from "./CorrectedPdfForm";
 import type { DocPage } from "@/lib/checks/types";
 import { SAMPLE_DOCUMENTS } from "@/lib/seed/urja";
+import { AlertList, type AlertView } from "../../AlertList";
 
 // Server actions on this page run checks; the AI half continues in the background after the response.
 export const maxDuration = 60;
@@ -45,6 +46,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     s.supabase.from("decisions").select("finding_id, action, reason, person_id, created_at").eq("draft_id", id),
     s.supabase.from("assets").select("name, note").eq("workspace_id", s.workspace.id).eq("kind", "font"),
   ]);
+  const { data: openAlerts } = await s.supabase.from("fact_alerts").select("*, draft:drafts(title, is_sample, status)").eq("draft_id", id).eq("status", "open");
   const { data: latestRun } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const run = await settleStaleRun(latestRun);
   const aiRunning = run?.ai_status === "running";
@@ -92,8 +94,17 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             {run && <> · {run.ms} ms</>}
           </p>
         </div>
-        <StatusPill status={draft.status} />
+        <div className="flex items-center gap-2">
+          {draft.is_sample && <span className="rounded bg-soft px-2 py-1 text-xs font-semibold text-muted" title="Approved sample content, seeded into every demo workspace">Sample</span>}
+          <StatusPill status={draft.status} />
+        </div>
       </div>
+      {(openAlerts ?? []).length > 0 && (
+        <div role="status" className="rounded-xl border border-red/30 bg-[#fff6f4] p-4">
+          <p className="text-sm font-semibold text-[#8a1c12]">This approved draft may be out of date: a fact it relies on {(openAlerts as AlertView[]).some((a) => a.kind === "changed") ? "changed" : (openAlerts as AlertView[]).some((a) => a.kind === "expired") ? "has ended" : "is ending"}.</p>
+          <AlertList alerts={openAlerts as AlertView[]} canDecide={canReview} back={`/app/drafts/${id}`} />
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {/* Left: content */}
@@ -418,6 +429,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                 <dd>
                   {run.ai_status === "running" && "Running now. The page updates on its own when the AI findings arrive."}
                   {run.ai_status === "off" && "Off: this workspace runs code checks only, so nothing was sent to an AI service."}
+                  {run.ai_status === "skipped" && `Not run this time: ${run.ai_error ?? "only code checks ran."}`}
                   {run.ai_status === "unavailable" && `Did not run: ${run.ai_error ?? "service unavailable"}`}
                   {(run.ai_status === "ok" || run.ai_status === "cached") && <>{run.ai_model} · {run.ai_requests} request{run.ai_requests === 1 ? "" : "s"}{run.ai_status === "cached" ? " (stored result reused for identical content)" : ""} · {run.ai_ms} ms</>}
                   {run.ai_status === "reused" && <>Not asked again: only the text you fixed changed. {run.reused_count} AI finding(s) on unchanged text were carried over from version {run.reused_from_version}; code re-checked everything. 0 AI requests.</>}

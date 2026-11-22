@@ -1,7 +1,8 @@
 // Builds the sample PDF documents with headless Chrome and Google Fonts (Poppins and Inter, the brand typefaces), then
 // reads every file back with the app's own PDF reader to prove the text, pages and fonts come out as intended.
 //   public/samples/urja-diwali-retail-deck.pdf    10-page deck for store partners, with problems planted on known pages
-//   public/samples/urja-diwali-retail-deck-corrected.pdf  the same deck with every problem fixed (the next version)
+//   public/samples/urja-diwali-retail-deck-corrected.pdf  the same deck with every problem fixed (the next version);
+//                                                  its text and pages also go to src/lib/seed/library-deck.json
 //   public/samples/urja-cocoa-crunch-one-pager.pdf one clean page (a control: nothing should be flagged)
 //   eval/docs/urja-store-brochure-arial.pdf        2 pages set in Arial, for the scored test set
 //   e2e/fixtures/*.pdf                             files the upload must refuse, each for one reason, and two odd
@@ -167,6 +168,8 @@ async function main() {
   const fonts = (doc: typeof d) => new Set(doc.pages.flatMap((p) => p.fonts.map((f) => f.family)));
   const problems: string[] = [];
   const c = await show(corrected);
+  // The approved copy of the corrected deck in every demo workspace's sample library (src/lib/seed/library.ts).
+  writeFileSync("src/lib/seed/library-deck.json", JSON.stringify({ file: "/samples/urja-diwali-retail-deck-corrected.pdf", hash: c.hash, size: c.size, pageCount: c.pageCount, body: c.body, pages: c.pages }) + "\n");
   if (c.pageCount !== 10 || [...new Set(c.pages.flatMap((p) => p.fonts.map((f) => f.family)))].some((f) => !["Poppins", "Inter"].includes(f))) problems.push("corrected deck: not 10 pages in Poppins and Inter");
   const ocr = await readPdf(new Uint8Array(readFileSync(path.join(fx, "ocr-scan.pdf"))));
   if (!ocr.scanned) problems.push("ocr-scan.pdf was not recognised as a scan");

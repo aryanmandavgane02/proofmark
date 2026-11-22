@@ -6,6 +6,9 @@ import { UNCLEAR, type InsightRecord } from "@/lib/insights";
 import { loadInsights } from "@/lib/insights-data";
 import { acceptWording, keepWording, proposeWording } from "@/app/insight-actions";
 import { PendingButton } from "../drafts/[id]/PendingButton";
+import { AlertList, type AlertView } from "../AlertList";
+import { syncExpiredFacts } from "@/lib/alerts-server";
+import { todayIST } from "@/lib/pipeline";
 
 const OUTCOME = (r: InsightRecord) =>
   r.decisions.some((d) => d.action === "override") ? ["Overridden", "bg-[#e3f1e4] text-[#1f5a22]"]
@@ -33,7 +36,14 @@ export default async function Insights(props: PageProps<"/app/insights">) {
   const msg = typeof sp.msg === "string" ? sp.msg.slice(0, 300) : null;
   const s = await requireSession();
   const manager = s.person.role === "manager";
-  const { insights: i, proposals, rulebookVersion, hasReal } = await loadInsights(s, view === "all");
+  await syncExpiredFacts(s.workspace.id, todayIST());
+  const [{ insights: i, proposals, rulebookVersion, hasReal }, { data: alertRows }] = await Promise.all([
+    loadInsights(s, view === "all"),
+    s.supabase.from("fact_alerts").select("*, draft:drafts(title, is_sample, status)").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(60),
+  ]);
+  const alerts = (alertRows ?? []) as AlertView[];
+  const openAlerts = alerts.filter((a) => a.status === "open");
+  const closedAlerts = alerts.filter((a) => a.status !== "open").slice(0, 8);
   const who = new Map(s.people.map((p) => [p.id, p.name]));
   const flagged = i.unclear.filter((u) => u.flagged);
   const watching = i.unclear.filter((u) => !u.flagged);
@@ -60,6 +70,30 @@ export default async function Insights(props: PageProps<"/app/insights">) {
       ) : !hasReal ? (
         <p className="mb-6 rounded-lg bg-soft p-3 text-sm text-muted">No findings in your workspace yet. <Link className="font-semibold text-primary" href="/app/drafts/new">Check a draft</Link>, or switch to <b>Sample + yours</b>.</p>
       ) : null}
+
+      <section id="outdated" aria-labelledby="outdated-h" className="mb-8 scroll-mt-24">
+        <Card className={`p-5 ${openAlerts.length ? "border-l-4 border-l-red" : ""}`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="outdated-h" className="font-semibold text-primary-d">Out-of-date approved content</h2>
+            <Link href="/app/facts" className="text-xs font-semibold text-primary hover:underline">Facts and where they are used</Link>
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            When a fact changes or ends, every approved draft that relied on it is listed here and its owner is told. One click re-checks it against today&apos;s facts:
+            if it no longer holds, its approval is withdrawn and it goes back for changes.
+          </p>
+          {openAlerts.length ? (
+            <AlertList alerts={openAlerts} canDecide={s.person.role !== "creator"} back="/app/insights#outdated" />
+          ) : (
+            <p className="mt-3 text-sm text-muted">Nothing is out of date. Try it as Meera: on the <Link href="/app/facts#fact-F-12" className="font-semibold text-primary hover:underline">Facts page</Link>, edit F-12 (the customer count) and save.</p>
+          )}
+          {closedAlerts.length > 0 && (
+            <details className="mt-2 text-sm">
+              <summary className="cursor-pointer text-xs font-semibold text-muted hover:text-primary">Recently resolved ({closedAlerts.length})</summary>
+              <AlertList alerts={closedAlerts} canDecide={false} back="/app/insights#outdated" />
+            </details>
+          )}
+        </Card>
+      </section>
 
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[

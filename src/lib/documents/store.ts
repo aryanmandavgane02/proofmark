@@ -1,5 +1,5 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MAX_BYTES } from "./read";
 
@@ -69,4 +69,28 @@ export async function removeWorkspaceFiles(workspaceId: string) {
       // Files left behind are private and unreachable once the workspace is gone; never fail a reset over them.
     }
   }
+}
+
+/**
+ * The approved sample deck of a new demo workspace, copied inside storage from one shared copy (made on first use from
+ * the app's own sample file, and only if its SHA-256 matches, so approval checks keep passing). Null if unavailable.
+ */
+export async function copyLibraryDeck(workspaceId: string, deck: { file: string; hash: string }, origin: string | null): Promise<string | null> {
+  const db = createAdminClient();
+  const shared = `library/${deck.hash}.pdf`;
+  const dest = newDocumentPath(workspaceId);
+  let { error } = await db.storage.from(BUCKET).copy(shared, dest);
+  if (error && origin) {
+    try {
+      const res = await fetch(new URL(deck.file, origin));
+      const bytes = res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+      if (bytes && createHash("sha256").update(bytes).digest("hex") === deck.hash) {
+        await db.storage.from(BUCKET).upload(shared, bytes, { contentType: "application/pdf", upsert: true });
+        ({ error } = await db.storage.from(BUCKET).copy(shared, dest));
+      }
+    } catch {
+      // no deck in this workspace's library; everything else still works
+    }
+  }
+  return error ? null : dest;
 }

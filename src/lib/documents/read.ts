@@ -3,8 +3,11 @@
 // Uses pdf.js (through unpdf) only: no network and no storage, so it runs the same in the app, the tests and the eval.
 import { createHash } from "node:crypto";
 import { getDocumentProxy, inspectPages } from "unpdf";
-import type { DocPage, FindingDraft } from "@/lib/checks/types";
+import type { DocPage } from "@/lib/checks/types";
 import { fontFamily } from "./fonts";
+import { PAGE_GAP } from "./pages";
+
+export { pageAt, withPages } from "./pages";
 
 export const MAX_PAGES = 20;
 export const MAX_BYTES = 15 * 1024 * 1024;
@@ -96,7 +99,6 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string): { t
   };
 }
 
-const PAGE_GAP = "\n\n";
 
 /** Reads and validates a PDF. Throws DocumentError with a plain reason when it cannot be checked. */
 export async function readPdf(bytes: Uint8Array, timeoutMs = READ_TIMEOUT_MS): Promise<ReadDocument> {
@@ -194,18 +196,4 @@ async function read(bytes: Uint8Array, open: { pdf?: Awaited<ReturnType<typeof g
   } finally {
     await pdf.loadingTask.destroy().catch(() => {});
   }
-}
-
-/** The page a position in the body belongs to (pages are separated by a blank line). */
-export function pageAt(pages: Pick<DocPage, "n" | "start" | "end">[], offset: number | null | undefined): number | null {
-  if (offset == null || !pages.length) return null;
-  for (const p of pages) if (offset < p.end + PAGE_GAP.length) return p.n;
-  return pages.at(-1)!.n;
-}
-
-/** Documents: give every finding the page it is on (from its position in the joined text). */
-export function withPages(findings: FindingDraft[], pages: DocPage[] | undefined): FindingDraft[] {
-  if (!pages?.length) return findings;
-  for (const f of findings) if (f.page == null) f.page = pageAt(pages, f.start);
-  return findings;
 }

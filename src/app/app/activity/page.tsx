@@ -7,10 +7,14 @@ export default async function AuditTrail() {
   const s = await requireSession();
   const [{ data: events }, { data: drafts }, { data: approvals }] = await Promise.all([
     s.supabase.from("events").select("id, type, person_id, draft_id, detail, created_at").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(200),
-    s.supabase.from("drafts").select("id, title").eq("workspace_id", s.workspace.id),
+    s.supabase.from("drafts").select("id, title, is_sample").eq("workspace_id", s.workspace.id),
     s.supabase.from("approvals").select("id, draft_id, approver_id, rulebook_version, fingerprint, file_hash, overrides, ai_services, valid, created_at").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }),
   ]);
   const title = new Map((drafts ?? []).map((d) => [d.id, d.title]));
+  const sample = new Set((drafts ?? []).filter((d) => d.is_sample).map((d) => d.id));
+  // Why an approval was withdrawn: the latest "approval withdrawn" event of its draft (an edit, or a fact that changed).
+  const withdrawnBecause = (draftId: string, after: string) =>
+    (events ?? []).find((e) => e.draft_id === draftId && e.type === "approval.invalidated" && e.created_at >= after)?.detail?.reason as string | undefined;
   const who = new Map(s.people.map((p) => [p.id, p.name]));
   return (
     <>
@@ -25,13 +29,13 @@ export default async function AuditTrail() {
             {(approvals ?? []).length === 0 && <tr><td className="p-3 text-muted" colSpan={7}>No approvals yet.</td></tr>}
             {(approvals ?? []).map((a) => (
               <tr key={a.id}>
-                <td className="p-2.5"><Link className="text-primary hover:underline" href={`/app/drafts/${a.draft_id}`}>{title.get(a.draft_id) ?? "—"}</Link></td>
+                <td className="p-2.5"><Link className="text-primary hover:underline" href={`/app/drafts/${a.draft_id}`}>{title.get(a.draft_id) ?? "—"}</Link>{sample.has(a.draft_id) && <span className="ml-1.5 rounded bg-soft px-1.5 py-0.5 text-xs text-muted">Sample</span>}</td>
                 <td className="p-2.5">{who.get(a.approver_id)}</td>
                 <td className="p-2.5">{timeAgo(a.created_at)}</td>
                 <td className="p-2.5">v{a.rulebook_version}</td>
                 <td className="p-2.5 font-mono text-xs">{a.fingerprint.slice(0, 12)}{a.file_hash && <span className="block text-muted" title={`SHA-256 of the approved PDF: ${a.file_hash}`}>PDF {a.file_hash.slice(0, 12)}</span>}</td>
                 <td className="p-2.5">{a.overrides.length ? a.overrides.map((o: { rule: string }) => o.rule).join(", ") : "none"}</td>
-                <td className="p-2.5">{a.valid ? "Valid" : "Withdrawn: edited after approval"}</td>
+                <td className="p-2.5">{a.valid ? "Valid" : `Withdrawn: ${withdrawnBecause(a.draft_id, a.created_at) ?? "a later change"}`}</td>
               </tr>
             ))}
           </tbody>

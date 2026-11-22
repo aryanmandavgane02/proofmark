@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 10:52 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 11:19 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,7 +11,7 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 2/3 |
 | AI findings dropped by the proof check | — | 13 |
-| Average time per draft | 2 ms | 105 ms |
+| Average time per draft | 2 ms | 68 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
@@ -29,7 +29,7 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 | Clean document with no false alarm | 2/2 | 2/2 |
 | Documents fully right | 4/4 | 4/4 |
 | AI findings dropped by the proof check | — | 6 |
-| Average time per document (reading the PDF included) | 43 ms | 96 ms |
+| Average time per document (reading the PDF included) | 43 ms | 66 ms |
 
 | Document | Expected (page and rule) | Missed | False alarms | Result |
 |---|---|---|---|---|
@@ -40,6 +40,20 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 
 Code-only scores leave out TONE-01 on page 9 of the deck, which only the AI can judge.
 These files were made for the test, with problems planted on known pages. The scores show that reading pages, placing findings on their page, typeface detection and the checks work on PDFs; they do not measure every real-world layout, which varies more between design tools.
+
+## Outdated-content alerts (Round 3)
+
+Which approved content relies on a fact, found with the same number reader as the facts check (no AI). Scored against hand labels: the 11 approved samples seeded in every demo workspace (`src/lib/seed/library.ts`, each labelled with the facts it relies on), checked against each of the 8 facts a creator can see (88 pairs), and 18 single sentences (`ALERT_PHRASES` in `eval/cases.ts`), including decoys such as “1,200 buyers” (the rating fact) and “3,500 bars”.
+
+| Measure | Result |
+|---|---|
+| Editing F-12 (the customer count): approved samples that quote it, found | 5/5, with 0 false alerts |
+| Every fact against every sample: reliance found (recall) | 100% (20 of 20) |
+| Every fact against every sample: alerts that are right (precision) | 100% (0 false) |
+| Single sentences: recall and precision | 100% and 100% |
+
+No misses and no false alerts on these sets.
+The samples were labelled before the detector was run, but the single sentences were written while it was built: they show the cases it is meant to handle, decoys included, not how often it is right on any real content. Numbers written in words (“thirty-five thousand”) are not read, by the facts check or by alerts; this is a known limit.
 
 ## What the failures show
 
@@ -112,3 +126,7 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-22 10:52 | code+ai | 95% | 93% | 3/5 | 24/27 |
 | 2026-11-22 10:52 | pdf code | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 10:52 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 11:19 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 11:19 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-22 11:19 | pdf code | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 11:19 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |

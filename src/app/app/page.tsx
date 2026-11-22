@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Card, PageTitle, StatusPill, btn, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { resetDemo, switchPerson } from "@/app/actions";
-import { IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser, IconPages } from "@/components/icons";
+import { IconBell, IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser, IconPages } from "@/components/icons";
 import { CloseDetails } from "./CloseDetails";
 
 type Step = { title: string; detail: string; done: boolean; person: string; href: string; cta: string };
@@ -11,11 +11,16 @@ type Step = { title: string; detail: string; done: boolean; person: string; href
 export default async function StartHere() {
   const s = await requireSession();
   const ws = s.workspace.id;
-  const [{ data: drafts }, { data: decisions }, { data: events }] = await Promise.all([
-    s.supabase.from("drafts").select("id, title, channel, status, updated_at, sample_key, reviewer_id").eq("workspace_id", ws).order("updated_at", { ascending: false }),
+  const [{ data: allDrafts }, { data: decisions }, { data: events }, { count: openAlerts }] = await Promise.all([
+    s.supabase.from("drafts").select("id, title, channel, status, updated_at, sample_key, reviewer_id, is_sample").eq("workspace_id", ws).order("updated_at", { ascending: false }),
     s.supabase.from("decisions").select("action").eq("workspace_id", ws).eq("is_sample", false),
     s.supabase.from("events").select("type").eq("workspace_id", ws),
+    s.supabase.from("fact_alerts").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("status", "open"),
   ]);
+  // The approved sample library is there for outdated-content alerts; the guided steps count only the visitor's drafts.
+  const drafts = (allDrafts ?? []).filter((d) => !d.is_sample);
+  const library = (allDrafts ?? []).filter((d) => d.is_sample);
+  const meera = s.people.find((p) => p.role === "manager");
   const acts = new Set((decisions ?? []).map((d) => d.action));
   const types = new Set((events ?? []).map((e) => e.type));
   const firstDraft = (drafts ?? []).find((d) => d.sample_key === "diwali-post") ?? drafts?.[drafts.length - 1];
@@ -83,6 +88,22 @@ export default async function StartHere() {
 
       <section aria-labelledby="more" className="mt-6">
         <h2 id="more" className="font-semibold text-primary-d">More to try</h2>
+        {meera && (
+          <form action={switchPerson} className="mt-3">
+            <input type="hidden" name="person_id" value={meera.id} />
+            <input type="hidden" name="back" value="/app/facts#fact-F-12" />
+            <button className="glow-card group flex w-full gap-3 rounded-2xl border border-line/80 bg-surface p-4 text-left shadow-card transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift">
+              <span aria-hidden className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br from-[#fde0dd] to-[#fff4ea] text-[#8a1c12] transition group-hover:scale-110"><IconBell className="h-5 w-5" /></span>
+              <span>
+                <span className="block font-semibold text-primary group-hover:underline">Change a fact and see what goes out of date</span>
+                <span className="block text-sm text-muted">
+                  As Meera, edit F-12 (the customer count): every approved draft that quoted it is listed, its owner is told, and one click re-checks it.
+                  {openAlerts ? ` ${openAlerts} approved draft${openAlerts === 1 ? " is" : "s are"} already out of date.` : ""}
+                </span>
+              </span>
+            </button>
+          </form>
+        )}
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { href: "/app/drafts/new?mode=document&sample=diwali-deck", t: "Check a PDF deck", d: "A 10-page deck: every page checked, each finding with its page, fonts outside the brand typefaces flagged.", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet" },
@@ -108,8 +129,8 @@ export default async function StartHere() {
         <Link href="/app/drafts/new" className={btn.secondary}>New draft</Link>
       </div>
       <Card className="mt-3 divide-y divide-line">
-        {(drafts ?? []).length === 0 && <p className="p-4 text-sm text-muted">No drafts yet. Start with step 1 above.</p>}
-        {(drafts ?? []).map((d) => (
+        {drafts.length === 0 && <p className="p-4 text-sm text-muted">No drafts yet. Start with step 1 above.</p>}
+        {drafts.map((d) => (
           <Link key={d.id} href={`/app/drafts/${d.id}`} className="flex flex-wrap items-center gap-3 p-4 transition first:rounded-t-2xl last:rounded-b-2xl hover:bg-soft">
             <span className="font-medium text-ink">{d.title}</span>
             <span className="text-sm text-muted">{CHANNEL_LABEL[d.channel as Channel]}</span>
@@ -118,6 +139,23 @@ export default async function StartHere() {
           </Link>
         ))}
       </Card>
+
+      {library.length > 0 && (
+        <details className="mt-6">
+          <summary className="cursor-pointer text-sm font-semibold text-primary-d">Approved sample content ({library.length}) <span className="font-normal text-muted">· seeded so that outdated-content alerts have approved content to watch</span></summary>
+          <Card className="mt-3 divide-y divide-line">
+            {library.map((d) => (
+              <Link key={d.id} href={`/app/drafts/${d.id}`} className="flex flex-wrap items-center gap-3 p-4 transition first:rounded-t-2xl last:rounded-b-2xl hover:bg-soft">
+                <span className="font-medium text-ink">{d.title}</span>
+                <span className="text-sm text-muted">{CHANNEL_LABEL[d.channel as Channel]}</span>
+                <span className="rounded bg-soft px-1.5 py-0.5 text-xs text-muted">Sample</span>
+                <span className="ml-auto text-xs text-muted">{timeAgo(d.updated_at)}</span>
+                <StatusPill status={d.status} />
+              </Link>
+            ))}
+          </Card>
+        </details>
+      )}
 
       <div className="mt-10 flex justify-end">
         <details className="group w-full max-w-md rounded-2xl border border-line/80 bg-surface/90 p-1 shadow-card backdrop-blur open:p-4 sm:w-auto">

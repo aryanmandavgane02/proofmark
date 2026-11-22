@@ -15,6 +15,7 @@ import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
 import { SAMPLE_DOCUMENTS, SAMPLE_DRAFTS } from "@/lib/seed/urja";
 import { DocumentError, MAX_BYTES, readPdf, type ReadDocument } from "@/lib/documents/read";
 import { documentUploadLink, isWorkspaceDocumentPath, loadDocument, removeDocument, removeWorkspaceFiles, storeDocument } from "@/lib/documents/store";
+import { closeAlert, notify } from "@/lib/alerts-server";
 import { notice } from "@/lib/notice";
 import { TEXT_CHANNELS, type Channel, type DocPage } from "@/lib/checks/types";
 
@@ -609,4 +610,139 @@ export async function addComment(formData: FormData) {
   await server(s).record("comments", { draft_id: draftId, finding_id: findingId, body });
   await logEvent(s, "comment.added", draftId, { on_finding: !!findingId });
   revalidatePath(path);
+}
+
+// ── Outdated-content alerts (Round 3, improvement 2) ────────────────────────
+
+type AlertRow = {
+  id: string; fact_code: string; kind: "changed" | "expiring" | "expired"; draft_id: string; draft_version_id: string; owner_id: string | null;
+  before: { statement: string } | null; after: { statement: string; expires_on: string | null } | null; evidence: { quote: string; start: number; end: number; page: number | null; how: string }[]; status: string;
+};
+
+const backTo = (v: FormDataEntryValue | null) => {
+  const p = String(v ?? "");
+  return /^\/app(\/[\w/-]*)?(#[\w-]+)?$/.test(p) ? p : "/app/insights#outdated";
+};
+
+/** Sends an approved draft back because a fact it relied on changed: approval withdrawn, owner told. */
+async function sendBackForFact(s: Session, alert: AlertRow, title: string, reason: string) {
+  const ok = await closeAlert(s.workspace.id, alert.id, "sent_back", reason, s.person.id);
+  if (!ok) return false;
+  await server(s).claimDraft(alert.draft_id, ["approved"], { status: "changes_requested", updated_at: new Date().toISOString() });
+  await server(s).withdrawApprovals(alert.draft_id);
+  await logEvent(s, "approval.invalidated", alert.draft_id, { reason: `fact ${alert.fact_code} ${alert.kind === "expired" ? "ended" : "changed"}` });
+  await logEvent(s, "alert.sent_back", alert.draft_id, { fact: alert.fact_code, quote: alert.evidence[0]?.quote ?? null });
+  await notify(s.workspace.id, alert.owner_id, `“${title}” was sent back for changes. ${reason}`, draftPath(alert.draft_id));
+  return true;
+}
+
+/**
+ * Re-checks the approved version an alert is about, against today's facts (code checks: numbers and dates are checked
+ * by code). A finding on the fact sends the draft back; a number still backed by the fact closes the alert as still
+ * correct; wording only a person can judge stays open for a reviewer's decision.
+ */
+async function recheck(s: Session, alert: AlertRow): Promise<{ outcome: "sent_back" | "still_correct" | "superseded" | "person" | "done"; text: string }> {
+  if (alert.status !== "open") return { outcome: "done", text: ALREADY_DONE };
+  const { data: draft } = await s.supabase.from("drafts").select("id, title, status, channel, current_version").eq("id", alert.draft_id).maybeSingle();
+  const { data: version } = draft
+    ? await s.supabase.from("draft_versions").select(VERSION_COLUMNS).eq("draft_id", draft.id).eq("version", draft.current_version).single()
+    : { data: null };
+  if (!draft || !version || version.id !== alert.draft_version_id || draft.status !== "approved") {
+    const why = !draft ? "The draft no longer exists." : `“${draft.title}” changed after this alert (it is now ${draft.status === "approved" ? `version ${draft.current_version}` : draft.status.replace("_", " ")}), and new versions are checked as usual.`;
+    await closeAlert(s.workspace.id, alert.id, "superseded", why, s.person.id);
+    return { outcome: "superseded", text: why };
+  }
+  if (alert.kind === "expiring") {
+    const until = alert.after?.expires_on ? new Date(`${alert.after.expires_on}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "its end date";
+    return { outcome: "person", text: `The fact is still valid until ${until}, so “${draft.title}” is correct today. The alert turns into an “ended” alert on that date; to update it now, send it back.` };
+  }
+  const result = await runChecks(s.supabase, {
+    workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version,
+    skipAI: `re-checked after fact ${alert.fact_code} ${alert.kind === "expired" ? "ended" : "changed"}; numbers and dates are checked by code.`,
+  });
+  const { data: found } = await s.supabase.from("findings").select("rule_code, fact_code, quote, start_at, end_at, page, message").eq("check_run_id", result.runId);
+  const relevant = (found ?? []).filter((f) => f.fact_code === alert.fact_code || (f.start_at != null && alert.evidence.some((e) => f.start_at < e.end && e.start < f.end_at)));
+  await logEvent(s, "checks.rerun", draft.id, { version: version.version, reason: `fact ${alert.fact_code}` });
+  if (relevant.length) {
+    const f = relevant[0];
+    const where = `${f.page ? `page ${f.page}, ` : ""}“${f.quote.length > 60 ? `${f.quote.slice(0, 60)}…` : f.quote}”`;
+    const what = alert.kind === "expired" ? `relies on fact ${alert.fact_code}, which has ended` : `no longer matches fact ${alert.fact_code}`;
+    const reason = `${where} ${what}. ${f.message}`.slice(0, 450);
+    const ok = await sendBackForFact(s, alert, draft.title, reason);
+    const owner = s.people.find((p) => p.id === alert.owner_id)?.name ?? "its owner";
+    return ok ? { outcome: "sent_back", text: `Sent “${draft.title}” back for changes: ${where} ${what}. The approval was withdrawn and ${owner} was told.` } : { outcome: "done", text: ALREADY_DONE };
+  }
+  if (alert.evidence.some((e) => e.how === "quotes")) {
+    const text = `Still correct: “${alert.evidence.find((e) => e.how === "quotes")!.quote}” in “${draft.title}” is still backed by the facts, so the approval stands.`;
+    const ok = await closeAlert(s.workspace.id, alert.id, "still_correct", text, s.person.id);
+    if (ok) await logEvent(s, "alert.still_correct", draft.id, { fact: alert.fact_code });
+    return ok ? { outcome: "still_correct", text } : { outcome: "done", text: ALREADY_DONE };
+  }
+  const text = `Checked again: no rule fails in “${draft.title}”, but code cannot judge whether its wording still fits fact ${alert.fact_code}. A reviewer or the brand manager decides below.`;
+  await createAdminClient().from("fact_alerts").update({ outcome: text }).eq("id", alert.id).eq("workspace_id", s.workspace.id).eq("status", "open");
+  return { outcome: "person", text };
+}
+
+export async function recheckAlert(formData: FormData) {
+  const s = await requireSession();
+  const back = backTo(formData.get("back"));
+  const { data: alert } = await s.supabase.from("fact_alerts").select("*").eq("id", String(formData.get("alert_id"))).maybeSingle();
+  if (!alert) notice(back, "That alert no longer exists. The demo may have been reset.");
+  const r = await recheck(s, alert as AlertRow);
+  revalidatePath("/app", "layout");
+  notice(back, r.text, r.outcome === "sent_back" || r.outcome === "still_correct" ? "success" : "info");
+}
+
+/** Re-checks every open alert of one fact. */
+export async function recheckFactAlerts(formData: FormData) {
+  const s = await requireSession();
+  const back = backTo(formData.get("back"));
+  const code = String(formData.get("fact_code"));
+  const { data: alerts } = await s.supabase.from("fact_alerts").select("*").eq("workspace_id", s.workspace.id).eq("fact_code", code).eq("status", "open").in("kind", ["changed", "expired"]);
+  if (!alerts?.length) notice(back, `No open alerts for ${code}. They may have been re-checked in another tab.`, "info");
+  const tally = { sent_back: 0, still_correct: 0, person: 0, other: 0 };
+  for (const a of alerts) {
+    const r = await recheck(s, a as AlertRow);
+    if (r.outcome === "sent_back" || r.outcome === "still_correct" || r.outcome === "person") tally[r.outcome]++;
+    else tally.other++;
+  }
+  revalidatePath("/app", "layout");
+  const parts = [
+    tally.sent_back && `${tally.sent_back} sent back for changes`,
+    tally.still_correct && `${tally.still_correct} still correct`,
+    tally.person && `${tally.person} left for a reviewer to decide`,
+    tally.other && `${tally.other} already changed or done`,
+  ].filter(Boolean);
+  notice(back, `Re-checked ${alerts.length} approved draft${alerts.length === 1 ? "" : "s"} for ${code}: ${parts.join(", ")}.`, "success");
+}
+
+/** A reviewer's decision on an alert code cannot settle (wording, or an offer that has not ended yet). */
+export async function decideAlert(formData: FormData) {
+  const s = await requireSession();
+  const back = backTo(formData.get("back"));
+  if (s.person.role === "creator") notice(back, NOT_REVIEWER);
+  const { data: alert } = await s.supabase.from("fact_alerts").select("*").eq("id", String(formData.get("alert_id"))).maybeSingle();
+  if (!alert) notice(back, "That alert no longer exists. The demo may have been reset.");
+  if (alert.status !== "open") notice(back, ALREADY_DONE, "info");
+  const { data: draft } = await s.supabase.from("drafts").select("title, status").eq("id", alert.draft_id).maybeSingle();
+  if (!draft) notice(back, "That draft no longer exists.");
+  if (formData.get("decision") === "send_back") {
+    const reason = `${s.person.name} decided it must be updated: it relies on fact ${alert.fact_code} (“${(alert as AlertRow).after?.statement ?? alert.fact_code}”).`;
+    const ok = draft.status === "approved" && (await sendBackForFact(s, alert as AlertRow, draft.title, reason));
+    if (!ok) notice(back, draft.status === "approved" ? ALREADY_DONE : `“${draft.title}” is no longer approved, so there is nothing to send back.`, "info");
+    revalidatePath("/app", "layout");
+    notice(back, `Sent “${draft.title}” back for changes. Its approval was withdrawn and its owner was told.`, "success");
+  }
+  const ok = await closeAlert(s.workspace.id, alert.id, "still_correct", `${s.person.name} reviewed it: still correct after fact ${alert.fact_code} changed.`, s.person.id);
+  if (!ok) notice(back, ALREADY_DONE, "info");
+  await logEvent(s, "alert.still_correct", alert.draft_id, { fact: alert.fact_code, by: s.person.name });
+  revalidatePath("/app", "layout");
+  notice(back, `Marked “${draft.title}” as still correct.`, "success");
+}
+
+export async function markNotificationsRead() {
+  const s = await requireSession();
+  await createAdminClient().from("notifications").update({ read_at: new Date().toISOString() }).eq("workspace_id", s.workspace.id).eq("person_id", s.person.id).is("read_at", null);
+  revalidatePath("/app", "layout");
+  notice("/app/notifications", "All your notifications are marked as read.", "success");
 }

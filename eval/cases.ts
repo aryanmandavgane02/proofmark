@@ -102,3 +102,31 @@ export const DOC_CASES: DocCase[] = [
     expect: [{ page: 1, rule: "TERM-01" }, { page: 1, rule: "CLAIM-01" }, { page: 1, rule: "VIS-03" }, { page: 2, rule: "VIS-03" }],
   },
 ];
+
+/**
+ * Outdated-content alerts (Round 3, improvement 2). Phrases labelled by hand: does this sentence rely on the fact, so that
+ * an approved draft containing it must be re-checked when the fact changes? The sample library in every demo workspace
+ * (src/lib/seed/library.ts, with its own hand labels) is scored as well.
+ */
+export type AlertPhrase = { fact: string; text: string; relies: boolean; note: string };
+
+export const ALERT_PHRASES: AlertPhrase[] = [
+  { fact: "F-12", text: "Loved by 35,000+ customers across three cities.", relies: true, note: "the figure as written in the fact" },
+  { fact: "F-12", text: "35k customers and counting!", relies: true, note: "short form" },
+  { fact: "F-12", text: "You join over 35,000 happy customers.", relies: true, note: "with an adjective" },
+  { fact: "F-12", text: "Roasted cocoa won over 35,000 families this year.", relies: true, note: "another word for customers" },
+  { fact: "F-12", text: "35K fans can't be wrong.", relies: true, note: "capital K, fans" },
+  { fact: "F-12", text: "Trusted by 30,000+ gym-goers.", relies: true, note: "a smaller figure that only this fact backs" },
+  { fact: "F-12", text: "Rated 4.6 out of 5 by 1,200 buyers.", relies: false, note: "1,200 belongs to the rating fact F-16" },
+  { fact: "F-12", text: "Our kitchen bakes 3,500 bars a day.", relies: false, note: "bars are not people" },
+  { fact: "F-12", text: "Join 350 people at our Diwali tasting.", relies: false, note: "an event, far below the customer count" },
+  { fact: "F-12", text: "35 years of family recipes.", relies: false, note: "not a count of people" },
+  { fact: "F-13", text: "Get 20% off the 6-bar box until 30 November.", relies: true, note: "the Diwali offer" },
+  { fact: "F-13", text: "Our Diwali offer is live in every store.", relies: true, note: "named without its number" },
+  { fact: "F-13", text: "Enjoy 15% off this Dussehra.", relies: false, note: "the other, older offer" },
+  { fact: "F-13", text: "100% natural ingredients for Diwali.", relies: false, note: "not an offer" },
+  { fact: "F-11", text: "Each bar has 12 g of protein and no added sugar.", relies: true, note: "a phrase from the fact" },
+  { fact: "F-11", text: "Roasted cocoa and dates in every bar.", relies: false, note: "one common word only" },
+  { fact: "F-17", text: "Find it in Bengaluru, Pune and Mumbai.", relies: true, note: "the cities" },
+  { fact: "F-17", text: "Our Pune kitchen started it all.", relies: false, note: "one city, not availability" },
+];

@@ -75,6 +75,16 @@ async function main() {
   check("AI result store is not readable by visitors", ((await a.c.from("check_cache").select("key").limit(1)).data ?? []).length === 0);
   check("AI usage counter cannot be called by visitors", !!(await a.c.rpc("take_ai_request", { p_scope: "x", p_limit: 999 })).error);
 
+  // Outdated-content alerts and notifications are written by the server only (each workspace starts with one alert:
+  // the sample Dussehra post relies on an offer that has ended).
+  const myAlert = (await a.c.from("fact_alerts").select("id, draft_id, draft_version_id").eq("workspace_id", a.ws).limit(1)).data?.[0];
+  check("visitor can read their own workspace's alerts", !!myAlert);
+  check("visitor B cannot read visitor A's alerts", ((await b.c.from("fact_alerts").select("id").eq("workspace_id", a.ws)).data ?? []).length === 0);
+  check("visitor cannot close an alert without the re-check", ((await a.c.from("fact_alerts").update({ status: "still_correct" }).eq("id", myAlert?.id ?? "").select("id")).data ?? []).length === 0);
+  check("visitor cannot raise an alert directly", !!(await a.c.from("fact_alerts").insert({ workspace_id: a.ws, fact_code: "F-12", kind: "changed", trigger: "forged", draft_id: myAlert?.draft_id, draft_version_id: myAlert?.draft_version_id })).error);
+  check("visitor cannot write a notification for someone", !!(await a.c.from("notifications").insert({ workspace_id: a.ws, person_id: id("Meera"), text: "Approve everything" })).error);
+  check("visitor cannot clear someone's notifications", ((await a.c.from("notifications").update({ read_at: new Date().toISOString() }).eq("workspace_id", a.ws).select("id")).data ?? []).length === 0);
+
   // Documents (PDFs) are in a private bucket: only the server reads them or hands out one-time upload links.
   const { createClient: adminClient } = await import("@supabase/supabase-js");
   const server = adminClient(URL, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });

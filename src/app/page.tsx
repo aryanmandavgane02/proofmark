@@ -17,7 +17,7 @@ const steps = [
 const stats = [
   { n: String(CODE_CHECK_COUNT), l: "code checks run before any AI" },
   { n: "100%", l: "of planted problems found by code in the scored test set" },
-  { n: "26 / 26", l: "direct database and storage attacks refused" },
+  { n: "31 / 31", l: "direct database and storage attacks refused" },
   { n: "0", l: "approvals made by AI: a person decides" },
 ];
 

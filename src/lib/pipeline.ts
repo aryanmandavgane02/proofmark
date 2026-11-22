@@ -61,7 +61,11 @@ type VersionRow = {
 };
 /** The version columns runChecks needs. */
 export const VERSION_COLUMNS = "id, draft_id, version, body, alt_text, image_path, file_hash, pages, scanned";
-type RunInput = { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean; reuseFrom?: { runId: string; version: number } };
+type RunInput = {
+  workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean; reuseFrom?: { runId: string; version: number };
+  /** Run code checks only, for this reason (shown under "How this was checked"), e.g. a re-check after a fact changed. */
+  skipAI?: string;
+};
 export type RunResult = { runId: string; count: number; fingerprint: string; ai?: () => Promise<void> };
 
 /** The whole AI step (text review, second opinion, image review, retries) must finish within this. */
@@ -144,7 +148,7 @@ export async function runChecks(db: SupabaseClient, input: RunInput): Promise<Ru
   // are carried over from the previous run instead of asking the AI again. Code re-checks everything.
   const reusedFindings: FindingDraft[] = [];
   let reused: { model: string | null; count: number; fromVersion: number } | null = null;
-  if (input.reuseFrom && !input.codeChecksOnly) {
+  if (input.reuseFrom && !input.codeChecksOnly && !input.skipAI) {
     const { data: prevRun } = await db.from("check_runs").select("ai_status, ai_model").eq("id", input.reuseFrom.runId).maybeSingle();
     if (prevRun && ["ok", "cached", "reused"].includes(prevRun.ai_status)) {
       const { data: prev } = await db.from("findings").select("*").eq("check_run_id", input.reuseFrom.runId);
@@ -175,9 +179,9 @@ export async function runChecks(db: SupabaseClient, input: RunInput): Promise<Ru
   }
 
   const provider = getProvider();
-  const needsAI = !reused && !input.codeChecksOnly && !!provider;
-  const ai_status = reused ? "reused" : input.codeChecksOnly ? "off" : !provider ? "unavailable" : "running";
-  let ai_error: string | null = !provider && !input.codeChecksOnly && !reused ? "No AI key is configured." : null;
+  const needsAI = !reused && !input.codeChecksOnly && !input.skipAI && !!provider;
+  const ai_status = reused ? "reused" : input.skipAI ? "skipped" : input.codeChecksOnly ? "off" : !provider ? "unavailable" : "running";
+  let ai_error: string | null = input.skipAI ?? (!provider && !input.codeChecksOnly && !reused ? "No AI key is configured." : null);
   if (imageError && !needsAI) ai_error = ai_error ? `${ai_error} ${imageError}` : imageError;
 
   // Results are written by the server only (visitors can read but not write them).

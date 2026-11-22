@@ -60,13 +60,13 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 **We committed to:** a user uploads a PDF of up to 20 pages (a brochure, a one-pager or a slide deck exported as PDF), and Proofmark checks every page against the rulebook with the same code checks, AI checks and proof check as posts, plus a check that fonts are the brand typefaces. Each finding points to its page and quotes the text, and the document goes through the same review and approval as any other draft; a reviewer approves the exact file.
 
-- [ ] Upload a PDF of up to 20 pages from New draft (and a one-click sample deck)
-- [ ] Every page is checked: the same code checks, AI checks and proof check as posts
-- [ ] Fonts are compared with the brand typefaces; any other font is flagged with its page
-- [ ] Every finding shows its page number and quotes the text
-- [ ] Same review and approval: dispute, submit, routing by risk, approve, request changes
-- [ ] The reviewer approves the exact file: the approval records the file's fingerprint (SHA-256), and the reviewer can open that exact file
-- [ ] **Done when:** a 10-page Urja Bites deck is checked page by page; every finding shows its page and quote; fonts outside the brand typefaces are flagged; the scored test set includes PDF cases with published scores
+- [x] Upload a PDF of up to 20 pages from New draft (and a one-click sample deck)
+- [x] Every page is checked: the same code checks, AI checks and proof check as posts
+- [x] Fonts are compared with the brand typefaces; any other font is flagged with its page
+- [x] Every finding shows its page number and quotes the text
+- [x] Same review and approval: dispute, submit, routing by risk, approve, request changes
+- [x] The reviewer approves the exact file: the approval records the file's fingerprint (SHA-256), and the reviewer can open that exact file
+- [x] **Done when:** a 10-page Urja Bites deck is checked page by page; every finding shows its page and quote; fonts outside the brand typefaces are flagged; the scored test set includes PDF cases with published scores
 
 **Evidence for the PDF:** before (a document could only be pasted as text; fonts were never checked) and after (the 10-page deck: findings across its pages, the off-brand font flagged on its page, time taken), plus the PDF test-set scores.
 
@@ -74,12 +74,12 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 **We committed to:** when a fact is edited or expires, Proofmark finds every approved draft that relied on the old value, lists them on the fact and on the Insights page, and notifies each draft's owner in the app. One click re-checks the draft against the new fact and sends it back for approval if it needs changes.
 
-- [ ] Editing a fact's value or wording finds every approved draft that relied on the old value
-- [ ] A fact that expires, or whose expiry date the brand manager sets, lists the approved drafts that mention it
-- [ ] The list appears on the fact (Facts page) and on the Insights page
-- [ ] Each draft's owner is notified in the app
-- [ ] One click re-checks the draft against the current facts; if it needs changes, its approval is withdrawn and it goes back for approval; if it is still correct, the alert closes
-- [ ] **Done when:** editing fact F-12 (the customer count) lists every approved draft that quoted the old figure, with none missed on a seeded test set, and each can be re-checked in one click; when a fact expires, or the brand manager sets its expiry date (for example the Diwali offer), the drafts that mention it are listed
+- [x] Editing a fact's value or wording finds every approved draft that relied on the old value
+- [x] A fact that expires, or whose expiry date the brand manager sets, lists the approved drafts that mention it
+- [x] The list appears on the fact (Facts page) and on the Insights page
+- [x] Each draft's owner is notified in the app
+- [x] One click re-checks the draft against the current facts; if it needs changes, its approval is withdrawn and it goes back for approval; if it is still correct, the alert closes
+- [x] **Done when:** editing fact F-12 (the customer count) lists every approved draft that quoted the old figure, with none missed on a seeded test set, and each can be re-checked in one click; when a fact expires, or the brand manager sets its expiry date (for example the Diwali offer), the drafts that mention it are listed
 
 **Evidence:** before (approved content went out of date silently) and after (editing F-12 found N of N approved drafts that quoted it, with no false alerts, on the seeded set; recall and precision published).
 
@@ -155,13 +155,15 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 ### Phase 3 · Improvement 2: outdated-content alerts
 
-- [ ] An approved-content library seeded in every demo workspace, labelled as sample: approved posts, emails and a deck that quote the customer count in different forms ("35,000+ customers", "35k customers", "over 35,000 happy customers"), two that mention the Diwali offer, and decoys with other numbers. The guided checklist ignores sample drafts
-- [ ] Detection (pure and unit-tested): which approved versions relied on a fact, using the same number reader as the facts check, matched by unit and keywords; text facts matched by their keywords
-- [ ] Triggers: a fact edit that changes its value or wording; an expiry date that has passed, including one the manager sets
-- [ ] Alerts stored with the old and new value, shown on the fact ("Used in 5 approved drafts", red when out of date), on Insights ("Out-of-date approved content") and as an in-app notification for each draft's owner (count in the header)
-- [ ] One-click re-check against the current facts: if it needs changes, the approval is withdrawn with the reason, the draft goes to "changes requested" and the owner is told; if still correct, the alert closes as "still correct". Everything lands in the audit trail
-- [ ] Measured: recall and precision of detection on the seeded set, published
-- [ ] Tests: unit (every phrasing found, decoys not); browser (Meera edits F-12 and sees every affected draft; one click re-checks; Arjun sees the notification; setting F-13's expiry lists the offer drafts)
+- [x] An approved-content library seeded in every demo workspace, labelled as sample: approved posts, emails and a deck that quote the customer count in different forms ("35,000+ customers", "35k customers", "over 35,000 happy customers"), two that mention the Diwali offer, and decoys with other numbers. The guided checklist ignores sample drafts
+- [x] Detection (pure and unit-tested): which approved versions relied on a fact, using the same number reader as the facts check, matched by unit and keywords; text facts matched by their keywords
+- [x] Triggers: a fact edit that changes its value or wording; an expiry date that has passed, including one the manager sets
+- [x] Alerts stored with the old and new value, shown on the fact ("Used in 5 approved drafts", red when out of date), on Insights ("Out-of-date approved content") and as an in-app notification for each draft's owner (count in the header)
+- [x] One-click re-check against the current facts: if it needs changes, the approval is withdrawn with the reason, the draft goes to "changes requested" and the owner is told; if still correct, the alert closes as "still correct". Everything lands in the audit trail
+- [x] Measured: recall and precision of detection on the seeded set, published
+- [x] Tests: unit (every phrasing found, decoys not); browser (Meera edits F-12 and sees every affected draft; one click re-checks; Arjun sees the notification; setting F-13's expiry lists the offer drafts)
+- [x] Built as planned, with these details: a number fact raises alerts when its number changes (a wording-only edit says the quoting drafts are still correct); a text fact when its wording changes; detection uses the facts check's own number reader, with numbers that belong to another fact ("1,200 buyers") or are far below the fact left out, and names a text fact by two of its keywords or a three-word phrase of its wording ("no added sugar"). An end date set in the future lists the drafts as "ends after 25 Nov" (a reviewer may send one back early); when the date passes, they become "ended" alerts on the next visit, with no scheduled job. The re-check runs the code checks (numbers and dates are checked by code, so no AI request): a finding sends the draft back; a number still backed by the fact closes the alert as still correct; wording code cannot judge stays open for a reviewer's "still correct" or "send back". Two tabs or a double click change things once. The seeded library includes the approved deck, so an alert can point to a page ("page 2, page 5"). An offer that ended before the demo (Dussehra) is flagged on the first visit
+- [x] Results: editing F-12 finds 5 of 5 approved samples that quote it, with no false alert; all 88 fact and sample pairs right; 18 hand-labelled sentences right (eval/RESULTS.md). 5 browser tests, 11 unit tests, 6 new access checks (33 in all: 31 attacks refused, 2 positive checks)
 
 ### Phase 4 · Improvement 3: rule-change replay
 
@@ -283,4 +285,7 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | A typeface finding quotes the text set in that font, with its position | More useful than "page 4 uses Georgia": the reviewer sees which words, and the page view highlights them |
 | Sun 22 Nov | No "Accept fix" for PDFs; a corrected PDF is uploaded as the next version | A PDF cannot be edited in the browser, and the approval must belong to one exact file (its SHA-256 is stored with the approval) |
 | Sun 22 Nov | Pictures inside PDFs are not checked (declared in the app and the docs) | Reviewing page images needs pages rendered on the server; the promise is text, the checks and typefaces on every page |
+| Sun 22 Nov | Alert re-checks run code checks only | Numbers and dates are what changed, and code checks them; no AI request per re-check, so re-checking five drafts is instant and free |
+| Sun 22 Nov | A future end date raises "ends after …" alerts at once; passing dates raise "ended" alerts when people next open the app | The done-when needs the drafts listed when the manager sets the date; no scheduled job is needed for the date passing |
+| Sun 22 Nov | The approved sample library holds the approved deck | Alerts then show the page of each quote, and improvements 1 and 2 work together |
 | Sun 22 Nov | Pages joined with a page map instead of checking pages separately | Every existing check keeps working, and an offer on page 3 with "T&C apply" on page 10 is not a false alarm |

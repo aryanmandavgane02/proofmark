@@ -12,5 +12,5 @@ export function notice(path: string, message: string, kind: NoticeKind = "error"
   const url = new URL(path, "http://proofmark.local");
   url.searchParams.set("notice", message.slice(0, 300));
   url.searchParams.set("kind", kind);
-  redirect(`${url.pathname}${url.search}`);
+  redirect(`${url.pathname}${url.search}${url.hash}`); // keep "#fact-F-12" so the page opens where the action was
 }

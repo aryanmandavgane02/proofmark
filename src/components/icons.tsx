@@ -22,6 +22,7 @@ export const IconCheck = (p: P) => <I {...p}><path d="m5 12 5 5 9-10" /></I>;
 export const IconSpark = (p: P) => <I {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" /></I>;
 export const IconImage = (p: P) => <I {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 16-5-5-9 9" /></I>;
 export const IconFile = (p: P) => <I {...p}><path d="M14 3H6v18h12V7l-4-4Z" /><path d="M14 3v4h4" /><path d="M9 13h6M9 17h4" /></I>;
+export const IconBell = (p: P) => <I {...p}><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z" /><path d="M10 20a2 2 0 0 0 4 0" /></I>;
 /** Stacked pages: a multi-page PDF document or deck. */
 export const IconPages = (p: P) => <I {...p}><path d="M8 3h10v14H8z" /><path d="M5 6v15h11" /><path d="M11 8h4M11 12h4" /></I>;
 export const IconUser = (p: P) => <I {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></I>;

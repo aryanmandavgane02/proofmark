@@ -133,7 +133,7 @@ test("approving twice (two tabs) records one approval", async ({ page, context }
   await second.getByRole("button", { name: "Approve this version" }).click();
   await expect(second.getByRole("status").filter({ hasText: /already approved|already done/i })).toBeVisible();
   await page.goto("/app/activity");
-  await expect(page.locator("tbody tr").filter({ hasText: "Meera" }).filter({ hasText: "Valid" })).toHaveCount(1);
+  await expect(page.locator("tbody tr").filter({ hasText: "Product page: Cocoa Crunch" }).filter({ hasText: "Valid" })).toHaveCount(1);
 });
 
 test("publishing twice (two tabs) creates one rulebook version", async ({ page, context }) => {

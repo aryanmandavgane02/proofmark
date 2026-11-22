@@ -37,7 +37,7 @@ test("accessibility: every screen passes axe (WCAG 2.1 A and AA)", async ({ page
   await expect(page.getByText(/dealt with/).first()).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText(/AI checks are running/)).toHaveCount(0, { timeout: 90_000 });
   await audit(page, "document (10-page deck)", problems);
-  for (const p of ["/app/review", "/app/insights", "/app/rulebook", "/app/facts", "/app/activity", "/app/ai"]) {
+  for (const p of ["/app/review", "/app/insights", "/app/rulebook", "/app/facts", "/app/activity", "/app/ai", "/app/notifications"]) {
     await page.goto(p);
     await audit(page, p, problems);
   }
@@ -69,7 +69,7 @@ test("phone width: no page scrolls sideways", async ({ page }) => {
   await page.getByRole("button", { name: "Check this document" }).click();
   await expect(page.getByText(/dealt with/).first()).toBeVisible({ timeout: 60_000 });
   await measure("document draft");
-  for (const p of ["/", "/app", "/app/drafts/new", "/app/drafts/new?mode=document", "/app/review", "/app/insights", "/app/rulebook", "/app/facts", "/app/activity", "/app/ai", "/app/rulebook/import"]) {
+  for (const p of ["/", "/app", "/app/drafts/new", "/app/drafts/new?mode=document", "/app/review", "/app/insights", "/app/rulebook", "/app/facts", "/app/activity", "/app/ai", "/app/rulebook/import", "/app/notifications"]) {
     await page.goto(p);
     await measure(p);
   }

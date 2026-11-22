@@ -28,6 +28,10 @@ export function describeEvent(type: string, detail: Record<string, unknown>): st
     case "term.added": return `added the glossary term \u201c${detail.preferred}\u201d.`;
     case "color.added": return `added the brand colour ${detail.name} ${detail.hex}.`;
     case "typeface.added": return `added the brand typeface ${detail.name}.`;
+    case "sample.approved": return "approved this sample content (before this demo began).";
+    case "alerts.raised": return `raised ${detail.count} out-of-date alert${detail.count === 1 ? "" : "s"} for fact ${detail.fact}${detail.kind === "expired" ? " (it ended)" : detail.kind === "expiring" ? " (it ends soon)" : " (it changed)"}.`;
+    case "alert.sent_back": return `sent it back after a re-check: fact ${detail.fact} changed (${detail.quote ? `“${detail.quote}”` : "see the findings"}).`;
+    case "alert.still_correct": return `re-checked it after fact ${detail.fact} changed: still correct.`;
     case "typeface.removed": return `removed the brand typeface ${detail.name}.`;
     default: return type.replace(".", " ") + ".";
   }

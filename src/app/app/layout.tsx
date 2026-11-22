@@ -6,11 +6,17 @@ import { NavLinks } from "./NavLinks";
 import { Notices } from "./Notices";
 import { Suspense } from "react";
 import { BackLink } from "./BackLink";
-import { IconHome } from "@/components/icons";
+import { IconBell, IconHome } from "@/components/icons";
+import { syncExpiredFacts } from "@/lib/alerts-server";
+import { todayIST } from "@/lib/pipeline";
 
 
 export default async function AppLayout({ children }: LayoutProps<"/app">) {
   const s = await requireSession();
+  // Facts that ended since the last visit raise their alerts now (no scheduled job needed).
+  await syncExpiredFacts(s.workspace.id, todayIST());
+  const { count: unread } = await s.supabase.from("notifications").select("id", { count: "exact", head: true })
+    .eq("workspace_id", s.workspace.id).eq("person_id", s.person.id).is("read_at", null);
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <Suspense fallback={null}>
@@ -27,7 +33,18 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
               <IconHome className="h-4 w-4" /> Home page
             </Link>
           </div>
-          <PersonSwitcher people={s.people} activeId={s.person.id} />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/app/notifications"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-primary-d transition hover:bg-soft"
+              aria-label={unread ? `Notifications for ${s.person.name}: ${unread} unread` : `Notifications for ${s.person.name}`}
+              title="Notifications"
+            >
+              <IconBell className="h-5 w-5" />
+              {!!unread && <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-red px-1 text-center text-[11px] font-bold leading-5 text-white">{unread > 9 ? "9+" : unread}</span>}
+            </Link>
+            <PersonSwitcher people={s.people} activeId={s.person.id} />
+          </div>
         </div>
         <div className="mx-auto max-w-6xl px-4 pb-2.5 pt-2">
           <NavLinks />

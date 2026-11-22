@@ -14,6 +14,9 @@ import { MAX_PDF_BYTES, draftRulesFromPages, pdfPages } from "@/lib/ai/import";
 import { verifyImportedRules } from "@/lib/checks/import-verify";
 import { CHANNELS } from "@/lib/checks/types";
 import { sameFamily } from "@/lib/documents/fonts";
+import { factChange } from "@/lib/alerts";
+import { raiseAlerts, raiseExpiry, type FactRow } from "@/lib/alerts-server";
+import { todayIST } from "@/lib/pipeline";
 
 export type BrandFormState = { error?: string; ok?: string } | undefined;
 type Session = Awaited<ReturnType<typeof requireSession>>;
@@ -153,6 +156,8 @@ export async function publishRulebook(formData: FormData) {
 
 // ── Facts, terms and colours ───────────────────────────────────────────────
 
+const longDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
 const FactInput = z.object({
   code: z.string().trim().regex(/^F-\d{1,3}$/, "Fact codes look like F-20"),
   statement: z.string().trim().min(5).max(300),
@@ -179,13 +184,41 @@ export async function saveFact(_prev: BrandFormState, formData: FormData): Promi
     expires_on: f.expires_on || null, restricted: f.restricted === "on", status: "approved",
   };
   const isEdit = formData.get("mode") === "edit";
+  // The facts as they were, so approved content can be compared with the value it relied on.
+  const { data: before } = await s.supabase.from("facts").select("*").eq("workspace_id", s.workspace.id);
+  const old = (before ?? []).find((x) => x.code === f.code) as FactRow | undefined;
+  if (isEdit && !old) return { error: `${f.code} no longer exists. Reload the page.` };
   const { error } = isEdit
     ? await s.supabase.from("facts").update(row).eq("workspace_id", s.workspace.id).eq("code", f.code)
     : await s.supabase.from("facts").insert(row);
   if (error) return { error: error.message.includes("duplicate") ? `${f.code} already exists` : error.message };
   await logEvent(s, isEdit ? "fact.edited" : "fact.added", { code: f.code });
+
+  // Outdated-content alerts: approved drafts that relied on the old value or wording, or that mention an ending fact.
+  const said: string[] = [];
+  if (isEdit && old) {
+    const now = { ...old, ...row } as FactRow;
+    const change = factChange(old, now);
+    const others = (before ?? []).map((x) => (x.code === f.code ? now : x)) as FactRow[];
+    const names = (r: { drafts: { title: string }[] }) => r.drafts.slice(0, 4).map((d) => `“${d.title}”`).join(", ") + (r.drafts.length > 4 ? ` and ${r.drafts.length - 4} more` : "");
+    if (change.alerts) {
+      const r = await raiseAlerts({ workspaceId: s.workspace.id, fact: old, now, facts: before as FactRow[], kind: "changed", trigger: `changed:${new Date().toISOString()}`, how: old.kind === "number" ? "value" : "any", by: s.person.id });
+      said.push(r.count
+        ? `${r.count} approved draft${r.count === 1 ? "" : "s"} relied on the old ${old.kind === "number" ? "value" : "wording"}: ${names(r)}. ${r.count === 1 ? "It is" : "They are"} listed under the fact with a re-check button, and the owners were told.`
+        : `No approved draft relied on the old ${old.kind === "number" ? "value" : "wording"}.`);
+    } else if (change.wordingChanged) {
+      said.push("The number did not change, so approved drafts that quote it are still correct.");
+    }
+    if (change.expiryChanged || (old.expires_on && !now.expires_on)) {
+      const r = await raiseExpiry(s.workspace.id, now, others, todayIST(), s.person.id);
+      if (now.expires_on) said.push(r.count
+        ? `${r.count} approved draft${r.count === 1 ? "" : "s"} mention${r.count === 1 ? "s" : ""} it and ${r.kind === "expired" ? `${r.count === 1 ? "is" : "are"} now out of date` : `need${r.count === 1 ? "s" : ""} a re-check before it ends after ${longDate(now.expires_on)}`}: ${names(r)}.`
+        : "No approved draft mentions it.");
+    }
+    revalidatePath("/app", "layout");
+  }
   revalidatePath("/app/facts");
-  return { ok: isEdit ? `${f.code} updated.` : `${f.code} added. New drafts are checked against it straight away.` };
+  return { ok: isEdit ? [`${f.code} updated.`, ...said].join(" ") : `${f.code} added. New drafts are checked against it straight away.` };
 }
 
 export async function addTerm(_prev: BrandFormState, formData: FormData): Promise<BrandFormState> {
