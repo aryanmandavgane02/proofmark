@@ -13,14 +13,51 @@ export function factIsCurrent(f: Fact, today: string): boolean {
 
 type NumberClaim = { unit: "count" | "%" | "inr" | "g" | "rating"; value: number; plus: boolean; text: string; start: number; end: number; noun?: string };
 
-const COUNT_NOUNS = "customers|customer|people|fans|gym-goers|buyers|families|users|members";
+// Words for groups of people that a count of customers is written with (English and Hinglish: "35 hazaar+ logon").
+const COUNT_NOUNS = "customers|customer|people|fans|gym-goers|buyers|families|users|members|indians|shoppers|snackers|foodies|logon|log";
+// Multipliers written after a number: 35k, 35 thousand, 35 hazaar (Hindi), 1.2 lakh, 2 crore.
+const MULTIPLIERS = "k|thousand|hazaar|hazar|lakhs|lakh|crores|crore|million|mn";
+
+function multiplier(word: string | undefined): number {
+  const w = (word ?? "").toLowerCase();
+  if (!w) return 1;
+  if (w === "k" || w === "thousand" || w.startsWith("haza")) return 1_000;
+  if (w.startsWith("lakh") || w === "l") return 100_000;
+  if (w.startsWith("crore")) return 10_000_000;
+  if (w === "million" || w === "mn") return 1_000_000;
+  return NaN;
+}
 
 function parseNum(s: string): number {
-  const m = s.replace(/,/g, "").trim().match(/^(\d+(?:\.\d+)?)\s*(k|lakh|l)?$/i);
+  const m = s.replace(/,/g, "").trim().match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*(${MULTIPLIERS}|l)?$`, "i"));
   if (!m) return NaN;
-  const n = parseFloat(m[1]);
-  const mult = m[2] ? (m[2].toLowerCase() === "k" ? 1_000 : 100_000) : 1;
-  return n * mult;
+  return parseFloat(m[1]) * multiplier(m[2]);
+}
+
+// Numbers written in words: "thirty-five thousand", "one lakh", "twelve hundred".
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+const SCALE_WORDS: Record<string, number> = { thousand: 1_000, lakh: 100_000, lakhs: 100_000, million: 1_000_000, crore: 10_000_000, crores: 10_000_000 };
+const WORD_ALT = [...Object.keys(NUMBER_WORDS), "hundred", ...Object.keys(SCALE_WORDS)].sort((a, b) => b.length - a.length).join("|");
+
+/** "thirty-five thousand" → 35000; NaN for anything else. */
+export function wordsToNumber(words: string): number {
+  let total = 0;
+  let current = 0;
+  let any = false;
+  for (const w of words.toLowerCase().split(/[\s-]+/).filter(Boolean)) {
+    if (w === "and") continue;
+    if (w in NUMBER_WORDS) current += NUMBER_WORDS[w];
+    else if (w === "hundred") current = (current || 1) * 100;
+    else if (w in SCALE_WORDS) {
+      total += (current || 1) * SCALE_WORDS[w];
+      current = 0;
+    } else return NaN;
+    any = true;
+  }
+  return any ? total + current : NaN;
 }
 
 /** Finds numbers that look like claims (people, percentages, prices, grams of protein, ratings). */
@@ -29,8 +66,11 @@ export function extractNumberClaims(text: string): NumberClaim[] {
   const add = (c: NumberClaim) => {
     if (!out.some((o) => o.start < c.end && c.start < o.end)) out.push(c);
   };
-  for (const m of text.matchAll(new RegExp(`(\\d{1,3}(?:,\\d{2,3})+|\\d+(?:\\.\\d+)?\\s?(?:k|lakh)?)(\\+?)\\s+(?:happy\\s+|loyal\\s+)?(${COUNT_NOUNS})\\b`, "gi"))) {
-    add({ unit: "count", value: parseNum(m[1]), plus: m[2] === "+", text: m[0], start: m.index!, end: m.index! + m[0].length, noun: m[3] });
+  for (const m of text.matchAll(new RegExp(`(\\d{1,3}(?:,\\d{2,3})+|\\d+(?:\\.\\d+)?\\s?(?:(?:${MULTIPLIERS})(?![a-z]))?)(\\+|\\s?plus)?\\s+(?:happy\\s+|loyal\\s+)?(${COUNT_NOUNS})\\b`, "gi"))) {
+    add({ unit: "count", value: parseNum(m[1]), plus: !!m[2], text: m[0], start: m.index!, end: m.index! + m[0].length, noun: m[3] });
+  }
+  for (const m of text.matchAll(new RegExp(`\\b((?:${WORD_ALT})(?:[\\s-]+(?:and[\\s-]+)?(?:${WORD_ALT}))*)(\\+|\\s?plus)?\\s+(?:happy\\s+|loyal\\s+)?(${COUNT_NOUNS})\\b`, "gi"))) {
+    add({ unit: "count", value: wordsToNumber(m[1]), plus: !!m[2], text: m[0], start: m.index!, end: m.index! + m[0].length, noun: m[3] });
   }
   for (const m of text.matchAll(/(\d{1,3}(?:\.\d+)?)\s?%(\s?off)?/gi)) {
     add({ unit: "%", value: parseFloat(m[1]), plus: false, text: m[0], start: m.index!, end: m.index! + m[0].length });
@@ -41,7 +81,7 @@ export function extractNumberClaims(text: string): NumberClaim[] {
   for (const m of text.matchAll(/(\d+(?:\.\d+)?)\s?(?:g|gm|gms|grams?)\b(\s+of)?(\s+protein)?/gi)) {
     add({ unit: "g", value: parseFloat(m[1]), plus: false, text: m[0], start: m.index!, end: m.index! + m[0].length });
   }
-  for (const m of text.matchAll(/(\d(?:\.\d)?)\s?(?:\/\s?5|out of 5|stars?)/gi)) {
+  for (const m of text.matchAll(/(\d(?:\.\d)?)\s?(?:\/\s?5|out of 5|stars?|★|⭐)/gi)) {
     add({ unit: "rating", value: parseFloat(m[1]), plus: false, text: m[0], start: m.index!, end: m.index! + m[0].length });
   }
   return out.filter((c) => !Number.isNaN(c.value)).sort((a, b) => a.start - b.start);

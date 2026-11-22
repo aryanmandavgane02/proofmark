@@ -7,7 +7,7 @@ import { pageAt } from "@/lib/documents/pages";
 import type { DocPage } from "@/lib/checks/types";
 
 /** The parts of a fact that detection needs (a database row or a seed fact both fit). */
-export type FactShape = { code: string; statement: string; kind: string; value: number | string | null; unit: string | null; keywords: string[] };
+export type FactShape = { code: string; statement: string; kind: string; value: number | string | null; unit: string | null; keywords: string[]; expires_on?: string | null };
 /** Where a text relies on a fact: the quoted number ("quotes"), or a sentence naming it ("mentions"). */
 export type Evidence = { quote: string; start: number; end: number; page: number | null; how: "quotes" | "mentions" };
 
@@ -22,11 +22,48 @@ function statementNumbers(f: FactShape): number[] {
 
 type Claim = ReturnType<typeof extractNumberClaims>[number];
 
-/** Whether a number claim in a sentence is this fact's number. */
-export function claimReliesOn(fact: FactShape, claim: Claim, sentence: string, facts: FactShape[]): boolean {
+// Words every offer shares; the other keywords of an offer fact ("diwali") tell one offer from another.
+const GENERIC = new Set(["off", "offer", "offers", "discount", "discounts", "sale", "deal", "deals", "cashback", "save", "coupon", "price", "box", "only", "just", "mrp", "costs"]);
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const MONTHS_LONG = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+/** A fact's end date as people write it: "30 Nov", "30th November", "Nov 30", "30/11". */
+export function endDatePattern(iso: string | null | undefined): RegExp | null {
+  const m = iso?.match(/^\d{4}-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  const d = `0?${day}(?:st|nd|rd|th)?`;
+  const mon = `(?:${MONTHS_LONG[month - 1]}|${MONTHS[month - 1]})\\.?(?![a-z])`;
+  return new RegExp(`(?<![\\d])(?:${d}\\s*(?:of\\s+)?${mon}|${mon}\\s*${d}(?![\\d])|${day}\\s*[/.-]\\s*0?${month}(?![\\d]))`, "i");
+}
+
+/**
+ * Offers share their numbers ("20% off" is common). When an offer fact has something of its own (a keyword such as
+ * "diwali", or its end date), the text must name it somewhere, so an unrelated 20% sale does not count as this offer.
+ */
+function offerNamed(fact: FactShape, text: string): boolean {
+  const own = fact.keywords.map((k) => k.trim().toLowerCase()).filter((k) => k.length >= 3 && !GENERIC.has(k));
+  const date = endDatePattern(fact.expires_on);
+  if (!own.length && !date) return true;
+  return own.some((k) => findPhrase(text, k).length > 0) || (!!date && date.test(text));
+}
+
+/** A price worked out from the box price and an offer ("₹432" is ₹540 with 20% off): it relies on both facts. */
+function offerPrice(fact: FactShape, claim: Claim, facts: FactShape[], text: string): boolean {
+  if (claim.unit !== "inr") return false;
+  const near = (a: number, b: number) => Math.abs(a - b) <= 1;
+  if (fact.unit === "%") return offerNamed(fact, text) && facts.some((q) => q.unit === "inr" && near(claim.value, num(q.value) * (1 - num(fact.value) / 100)));
+  if (fact.unit === "inr") return facts.some((p) => p.unit === "%" && near(claim.value, num(fact.value) * (1 - num(p.value) / 100)));
+  return false;
+}
+
+/** Whether a number claim in a sentence is this fact's number. `text` is the whole draft, for naming the offer. */
+export function claimReliesOn(fact: FactShape, claim: Claim, sentence: string, facts: FactShape[], text = sentence): boolean {
   const v = num(fact.value);
   if (fact.kind !== "number" || Number.isNaN(v) || claim.unit !== fact.unit) return false;
   if (claim.unit === "%" && !OFFER.test(sentence)) return false; // "100% natural" is not an offer
+  if (claim.unit === "%" && !offerNamed(fact, text)) return false; // a 20% sale that is not this offer
   if (claim.unit === "g" && !/protein/i.test(sentence)) return false;
   const others = facts.filter((f) => f.code !== fact.code);
   if (same(claim.value, v)) {
@@ -45,7 +82,7 @@ export function claimReliesOn(fact: FactShape, claim: Claim, sentence: string, f
 export function quotesOf(fact: FactShape, body: string, pages: DocPage[] | undefined, facts: FactShape[]): Evidence[] {
   if (fact.kind !== "number") return [];
   return extractNumberClaims(body)
-    .filter((c) => claimReliesOn(fact, c, sentenceAt(body, c.start)?.text ?? body, facts))
+    .filter((c) => claimReliesOn(fact, c, sentenceAt(body, c.start)?.text ?? body, facts, body) || offerPrice(fact, c, facts, body))
     .map((c) => ({ quote: c.text, start: c.start, end: c.end, page: pageAt(pages ?? [], c.start), how: "quotes" as const }));
 }
 
@@ -68,11 +105,15 @@ export function factPhrases(fact: FactShape): string[] {
 export function mentionsOf(fact: FactShape, body: string, pages: DocPage[] | undefined): Evidence[] {
   const keys = [...new Set(fact.keywords.map((k) => k.trim().toLowerCase()).filter((k) => k.length >= 3))];
   const phrases = factPhrases(fact);
+  const date = endDatePattern(fact.expires_on);
   if (!keys.length && !phrases.length) return [];
   const need = Math.min(2, keys.length);
   return sentences(body)
     .filter((s) => {
-      if (keys.length && keys.filter((k) => findPhrase(s.text, k).length > 0).length >= need) return true;
+      const named = keys.filter((k) => findPhrase(s.text, k).length > 0).length;
+      if (keys.length && named >= need) return true;
+      // An offer named by its end date: "Festive offer still live, but only till Nov 30!"
+      if (date && named >= 1 && date.test(s.text)) return true;
       const flat = ` ${words(s.text).join(" ")} `;
       return phrases.some((p) => flat.includes(` ${p} `));
     })

@@ -83,3 +83,33 @@ describe("the sample library", () => {
     expect(doc.pages).toEqual(LIBRARY_DECK.pages);
   });
 });
+
+describe("forms found by the held-out set", () => {
+  it("reads counts written with words, Hinglish multipliers and more words for people", async () => {
+    const { extractNumberClaims, wordsToNumber } = await import("@/lib/checks/claims");
+    expect(wordsToNumber("thirty-five thousand")).toBe(35000);
+    expect(wordsToNumber("one lakh")).toBe(100000);
+    expect(wordsToNumber("twelve hundred")).toBe(1200);
+    expect(wordsToNumber("lots")).toBeNaN();
+    const one = (t: string) => extractNumberClaims(t).map((c) => [c.unit, c.value]);
+    expect(one("35 hazaar+ logon ka bharosa")).toEqual([["count", 35000]]);
+    expect(one("Join 35,000+ Indians today.")).toEqual([["count", 35000]]);
+    expect(one("35 thousand shoppers")).toEqual([["count", 35000]]);
+    expect(one("Thirty-five thousand customers and counting")).toEqual([["count", 35000]]);
+    expect(one("4.6★ from 1.2K reviews")).toEqual([["rating", 4.6]]);
+    expect(one("Everyone loves it")).toEqual([]);
+  });
+  it("counts a sale as this offer only when the text names the offer or its end date", () => {
+    const f13 = fact("F-13");
+    expect(quotesOf(f13, "Black Friday drop: flat 20% off sitewide, 27–29 Nov only.", undefined, facts)).toHaveLength(0);
+    expect(quotesOf(f13, "Diwali dhamaka! Flat 20% off on our 6-bar box.", undefined, facts)).toHaveLength(1);
+    expect(quotesOf(f13, "Flat 20% off the 6-bar box till 30th Nov.", undefined, facts)).toHaveLength(1);
+    expect(quotesOf(fact("F-14"), "Get 15% off your first order with code HELLO15.", undefined, facts)).toHaveLength(0);
+  });
+  it("finds an offer named by its end date, and a price worked out from it", () => {
+    expect(mentionsOf(fact("F-13"), "Festive offer still live, but only till Nov 30!", undefined)).toHaveLength(1);
+    expect(mentionsOf(fact("F-13"), "Our festive offer is live!", undefined)).toHaveLength(0);
+    expect(quotesOf(fact("F-13"), "Diwali price: just ₹432 for the 6-bar box.", undefined, facts).map((e) => e.quote)).toEqual(["₹432"]);
+    expect(quotesOf(fact("F-15"), "Diwali price: just ₹432 for the 6-bar box.", undefined, facts)).toHaveLength(1);
+  });
+});

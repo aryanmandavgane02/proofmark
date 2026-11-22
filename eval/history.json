@@ -380,5 +380,65 @@
     "precision": 0.8571428571428571,
     "cleanOk": "—",
     "passed": "30/40"
+  },
+  {
+    "mode": "code",
+    "when": "2026-11-22T11:49:53.021Z",
+    "model": null,
+    "recall": 1,
+    "precision": 1,
+    "cleanOk": "5/5",
+    "passed": "24/24",
+    "fixes": "25/25",
+    "judgmentFalse": "0/0",
+    "dropped": 0,
+    "avgMs": 2
+  },
+  {
+    "mode": "code+ai",
+    "when": "2026-11-22T11:49:55.528Z",
+    "model": "gemini-3.5-flash-lite",
+    "recall": 0.9473684210526315,
+    "precision": 0.9302325581395349,
+    "cleanOk": "3/5",
+    "passed": "24/27",
+    "fixes": "25/25",
+    "judgmentFalse": "2/3",
+    "dropped": 13,
+    "avgMs": 92
+  },
+  {
+    "mode": "pdf code",
+    "when": "2026-11-22T11:49:55.701Z",
+    "model": null,
+    "recall": 1,
+    "precision": 1,
+    "cleanOk": "2/2",
+    "passed": "4/4",
+    "fonts": "3/3",
+    "fontFalse": 0,
+    "dropped": 0,
+    "avgMs": 43
+  },
+  {
+    "mode": "pdf code+ai",
+    "when": "2026-11-22T11:49:56.097Z",
+    "model": "gemini-3.5-flash-lite",
+    "recall": 1,
+    "precision": 1,
+    "cleanOk": "2/2",
+    "passed": "4/4",
+    "fonts": "3/3",
+    "fontFalse": 0,
+    "dropped": 6,
+    "avgMs": 99
+  },
+  {
+    "mode": "alerts held-out",
+    "when": "2026-11-22T11:49:56.143Z",
+    "recall": 0.9,
+    "precision": 1,
+    "cleanOk": "—",
+    "passed": "38/40"
   }
 ]
