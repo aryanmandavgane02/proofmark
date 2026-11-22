@@ -12,6 +12,8 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
   const card = (text: string) => page.locator("div[id^=f-]").filter({ hasText: text }).first();
 
   // Revision: accept the fix for "cures". Only the fixed text changed, so the AI is not asked again.
+  // (Its answers can be reused once the first check's AI step has finished.)
+  await expect(page.getByText(/AI checks are running/)).toHaveCount(0, { timeout: 90_000 });
   await card("“cures”").getByRole("button", { name: "Accept fix" }).click();
   await expect(page.getByText(/version 2/).first()).toBeVisible();
   await page.getByText("How this was checked").click();

@@ -61,11 +61,13 @@ export const RULES: SeedRule[] = [
     code: "MSG-01", category: "messaging", title: "Taste first, then protein", severity: "minor", check_kind: "ai",
     statement: "Lead with taste: the first sentence should be about flavour or ingredients, and protein comes after. We are a snack brand, not a supplement.",
     source_page: 10, source_quote: "Lead with taste, then protein. We are a snack people enjoy, not a supplement they endure.",
+    examples: [{ bad: "12 g of protein in every bar. Try Cocoa Crunch.", good: "Roasted cocoa and dates in every bar, with 12 g of protein." }],
   },
   {
     code: "MSG-02", category: "messaging", title: "One clear call to action", severity: "minor", check_kind: "ai",
     statement: "Every piece has exactly one clear call to action.",
     source_page: 10, source_quote: "Every post, email and ad has one clear call to action. Two calls to action means none.",
+    examples: [{ bad: "Order now, follow us and tag a friend!", good: "Get 20% off the box this week. Order at urjabites.in." }],
   },
   {
     code: "SOC-01", category: "messaging", title: "Hashtags", severity: "minor", channels: ["instagram", "linkedin"], check_kind: "code", check_type: "hashtags",

@@ -7,9 +7,10 @@ import type { AIFinding } from "@/lib/checks/proof";
 import type { ImageReview } from "@/lib/checks/image-findings";
 import { AIUnavailableError, type AIProvider } from "./provider";
 
-export const PROMPT_VERSION = "text-v2";
-const WORKSPACE_DAILY_CAP = 60;
-const GLOBAL_DAILY_CAP = 450;
+export const PROMPT_VERSION = "text-v3";
+// Daily caps keep a public demo inside the free tier. Scripts (the scored test set) may raise them through the environment.
+const WORKSPACE_DAILY_CAP = Number(process.env.AI_WORKSPACE_DAILY_CAP ?? 60);
+const GLOBAL_DAILY_CAP = Number(process.env.AI_GLOBAL_DAILY_CAP ?? 450);
 
 export type Intent = { goal: string; audience: string; call_to_action: string };
 export type TextReview = { intent: Intent; findings: AIFinding[] };
@@ -23,6 +24,7 @@ const SYSTEM = [
   "For each violation, copy the shortest exact phrase from the draft that shows the problem (character for character), cite the rule code, explain why in one plain sentence, and suggest a replacement for that exact phrase that keeps the writer's purpose and follows every rule and fact.",
   "The fix must keep the original meaning and purpose. If something is missing (for example a call to action), quote the last sentence and make the fix that same sentence with the missing part added.",
   "Never invent facts, numbers or rankings. Use only the approved facts.",
+  "Some rules judge the piece as a whole, such as how it opens or how many calls to action it has: judge those once for the whole draft, and report them only if the whole draft clearly breaks them. Where a rule gives an example of what is not a violation, text like it is fine.",
 ].join(" ");
 
 const TEXT_SCHEMA = {
@@ -56,7 +58,7 @@ export function aiRules(ctx: CheckContext) {
 
 function brandBlock(ctx: CheckContext): string {
   const rules = aiRules(ctx)
-    .map((r) => `- ${r.code} (${r.category}): ${r.statement}${r.examples?.length ? ` Example of a violation: "${r.examples[0].bad}"` : ""}`)
+    .map((r) => `- ${r.code} (${r.category}): ${r.statement}${r.examples?.length ? ` Example of a violation: "${r.examples[0].bad}". Not a violation: "${r.examples[0].good}".` : ""}`)
     .join("\n");
   const facts = [...ctx.facts]
     .sort((a, b) => a.code.localeCompare(b.code))

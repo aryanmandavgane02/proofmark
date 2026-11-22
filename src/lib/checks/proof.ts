@@ -1,7 +1,8 @@
 // The proof check: an AI finding reaches a person only if code can verify its evidence.
 //  1. The cited rule exists, is approved, applies to this channel and allows AI checking.
 //  2. The quoted text really exists in the draft (exact, or after normalising spaces, quotes and case).
-//  3. It is not a duplicate of something the code checks already found.
+//  3. It is not a duplicate of something the code checks already found (for a messaging rule: a code finding of the
+//     same category, since messaging rules judge the piece as a whole).
 //  4. A suggested fix, once applied, does not break other rules (checked by running the code checks again).
 import { runCodeChecks } from "./index";
 import type { CheckContext, FindingDraft } from "./types";
@@ -65,7 +66,10 @@ export function proofCheck(ai: AIFinding[], ctx: CheckContext, codeFindings: Fin
       continue;
     }
     const span = { start: pos.start, end: pos.end };
-    if (codeFindings.some((f) => f.field === "body" && overlaps(f, span))) {
+    // A duplicate is the same problem on the same words. Messaging rules are about the piece as a whole (its opening,
+    // its calls to action), so a messaging finding only duplicates a code finding of the same category: "!!!" flagged
+    // for pressure does not make "three calls to action" in the same sentence a duplicate.
+    if (codeFindings.some((f) => f.field === "body" && overlaps(f, span) && (rule.category !== "messaging" || f.category === "messaging"))) {
       dropped.push({ rule_code: a.rule_code, quote: a.quote, reason: "overlaps an issue the code checks already found" });
       continue;
     }

@@ -57,3 +57,20 @@ describe("proofCheck", () => {
     expect(Object.keys(kept[0])).not.toContain("status");
   });
 });
+
+describe("duplicates of code findings", () => {
+  it("keeps a messaging finding on a sentence whose '!!!' code flagged for pressure", () => {
+    const ctx = seedContext({ body: "Cocoa and dates in every bar. Order now at urjabites.in, and also follow us, and also sign up for the newsletter!!!", channel: "email" });
+    const code = runCodeChecks(ctx);
+    expect(code.some((f) => f.rule_code === "TONE-04")).toBe(true);
+    const { kept } = proofCheck([{ rule_code: "MSG-02", quote: "Order now at urjabites.in, and also follow us, and also sign up for the newsletter!!!", why: "Three calls to action." }], ctx, code);
+    expect(kept.map((f) => f.rule_code)).toEqual(["MSG-02"]);
+  });
+  it("still drops a tone finding on words a code check already flagged", () => {
+    const ctx = seedContext({ body: "The perfect guilt-free treat after dinner.", channel: "website" });
+    const code = runCodeChecks(ctx);
+    const { kept, dropped } = proofCheck([{ rule_code: "TONE-01", quote: "The perfect guilt-free treat after dinner.", why: "Guilt language." }], ctx, code);
+    expect(kept).toEqual([]);
+    expect(dropped[0].reason).toMatch(/overlaps/);
+  });
+});
