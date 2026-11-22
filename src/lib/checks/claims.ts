@@ -149,13 +149,18 @@ export function factsCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   return out;
 }
 
-const SUPERLATIVE = /(?:\b(?:India['’]s|the world['’]s|the country['’]s|the)\s+)?(?:#1|No\.?\s?1\b|number one|best|tastiest|healthiest|top-rated|leading|unbeatable)(?:\s+((?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+(?:\s(?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+)?))?/gi;
+// "#1" is a ranking, not "#13" or a reference in code ("invokespecial #1 // Method"); the product name after it stays on the same line.
+const SUPERLATIVE = /(?:\b(?:India['’]s|the world['’]s|the country['’]s|the)[ \t]+)?(?:#1(?!\d)(?![ \t]*(?:\/\/|=))|No\.?\s?1\b|number one|best|tastiest|healthiest|top-rated|leading|unbeatable)(?:[ \t]+((?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+(?:[ \t](?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+)?))?/gi;
+
+/** Words that number things rather than rank them: "Order #1", "Step #1", "Issue #1". */
+const NUMBERING = /\b(?:order|issue|step|ticket|item|slide|page|part|chapter|episode|volume|case|room|table|batch|invoice|row|line|level|round|task|question|exercise|example|figure|test|bug|version)[ \t]*$/i;
 
 /** CLAIM-02: rankings and superlatives need a cited source. */
 export function superlativesCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   const out: FindingDraft[] = [];
   const countFact = ctx.facts.find((f) => f.unit === "count" && factIsCurrent(f, ctx.today));
   for (const m of ctx.body.matchAll(SUPERLATIVE)) {
+    if (m[0].startsWith("#") && NUMBERING.test(ctx.body.slice(Math.max(0, m.index! - 24), m.index!))) continue; // "Order #1, #2"
     const noun = m[1]?.trim().toLowerCase();
     const proof = ctx.facts.find((f) => factIsCurrent(f, ctx.today) && f.keywords.some((k) => ["ranking", "award", "#1", "best"].includes(k)));
     if (proof) continue;

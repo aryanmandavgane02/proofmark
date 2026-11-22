@@ -1,6 +1,7 @@
 // Code checks for terminology, tone and social-media style rules.
 import type { CheckContext, FindingDraft, Rule } from "./types";
 import { CHANNEL_LABEL } from "./types";
+import { pageAt, pageList } from "@/lib/documents/pages";
 import { capitaliseLike, dayMonth, findPhrase, sentenceAt, sentences, wordCount } from "./text";
 
 function base(rule: Rule): Pick<FindingDraft, "category" | "severity" | "rule_code" | "field" | "label"> {
@@ -65,24 +66,44 @@ export function readabilityCheck(ctx: CheckContext, rule: Rule): FindingDraft[] 
 /** TONE-03: whole words in capital letters. */
 export function allCapsCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   const allow = new Set(((rule.params.allow as string[]) ?? []).map((s) => s.toUpperCase()));
-  const out: FindingDraft[] = [];
-  const re = /(?<![#@\p{L}\p{N}])[A-Z]{3,}(?![\p{L}\p{N}])/gu;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(ctx.body))) {
-    if (allow.has(m[0])) continue;
-    const fixed = m[0][0] + m[0].slice(1).toLowerCase();
-    out.push({
-      ...base(rule),
-      quote: m[0],
-      start: m.index,
-      end: m.index + m[0].length,
-      message: `“${m[0]}” is written in capitals, which reads as shouting.`,
-      fix_kind: "replace",
-      fix_text: fixed,
-    });
+  const words: { start: number; end: number }[] = [];
+  for (const m of ctx.body.matchAll(/(?<![#@\p{L}\p{N}])[A-Z]{3,}(?![\p{L}\p{N}])/gu)) {
+    if (!allow.has(m[0])) words.push({ start: m.index!, end: m.index! + m[0].length });
   }
-  return out;
+  const one = ({ start, end }: { start: number; end: number }): FindingDraft => {
+    const quote = ctx.body.slice(start, end);
+    return {
+      ...base(rule), quote, start, end,
+      message: `“${quote}” is written in capitals, which reads as shouting.`,
+      fix_kind: "replace",
+      fix_text: quote[0] + quote.slice(1).toLowerCase(),
+    };
+  };
+  if (!ctx.pages?.length) return words.map(one);
+
+  // Documents: neighbouring words in capitals are one phrase ("BANK CREDIT ALLOCATION"), and a deck that sets its
+  // headings and labels in capitals is one finding naming the pages, not one per word.
+  const phrases: { start: number; end: number }[] = [];
+  for (const w of words) {
+    const prev = phrases.at(-1);
+    if (prev && CAPS_BETWEEN.test(ctx.body.slice(prev.end, w.start))) prev.end = w.end;
+    else phrases.push({ ...w });
+  }
+  if (phrases.length <= 3) return phrases.map(one);
+  const pages = [...new Set(phrases.map((p) => pageAt(ctx.pages!, p.start)!))].sort((a, b) => a - b);
+  const first = phrases[0];
+  const quote = ctx.body.slice(first.start, first.end);
+  const more = phrases.length - 1;
+  return [{
+    ...base(rule), quote, start: first.start, end: first.end, page: pageAt(ctx.pages, first.start), ...(pages.length > 1 ? { pages } : {}),
+    message: `“${quote}” and ${more} more phrase${more === 1 ? "" : "s"} on ${pageList(pages)} are written in capitals, which reads as shouting. The guide keeps capitals for the logo.`,
+    fix_kind: "none",
+    fix_text: `Set headings, labels and buttons in sentence case (“${quote[0] + quote.slice(1).toLowerCase()}”) in the source file, export the PDF again and upload it as a new version.`,
+  }];
 }
+
+/** What may sit between two words in capitals of one phrase: spaces, punctuation, numbers and short words ("TO", "A"). */
+const CAPS_BETWEEN = /^(?:[ \t&/·•:,+\-–—'’.()[\]%\d]|\b[A-Z]{1,2}\b)*$/;
 
 /**
  * The sentence without its pressure phrases, or null when nothing worth keeping is left (e.g. "Act now.").

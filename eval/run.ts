@@ -126,11 +126,13 @@ async function runDocs(withAI: boolean): Promise<DocRun> {
     const key = (page: number | null | undefined, rule: string) => `p${page ?? "?"} ${rule}`;
     const labelled = c.expect.map((e) => key(e.page, e.rule));
     const expected = c.expect.filter((e) => withAI || !aiOnly.has(e.rule)).map((e) => key(e.page, e.rule));
-    const found = new Set(findings.map((f) => key(f.page, f.rule_code)));
+    // A finding that names several pages (one font used throughout) counts once on each page it names.
+    const hits = findings.flatMap((f) => (f.pages?.length ? f.pages : [f.page]).map((p) => ({ ...f, page: p })));
+    const found = new Set(hits.map((f) => key(f.page, f.rule_code)));
     const missed = expected.filter((e) => !found.has(e));
-    const wrong = findings.filter((f) => !labelled.includes(key(f.page, f.rule_code)));
-    tp += findings.length - wrong.length;
-    all += findings.length;
+    const wrong = hits.filter((f) => !labelled.includes(key(f.page, f.rule_code)));
+    tp += hits.length - wrong.length;
+    all += hits.length;
     dropped += r.dropped;
     const fontExpected = c.expect.filter((e) => e.rule === "VIS-03").map((e) => key(e.page, e.rule));
     fontExp += fontExpected.length;
@@ -252,7 +254,7 @@ async function main() {
     "",
     "## PDF documents (Round 3)",
     "",
-    `${DOC_CASES.length} PDF files, labelled by hand by page and rule before the first run (\`DOC_CASES\` in \`eval/cases.ts\`; the files are built by \`scripts/make-sample-docs.ts\`): ${DOC_CASES.map((c) => `${c.id} (${c.note})`).join("; ")}. A finding counts only on the page its label gives; the same rule on another page is a false alarm.`,
+    `${DOC_CASES.length} PDF files, labelled by hand by page and rule before the first run (\`DOC_CASES\` in \`eval/cases.ts\`; the files are built by \`scripts/make-sample-docs.ts\`): ${DOC_CASES.map((c) => `${c.id} (${c.note})`).join("; ")}. A finding counts only on the page its label gives; the same rule on another page is a false alarm. A finding that names several pages (a font used throughout) counts once on each page it names.`,
     "",
     "| Measure | Code checks only | Code + AI |",
     "|---|---|---|",

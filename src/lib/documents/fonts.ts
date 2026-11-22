@@ -24,6 +24,11 @@ export function sameFamily(fontName: string, typeface: string): boolean {
   return a === b || (a.startsWith(b) && /^(display|text|tight|\d+pt|variable|vf)$/.test(a.slice(b.length)));
 }
 
+/** Fixed-width fonts, used for code and program output: their lines are separate lines, never a wrapped paragraph. */
+export function isMonospace(name: string): boolean {
+  return /mono(?!type|ton)|courier|consolas|menlo|monaco|inconsolata|lucida ?console|andale|cousine|fira ?code|source ?code|sf ?mono|jetbrains|cascadia|iosevka|typewriter/i.test(name);
+}
+
 /** Icon, symbol and emoji fonts are not typefaces for words, so the typeface check ignores them. */
 export function isSymbolFont(name: string): boolean {
   return /symbol|dingbat|wingding|webding|zapf|emoji|awesome|materialicons|material icons|material symbols|glyphicons|icomoon|marlett|segoe ?mdl2/i.test(name);

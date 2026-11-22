@@ -138,7 +138,34 @@ async function show(file: string) {
   return doc;
 }
 
+// ── Letter spacing and code, as real decks set them ─────────────────────────────
+// Kickers and badges with letter spacing come out of pdf.js as "P R O B L E M"; the reader restores the words from
+// the glyphs the page draws. Lines of code in a fixed-width font stay separate lines. (Found in real decks, Phase 6.)
+function letterSpacingHtml() {
+  return `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>
+  @page{size:1280px 720px;margin:0} body{margin:0;font-family:Inter} .s{padding:60px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;font-weight:600;font-size:13px;color:#555}
+  .badge{display:inline-block;letter-spacing:.12em;text-transform:uppercase;font-size:11px;font-weight:600;border:2px solid #111;border-radius:99px;padding:4px 12px;margin-right:12px}
+  h1{font-family:Poppins;font-size:44px;margin:16px 0}
+  pre{font-family:"Courier New",monospace;font-size:15px;background:#f3f3f3;padding:16px}
+  </style></head><body><div class="s">
+  <p class="kicker">Problem motivation · Part 1</p>
+  <h1>Roasted cocoa and dates</h1>
+  <p><span class="badge">About 19.6% of boxes sold out</span><span class="badge">Idle capital</span></p>
+  <pre>class Menu {
+    static void show() {
+        System.out.println("Showing menu");
+    }
+}</pre>
+  <p>A sentence of plain body text, set in Inter.</p>
+  </div></body></html>`;
+}
+
 async function main() {
+  if (process.argv.includes("--letter-spacing")) {
+    print(letterSpacingHtml(), path.resolve("e2e/fixtures/letter-spacing.pdf"));
+    return;
+  }
   const deck = path.resolve("public/samples/urja-diwali-retail-deck.pdf");
   const onePager = path.resolve("public/samples/urja-cocoa-crunch-one-pager.pdf");
   const brochure = path.resolve("eval/docs/urja-store-brochure-arial.pdf");
@@ -151,7 +178,7 @@ async function main() {
   // Files the upload must refuse.
   const fx = path.resolve("e2e/fixtures");
   mkdirSync(fx, { recursive: true });
-  print(deckHtml(Array.from({ length: 21 }, (_, i) => ({ title: `Page ${i + 1}`, lines: ["Roasted cocoa and dates."] }))), path.join(fx, "too-many-pages.pdf"));
+  print(deckHtml(Array.from({ length: 51 }, (_, i) => ({ title: `Page ${i + 1}`, lines: ["Roasted cocoa and dates."] }))), path.join(fx, "too-many-pages.pdf"));
   print(`<!doctype html><html><head><style>@page{size:A4;margin:0}body{margin:0}</style></head><body><img style="width:100%" src="data:image/png;base64,${readFileSync("public/samples/diwali-ad.png").toString("base64")}"></body></html>`, path.join(fx, "scanned.pdf"));
   writeFileSync(path.join(fx, "not-a-pdf.pdf"), "This is a plain text file with a .pdf name.\n");
   writeFileSync(path.join(fx, "empty.pdf"), "");
@@ -159,6 +186,7 @@ async function main() {
   writeFileSync(path.join(fx, "damaged.pdf"), Buffer.concat([good.subarray(0, 400), Buffer.alloc(2000, 0x41)]));
   writeFileSync(path.join(fx, "ocr-scan.pdf"), handMadePdf("Scanned page: roasted cocoa and dates in every bar.", true));
   writeFileSync(path.join(fx, "standard-font.pdf"), handMadePdf("Roasted cocoa and dates in every bar.", false));
+  print(letterSpacingHtml(), path.join(fx, "letter-spacing.pdf"));
   // A password-protected copy of the one-pager (pypdf, RC4-128: needs no extra library).
   execFileSync("python3", ["-I", "-c", "import sys; from pypdf import PdfReader, PdfWriter; w = PdfWriter(clone_from=PdfReader(sys.argv[1])); w.encrypt('urja', algorithm='RC4-128'); w.write(sys.argv[2])", onePager, path.join(fx, "password.pdf")]);
 

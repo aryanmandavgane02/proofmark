@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 16:02 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 16:50 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,14 +11,14 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 1/1 |
 | AI findings dropped by the proof check | — | 15 |
-| Average time per draft | 2 ms | 78 ms |
+| Average time per draft | 2 ms | 133 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
 
 ## PDF documents (Round 3)
 
-4 PDF files, labelled by hand by page and rule before the first run (`DOC_CASES` in `eval/cases.ts`; the files are built by `scripts/make-sample-docs.ts`): deck-diwali (10-page retail deck; problems planted on pages 2 to 9, pages 1 and 10 clean; page 4 set in Georgia); one-pager-clean (Clean control in the brand typefaces); deck-diwali-corrected (The same 10-page deck with every problem fixed (the version a reviewer approves): a clean control); brochure-arial (Two pages set in Arial, an ended offer (fact F-14) and a term to avoid). A finding counts only on the page its label gives; the same rule on another page is a false alarm.
+4 PDF files, labelled by hand by page and rule before the first run (`DOC_CASES` in `eval/cases.ts`; the files are built by `scripts/make-sample-docs.ts`): deck-diwali (10-page retail deck; problems planted on pages 2 to 9, pages 1 and 10 clean; page 4 set in Georgia); one-pager-clean (Clean control in the brand typefaces); deck-diwali-corrected (The same 10-page deck with every problem fixed (the version a reviewer approves): a clean control); brochure-arial (Two pages set in Arial, an ended offer (fact F-14) and a term to avoid). A finding counts only on the page its label gives; the same rule on another page is a false alarm. A finding that names several pages (a font used throughout) counts once on each page it names.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -29,7 +29,7 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 | Clean document with no false alarm | 2/2 | 2/2 |
 | Documents fully right | 4/4 | 4/4 |
 | AI findings dropped by the proof check | — | 5 |
-| Average time per document (reading the PDF included) | 41 ms | 77 ms |
+| Average time per document (reading the PDF included) | 44 ms | 81 ms |
 
 | Document | Expected (page and rule) | Missed | False alarms | Result |
 |---|---|---|---|---|
@@ -200,3 +200,8 @@ xychart-beta
 | 2026-11-22 16:02 | pdf code | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 16:02 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 16:02 | alerts held-out | 90% | 100% | — | 38/40 |
+| 2026-11-22 16:50 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 16:50 | code+ai | 97% | 98% | 4/5 | 25/27 |
+| 2026-11-22 16:50 | pdf code | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 16:50 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 16:50 | alerts held-out | 90% | 100% | — | 38/40 |

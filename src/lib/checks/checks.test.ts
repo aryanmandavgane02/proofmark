@@ -65,6 +65,24 @@ describe("TONE checks", () => {
     expect(f.map((x) => x.quote)).toEqual(["AMAZING"]);
     expect(f[0].fix_text).toBe("Amazing");
   });
+  it("TONE-03 in a document: a phrase in capitals is one finding, and a deck in capitals is one finding naming its pages", () => {
+    const doc = (texts: string[]) => {
+      let body = "";
+      const pages = texts.map((t, i) => {
+        if (i) body += "\n\n";
+        const start = body.length;
+        body += t;
+        return { n: i + 1, start, end: body.length, fonts: [], runs: [] };
+      });
+      return seedContext({ body, channel: "document", pages });
+    };
+    const few = allCapsCheck(doc(["BANK CREDIT ALLOCATION & DEFAULT RISK\nPlain words here."]), rule("TONE-03"));
+    expect(few.map((f) => [f.quote, f.fix_text])).toEqual([["BANK CREDIT ALLOCATION & DEFAULT RISK", "Bank credit allocation & default risk"]]);
+    const many = allCapsCheck(doc(["OPTIMISATION PROJECT PROPOSAL\nTEAM: ARYAN • VINAY\nGOAL: MAXIMISE PROFIT SUBJECT TO A CAPITAL BUDGET", "PROBLEM MOTIVATION\nAPPROVE EVERYONE\nSome plain text."]), rule("TONE-03"));
+    expect(many).toHaveLength(1);
+    expect(many[0]).toMatchObject({ quote: "OPTIMISATION PROJECT PROPOSAL", page: 1, pages: [1, 2], fix_kind: "none" });
+    expect(many[0].message).toContain("and 4 more phrases on pages 1 and 2");
+  });
   it("TONE-04 rewrites pressure language using the live offer's end date", () => {
     const [f] = pressureCheck(ctx("Great bars. Hurry, offer ends soon!!!"), rule("TONE-04"));
     expect(f.quote).toBe("Hurry, offer ends soon!!!");
@@ -157,6 +175,13 @@ describe("claims", () => {
     const [f] = superlativesCheck(ctx("India's #1 protein bar, now in Pune."), rule("CLAIM-02"));
     expect(f.severity).toBe("blocker");
     expect(f.fix_text).toBe("The protein bar 35,000+ customers trust");
+  });
+  it("CLAIM-02 ignores numbering and code, and keeps the quote on its line", () => {
+    for (const t of ["Order #1, #2, #3, … all kept.", "Step #1: open the box.", "1: invokespecial #1 // Method java/lang/Object", "Entry #13 is the name."]) {
+      expect(superlativesCheck(ctx(t), rule("CLAIM-02")), t).toHaveLength(0);
+    }
+    expect(superlativesCheck(ctx("Rated #1 by snackers."), rule("CLAIM-02"))).toHaveLength(1);
+    expect(superlativesCheck(ctx("One clean calculation, exact best answer\nTHINK OF IT AS"), rule("CLAIM-02"))[0].quote).toBe("best answer");
   });
   it("CLAIM-02 stops the product name at small words", () => {
     expect(superlativesCheck(ctx("The best bar in India."), rule("CLAIM-02"))[0].fix_text).toBe("The bar 35,000+ customers trust");

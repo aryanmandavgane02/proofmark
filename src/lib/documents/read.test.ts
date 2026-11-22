@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { assemblePage, DocumentError, pageAt, readPdf, stripBullets } from "./read";
-import { fontFamily, isSymbolFont, looksLikeHiddenName, sameFamily } from "./fonts";
+import { assemblePage, DocumentError, glyphStream, pageAt, readPdf, respace, stripBullets } from "./read";
+import { fontFamily, isMonospace, isSymbolFont, looksLikeHiddenName, sameFamily } from "./fonts";
+import { pageList } from "./pages";
 import { runCodeChecks } from "@/lib/checks";
 import { proofCheck } from "@/lib/checks/proof";
 import { seedContext } from "@/lib/seed/context";
@@ -69,10 +70,28 @@ describe("page text", () => {
       ["CAAAAA+Georgia", "A box of six costs ₹540."],
     ]);
   });
+  it("keeps lines of code as separate lines instead of joining them like a paragraph", () => {
+    const code = { ...fonts, f4: "AAAAAJ+CourierNewPSMT" };
+    const { text } = assemblePage([
+      item("class Menu {", 50, 650, 12, "f4", true),
+      item("static void show() {", 50, 635, 12, "f4", true),
+      item("A sentence that wraps onto", 50, 600, 12, "f1", true),
+      item("the next line.", 50, 585, 12, "f1"),
+    ], (id) => code[id]);
+    expect(text).toBe("class Menu {\nstatic void show() {\nA sentence that wraps onto the next line.");
+    expect(isMonospace("JetBrainsMono-Bold")).toBe(true);
+    expect(isMonospace("Monotype Corsiva")).toBe(false);
+  });
   it("removes bullet symbols at line starts without shifting the runs", () => {
     const out = stripBullets("• One\n● Two", [{ font: "a", start: 2, end: 5 }, { font: "b", start: 8, end: 11 }]);
     expect(out.text).toBe("One\nTwo");
     expect(out.runs.map((r) => out.text.slice(r.start, r.end))).toEqual(["One", "Two"]);
+  });
+  it("names pages compactly", () => {
+    expect(pageList([4])).toBe("page 4");
+    expect(pageList([1, 2])).toBe("pages 1 and 2");
+    expect(pageList([3, 1, 2])).toBe("pages 1–3");
+    expect(pageList([2, 4, 6, 7, 8, 8])).toBe("pages 2, 4 and 6–8");
   });
   it("maps a position in the joined text to its page", () => {
     const pages = [{ n: 1, start: 0, end: 10 }, { n: 2, start: 12, end: 30 }, { n: 3, start: 32, end: 40 }];
@@ -81,6 +100,48 @@ describe("page text", () => {
     expect(pageAt(pages, 12)).toBe(2);
     expect(pageAt(pages, 39)).toBe(3);
     expect(pageAt(pages, null)).toBeNull();
+  });
+});
+
+describe("letter-spaced text", () => {
+  // pdf.js puts a space wherever letters are spread apart; the page's own glyphs say where the real spaces are.
+  const OPS = { beginText: 1, endText: 2, setTextMatrix: 3, moveText: 4, nextLine: 5, setLeadingMoveText: 6, showText: 7 };
+  const glyph = (u: string, isSpace = u === " ") => ({ unicode: u, isSpace });
+  const item = (str: string, x: number) => ({ str, fontName: "f1", hasEOL: false, transform: [13, 0, 0, 13, x, 700], width: str.length * 6 });
+  /** One showText for the whole line, as Keynote and PowerPoint draw it (numbers are kerning). */
+  const oneRun = (text: string) => glyphStream([OPS.beginText, OPS.setTextMatrix, OPS.showText, OPS.endText], [[], [[13, 0, 0, 13, 0, 0]], [[...text].flatMap((c, i) => (i === 1 ? [glyph(c), -10] : [glyph(c)]))], []], OPS);
+  /** One showText per letter, each followed by a move along the line, as Chrome draws it. */
+  const perLetter = (text: string) => {
+    const fn: number[] = [OPS.beginText, OPS.setTextMatrix];
+    const args: unknown[][] = [[], [[1, 0, 0, 1, 0, 0]]];
+    for (const c of text) fn.push(OPS.showText, OPS.moveText), args.push([[glyph(c)]], [7, 0]);
+    return glyphStream(fn, args, OPS);
+  };
+  const font = () => "AAAAAA+Inter-Regular";
+
+  it("gives words drawn with letter spacing back their real spacing (one item per word)", () => {
+    const { text } = assemblePage([item("P R O G R A M M I N G", 50), item(" ", 190), item("W I T H", 200), item(" ", 250), item("J A V A", 260)], font, oneRun("PROGRAMMING WITH JAVA"));
+    expect(text).toBe("PROGRAMMING WITH JAVA");
+  });
+  it("finds the word breaks when a whole label is one item, numbers included", () => {
+    const g = perLetter("× ABOUT 19.6% DEFAULT [D2] IDLE CAPITAL");
+    expect(respace("× A B O UT 1 9.6% D E FAU LT [ D2 ]", g)).toBe("× ABOUT 19.6% DEFAULT [D2]");
+    expect(respace("I D L E CA PI TA L", g)).toBe("IDLE CAPITAL");
+  });
+  it("reads a letter whose code is the space code as a letter (some font subsets do this)", () => {
+    const g = glyphStream([OPS.showText], [[[glyph("A"), glyph("M", true), glyph("P"), glyph(" "), glyph("U"), glyph("P")]]], OPS);
+    expect(g.letters).toBe("AMPUP");
+    expect(respace("A M P U P", g)).toBe("AMP UP");
+  });
+  it("keeps the space between two labels that are separate pieces of text", () => {
+    const g = glyphStream([OPS.setTextMatrix, OPS.showText, OPS.setTextMatrix, OPS.showText], [[[1, 0, 0, 1, 0, 0]], [[glyph("A"), glyph("B")]], [[1, 0, 0, 1, 90, 0]], [[glyph("C"), glyph("D")]]], OPS);
+    expect(respace("A B C D", g)).toBe("AB CD");
+  });
+  it("leaves text alone when the glyphs do not match or the page draws no space glyphs", () => {
+    expect(respace("Q R S T", oneRun("SOMETHING ELSE"))).toBe("Q R S T");
+    expect(respace("The usual words, untouched.", oneRun("The usual words, untouched."))).toBe("The usual words, untouched.");
+    const noSpaces = oneRun("PROGRAMMING"); // e.g. LaTeX output, where word gaps are moves, not space glyphs
+    expect(assemblePage([item("P R O G R A M M I N G", 50), item("a b c", 200)], font, noSpaces).text).toBe("P R O G R A M M I N G a b c");
   });
 });
 
@@ -105,6 +166,13 @@ describe("reading PDFs", () => {
 });
 
 describe("unusual but valid PDFs", () => {
+  it("reads letter-spaced labels as words and keeps lines of code apart (a real Chrome PDF, as in real decks)", async () => {
+    const doc = await readPdf(file("e2e/fixtures/letter-spacing.pdf"));
+    expect(doc.body).toContain("PROBLEM MOTIVATION · PART 1");
+    expect(doc.body).toContain("ABOUT 19.6% OF BOXES SOLD OUT IDLE CAPITAL");
+    expect(doc.body).toContain('class Menu {\nstatic void show() {\nSystem.out.println("Showing menu");');
+    expect(doc.pages[0].fonts.map((f) => f.family)).toEqual(expect.arrayContaining(["Inter", "Poppins", "CourierNew"]));
+  });
   it("reads a scan's hidden OCR text, but does not judge its fonts", async () => {
     const doc = await readPdf(file("e2e/fixtures/ocr-scan.pdf"));
     expect(doc.scanned).toBe(true);
@@ -128,13 +196,22 @@ describe("unusual but valid PDFs", () => {
 });
 
 describe("checking a document", () => {
-  it("flags fonts outside the brand typefaces once per page and font, quoting text set in it", async () => {
+  it("flags each font outside the brand typefaces once, quoting text set in it", async () => {
     const doc = await readPdf(file("public/samples/urja-diwali-retail-deck.pdf"));
     const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, today: "2026-11-22" });
     const fonts = runCodeChecks(ctx).filter((f) => f.rule_code === "VIS-03");
     expect(fonts).toHaveLength(1);
     expect(fonts[0]).toMatchObject({ page: 4, field: "document", label: "code" });
     expect(fonts[0].message).toContain("Georgia");
+    expect(doc.body.slice(fonts[0].start!, fonts[0].end!)).toBe(fonts[0].quote);
+  });
+  it("names every page of a font used throughout in one finding, not one finding per page", async () => {
+    const doc = await readPdf(file("eval/docs/urja-store-brochure-arial.pdf"));
+    const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, today: "2026-11-22" });
+    const fonts = runCodeChecks(ctx).filter((f) => f.rule_code === "VIS-03");
+    expect(fonts).toHaveLength(1);
+    expect(fonts[0].pages).toEqual([1, 2]);
+    expect(fonts[0].message).toMatch(/^On pages 1 and 2, [\d,]+ letters, including this text, are set in Arial, which is not a brand typeface/);
     expect(doc.body.slice(fonts[0].start!, fonts[0].end!)).toBe(fonts[0].quote);
   });
   it("does not check typefaces of a scan's hidden text layer", async () => {

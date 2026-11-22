@@ -73,7 +73,7 @@ export function DocumentForm({ samples, initial, clientToken }: { samples: SeedD
             ) : (
               <>
                 <input id="file" ref={fileRef} name="file" type="file" accept="application/pdf,.pdf" onChange={onFile} disabled={busy} className="block w-full text-sm file:mr-3 file:rounded-lg file:border file:border-line file:bg-surface file:px-3 file:py-1.5 file:font-semibold file:text-primary-d" />
-                <p className="mt-1 text-xs text-muted">Up to 20 pages and 15 MB: a deck exported as PDF (Google Slides, Canva, PowerPoint), a brochure or a one-pager. The text must be selectable, so not a scan.</p>
+                <p className="mt-1 text-xs text-muted">Up to 50 pages and 15 MB: a deck exported as PDF (Google Slides, Canva, PowerPoint), a brochure or a one-pager. The text must be selectable, so not a scan.</p>
                 {file && <p className="mt-1 text-sm text-ink">{file.name} · {formatBytes(file.size)}</p>}
               </>
             )}

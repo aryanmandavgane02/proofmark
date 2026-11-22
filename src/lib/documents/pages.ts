@@ -10,6 +10,21 @@ export function pageAt(pages: Pick<DocPage, "n" | "start" | "end">[], offset: nu
   return pages.at(-1)!.n;
 }
 
+/** "page 4", "pages 1 and 2", "pages 1–9", "pages 2, 4 and 6–8". */
+export function pageList(pages: number[]): string {
+  const p = [...new Set(pages)].sort((a, b) => a - b);
+  if (p.length <= 1) return p.length ? `page ${p[0]}` : "";
+  const parts: string[] = [];
+  for (let i = 0; i < p.length; ) {
+    let j = i;
+    while (j + 1 < p.length && p[j + 1] === p[j] + 1) j++;
+    if (j - i >= 2) parts.push(`${p[i]}–${p[j]}`);
+    else for (let k = i; k <= j; k++) parts.push(String(p[k]));
+    i = j + 1;
+  }
+  return `pages ${parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0]}`;
+}
+
 /** Documents: give every finding the page it is on (from its position in the joined text). */
 export function withPages(findings: FindingDraft[], pages: DocPage[] | undefined): FindingDraft[] {
   if (!pages?.length) return findings;

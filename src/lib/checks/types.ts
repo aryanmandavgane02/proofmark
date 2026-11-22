@@ -79,6 +79,8 @@ export type FindingDraft = {
   label: Label;
   /** Documents only: the page the finding is on. */
   page?: number | null;
+  /** Documents only: every page the finding covers, when it names more than one (for example a font used throughout). */
+  pages?: number[];
 };
 
 export type CheckContext = {

@@ -42,7 +42,7 @@ test("document: a 10-page deck is checked page by page", async ({ page }) => {
   // Each planted problem is found on its page, with the quoted text.
   const expected: [string, string, number][] = [
     ["50,000+ customers", "CLAIM-01", 2], ["boosts immunity", "CLAIM-03", 3], ["India's #1 protein bar", "CLAIM-02", 5],
-    ["20% off the 6-bar box until 30 November.", "DISC-01", 6], ["guilt-free", "TERM-01", 7], ["Hurry, festive stock ends soon!", "TONE-04", 8], ["LIMITED", "TONE-03", 8],
+    ["20% off the 6-bar box until 30 November.", "DISC-01", 6], ["guilt-free", "TERM-01", 7], ["Hurry, festive stock ends soon!", "TONE-04", 8], ["LIMITED BOXES", "TONE-03", 8],
   ];
   for (const [quote, rule, n] of expected) {
     const c = card(page, `“${quote}”`).first();
@@ -93,7 +93,9 @@ test("document: an uploaded PDF, the same file again, then a corrected PDF as th
   await page.getByRole("button", { name: "Check this document" }).click();
   await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
   await waitForAI(page);
-  await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toHaveCount(2); // Arial on both pages
+  // Arial on both pages: one finding for the font, naming both pages.
+  await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toHaveCount(1);
+  await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toContainText("On pages 1 and 2");
   await expect(card(page, "“energy bar”").getByRole("link", { name: "Page 1", exact: true })).toBeVisible();
 
   await page.getByText("Upload a corrected PDF").click();
@@ -115,7 +117,7 @@ test("document: files that cannot be checked are refused with the reason", async
   const cases: [string, RegExp][] = [
     ["empty", /The file is empty/],
     ["not-a-pdf", /not a PDF/],
-    ["too-many-pages", /21 pages\. Proofmark checks documents of up to 20 pages/],
+    ["too-many-pages", /51 pages\. Proofmark checks documents of up to 50 pages/],
     ["scanned", /no text that can be selected/],
     ["password", /protected with a password/],
     ["damaged", /could not be read; it may be damaged/],
