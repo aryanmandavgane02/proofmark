@@ -182,14 +182,14 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 ### Phase 5 · Open ends from Round 2, and interface tightening
 
-- [ ] Reading level per channel: the configured average sentence length per channel is enforced
-- [ ] Logo findings show the brand's reference logo next to the image
-- [ ] Rule check settings editable on screen for code rules (limits, required text, phrases), applied when published
-- [ ] Fewer AI false alarms on judgment rules (MSG-01, MSG-02): use each rule's examples and ask only for clear violations; re-run the scored test set and publish the trend
-- [ ] Proof check: an AI finding is dropped as a duplicate when it overlaps any code finding, even on an unrelated rule. Seen on production (22 Nov): MSG-02 "two calls to action" on a sentence ending in "!!!" was dropped because TONE-04 had flagged the "!!!". Decide by category or coverage, measured on the scored test set before and after, since some overlaps are real duplicates ("guilt-free": TERM-01 and TONE-01)
-- [ ] Start here: a "New since Round 2" card with one click to each improvement, switching to the right person
-- [ ] Approved drafts: "Copy approved text" and a printable approval record
-- [ ] Scored-test-set history chart in RESULTS.md
+- [x] Reading level per channel: the configured average sentence length per channel is enforced. Also fixed: sentences were split inside "urjabites.in" and "4.6", which skewed every length check
+- [x] Logo findings show the brand's reference logo next to the image
+- [x] Rule check settings editable on screen for code rules (limits, required text, phrases), applied when published. Only settings a rule already has, each kept to its type and validated in plain words
+- [x] Fewer AI false alarms on judgment rules (MSG-01, MSG-02): use each rule's examples and ask only for clear violations; re-run the scored test set and publish the trend. Code + AI went from 95% recall, 93% precision, 3 of 5 clean to 97%, 98%, 4 of 5 (one false alarm left, shown as "needs human judgment")
+- [x] Proof check: an AI finding is dropped as a duplicate when it overlaps any code finding, even on an unrelated rule. Decided: a messaging finding duplicates only a code finding of the same category. No change on the scored set; the production case is a unit test Seen on production (22 Nov): MSG-02 "two calls to action" on a sentence ending in "!!!" was dropped because TONE-04 had flagged the "!!!". Decide by category or coverage, measured on the scored test set before and after, since some overlaps are real duplicates ("guilt-free": TERM-01 and TONE-01)
+- [x] Start here: a "New since Round 2" card with one click to each improvement, switching to the right person
+- [x] Approved drafts: "Copy approved text" and a printable approval record
+- [x] Scored-test-set history chart in RESULTS.md (a Mermaid chart, one point per day)
 
 ### Phase 6 · Judge-proofing: reliability and usability sweep
 

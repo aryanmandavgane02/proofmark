@@ -67,3 +67,33 @@ test("approved draft: copy the exact approved text, and print the approval recor
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeHidden(); // the page prints without app chrome
   await expect(page.getByRole("link", { name: "Home page" })).toBeHidden();
 });
+
+test("rulebook: a code rule's check settings are edited on screen and used once published", async ({ page }) => {
+  test.setTimeout(120_000);
+  await startDemo(page);
+  await page.goto("/app/rulebook");
+  await page.getByLabel("Acting as").selectOption({ label: "Meera · Brand manager" });
+  await expect(page.getByText("Switching…")).toHaveCount(0);
+  const rule = page.locator("div").filter({ has: page.getByText("TONE-02", { exact: true }) }).filter({ hasText: "Edit" }).last();
+  await rule.getByText("Edit", { exact: true }).click();
+  // A missing value is refused in plain words (the browser itself already stops numbers below 0).
+  await rule.getByLabel("Longest sentence, in words").fill("");
+  await rule.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "TONE-02: Longest sentence, in words: give a number of 0 or more." })).toBeVisible();
+  // A real change: sentences of more than 12 words are now flagged.
+  const again = page.locator("div").filter({ has: page.getByText("TONE-02", { exact: true }) }).filter({ hasText: "Edit" }).last();
+  await again.getByText("Edit", { exact: true }).click();
+  await again.getByLabel("Longest sentence, in words").fill("12");
+  await again.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText(/Edited: TONE-02/)).toBeVisible();
+  await page.getByRole("button", { name: "Publish as v2" }).click();
+  await expect(page.getByRole("heading", { name: "Rulebook v2" })).toBeVisible();
+
+  await page.goto("/app/drafts/new");
+  await page.getByLabel("Title").fill("Long line");
+  await page.getByLabel("Channel").selectOption("website");
+  await page.getByLabel("Content").fill("Our bars are made with roasted cocoa and dates in our small kitchen every morning. Order at urjabites.in.");
+  await page.getByRole("button", { name: "Check this draft" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  await expect(page.locator("[id^='f-']").filter({ hasText: "TONE-02" })).toContainText("at most 12 words");
+});

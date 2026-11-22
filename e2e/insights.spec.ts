@@ -108,9 +108,10 @@ test("replay: new wording for MSG-01 is replayed against every past decision bef
   for (const row of await replay.locator("tbody tr").all()) await expect(row).toContainText(/Would now pass|Would now flag|Unchanged/);
   await expect(replay.locator("tbody tr").filter({ hasText: "Not decided yet" })).toHaveCount(1);
 
-  // The table is accessible, like every other screen.
+  // The table is accessible, like every other screen (scanned once entrance animations have finished, as in accessibility.spec).
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((x) => x.effect?.getTiming().iterations !== Infinity).map((x) => x.finished.catch(() => null))));
   const axe = await new AxeBuilder({ page }).include("#replay-MSG-01").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join("; ")}`)).toEqual([]);
 
   // Published with the replay kept, and shown in the version history.
   await msg.getByRole("button", { name: "Accept and publish as v2" }).click();

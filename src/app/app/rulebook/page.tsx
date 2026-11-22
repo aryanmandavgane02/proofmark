@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { settingLabel } from "@/lib/rule-settings";
 import { requireSession } from "@/lib/session";
 import { Card, CategoryChip, PageTitle, SeverityChip, btn, input, timeAgo } from "@/components/ui";
 import { CATEGORIES, CHANNELS, CHANNEL_LABEL } from "@/lib/checks/types";
@@ -16,7 +17,37 @@ const KIND: Record<string, string> = { code: "Checked by code", ai: "Checked by 
 type RuleRow = {
   code: string; category: string; title: string; statement: string; severity: string; channels: string[]; check_kind: string;
   source_doc: string; source_page: number | null; source_quote: string; builtin: boolean; status: string; import_id: string | null; params?: unknown;
+  check_type?: string | null;
 };
+
+/** The check settings of a code rule, each in a field of its own type. Applied when the rulebook is published. */
+function Settings({ r }: { r: RuleRow }) {
+  const params = (r.params && typeof r.params === "object" ? r.params : {}) as Record<string, unknown>;
+  const entries = Object.entries(params);
+  if (r.check_kind === "ai" || !entries.length) return null;
+  return (
+    <fieldset className="grid gap-2 rounded-lg border border-line bg-surface p-2.5 sm:grid-cols-2">
+      <legend className="px-1 text-xs font-semibold text-muted">Check settings (used by the code check once published)</legend>
+      {entries.map(([k, v]) => {
+        const label = settingLabel(r.check_type ?? null, k);
+        if (typeof v === "number") return <label key={k} className="text-xs font-semibold text-muted">{label}<input type="number" step="any" min={0} name={`param.${k}`} defaultValue={v} className={input} /></label>;
+        if (typeof v === "string") return <label key={k} className="text-xs font-semibold text-muted">{label}<input name={`param.${k}`} defaultValue={v} maxLength={80} className={input} /></label>;
+        if (Array.isArray(v)) return <label key={k} className="text-xs font-semibold text-muted sm:col-span-2">{label}<textarea name={`param.${k}`} defaultValue={v.join("\n")} rows={Math.min(6, Math.max(2, v.length))} className={input} /></label>;
+        if (v && typeof v === "object") return (
+          <div key={k} className="sm:col-span-2">
+            <p className="text-xs font-semibold text-muted">{label}</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {Object.entries(v as Record<string, number>).map(([sub, n]) => (
+                <label key={sub} className="text-xs text-muted">{CHANNEL_LABEL[sub as keyof typeof CHANNEL_LABEL] ?? sub}<input type="number" step="any" min={0} name={`param.${k}.${sub}`} defaultValue={n} className={`${input} w-24`} /></label>
+              ))}
+            </div>
+          </div>
+        );
+        return null;
+      })}
+    </fieldset>
+  );
+}
 
 function RuleForm({ r, primary }: { r: RuleRow; primary: "approve" | "save" }) {
   return (
@@ -24,6 +55,7 @@ function RuleForm({ r, primary }: { r: RuleRow; primary: "approve" | "save" }) {
       <input type="hidden" name="code" value={r.code} />
       <label className="text-xs font-semibold text-muted">Title<input name="title" defaultValue={r.title} maxLength={80} className={input} /></label>
       <label className="text-xs font-semibold text-muted">Rule (what the checker enforces)<textarea name="statement" defaultValue={r.statement} rows={2} maxLength={400} className={input} /></label>
+      <Settings r={r} />
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <label className="font-semibold text-muted">Severity{" "}
           <select name="severity" defaultValue={r.severity} className="rounded border border-line bg-surface px-1.5 py-1"><option value="blocker">Blocker</option><option value="major">Major</option><option value="minor">Minor</option></select>
@@ -56,7 +88,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
   const s = await requireSession();
   const manager = s.person.role === "manager";
   const [{ data: rulesRaw }, { data: versions }, importRes, { data: replayRows }] = await Promise.all([
-    s.supabase.from("rules").select("code, category, title, statement, severity, channels, params, check_kind, source_doc, source_page, source_quote, builtin, status, import_id").eq("workspace_id", s.workspace.id).order("code"),
+    s.supabase.from("rules").select("code, category, title, statement, severity, channels, params, check_kind, check_type, source_doc, source_page, source_quote, builtin, status, import_id").eq("workspace_id", s.workspace.id).order("code"),
     s.supabase.from("rulebook_versions").select("version, note, published_at, published_by, snapshot").eq("workspace_id", s.workspace.id).order("version", { ascending: false }),
     sp.import ? s.supabase.from("imports").select("*").eq("id", String(sp.import)).maybeSingle() : Promise.resolve({ data: null }),
     s.supabase.from("rule_replays").select("*").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(100),

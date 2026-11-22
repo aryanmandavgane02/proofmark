@@ -337,6 +337,26 @@ async function main() {
     "",
     "## History",
     "",
+    ...(() => {
+      // One point per day: the last code + AI run of that day.
+      const byDay = new Map<string, { recall: number; precision: number }>();
+      for (const h of history) if (h.mode === "code+ai") byDay.set(h.when.slice(0, 10), { recall: h.recall, precision: h.precision });
+      const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+      if (days.length < 2) return [];
+      const label = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+      return [
+        "Code + AI on the scored test set, by day. First line: problems found (recall). Second line: findings that are real problems (precision).",
+        "",
+        "```mermaid",
+        "xychart-beta",
+        `  x-axis [${days.map(([d]) => `"${label(d)}"`).join(", ")}]`,
+        '  y-axis "Percent" 80 --> 100',
+        `  line [${days.map(([, v]) => Math.round(v.recall * 100)).join(", ")}]`,
+        `  line [${days.map(([, v]) => Math.round(v.precision * 100)).join(", ")}]`,
+        "```",
+        "",
+      ];
+    })(),
     "| When (UTC) | Mode | Recall | Precision | Clean | Fully right |",
     "|---|---|---|---|---|---|",
     ...history.map((h) => `| ${h.when.slice(0, 16).replace("T", " ")} | ${h.mode} | ${pct(h.recall)} | ${pct(h.precision)} | ${h.cleanOk} | ${h.passed} |`),

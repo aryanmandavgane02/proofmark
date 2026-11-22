@@ -18,6 +18,7 @@ import { factChange } from "@/lib/alerts";
 import { raiseAlerts, raiseExpiry, refreshOpenAlerts, type FactRow } from "@/lib/alerts-server";
 import { todayIST } from "@/lib/pipeline";
 import { attachReplays, runReplay } from "@/lib/replay-server";
+import { readSettings } from "@/lib/rule-settings";
 
 export type BrandFormState = { error?: string; ok?: string } | undefined;
 type Session = Awaited<ReturnType<typeof requireSession>>;
@@ -120,9 +121,20 @@ export async function reviewRule(formData: FormData) {
   const channels = formData.getAll("channels").map(String).filter((c) => (CHANNELS as string[]).includes(c));
   if (!channels.length) notice("/app/rulebook", `Tick at least one channel for ${r.code}.`); // none ticked would otherwise read as "all channels"
   const status = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : undefined;
+  // Check settings of code rules: only the settings the rule already has, each kept to its type and validated.
+  const { data: current } = await s.supabase.from("rules").select("params, check_kind, check_type").eq("workspace_id", s.workspace.id).eq("code", r.code).maybeSingle();
+  let params: Record<string, unknown> | undefined;
+  const keys = current?.params ? Object.keys(current.params as Record<string, unknown>) : [];
+  const fields = [...formData.keys()];
+  const sentSettings = !!current && current.check_kind !== "ai" && keys.some((k) => fields.some((f) => f === `param.${k}` || f.startsWith(`param.${k}.`)));
+  if (sentSettings) {
+    const read = readSettings(current.params as Record<string, unknown>, (n) => (formData.has(n) ? String(formData.get(n)) : null), current.check_type);
+    if ("error" in read) notice("/app/rulebook", `${r.code}: ${read.error}`);
+    params = read.params;
+  }
   await s.supabase
     .from("rules")
-    .update({ title: r.title, statement: r.statement, severity: r.severity, channels: channels.length === CHANNELS.length ? [] : channels, ...(status ? { status } : {}), updated_at: new Date().toISOString() })
+    .update({ title: r.title, statement: r.statement, severity: r.severity, channels: channels.length === CHANNELS.length ? [] : channels, ...(params ? { params } : {}), ...(status ? { status } : {}), updated_at: new Date().toISOString() })
     .eq("workspace_id", s.workspace.id)
     .eq("code", r.code);
   await logEvent(s, status ? `rule.${status}` : "rule.edited", { code: r.code });

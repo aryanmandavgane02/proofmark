@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 15:55 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 16:02 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,7 +11,7 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 1/1 |
 | AI findings dropped by the proof check | — | 15 |
-| Average time per draft | 2 ms | 92 ms |
+| Average time per draft | 2 ms | 78 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
@@ -29,7 +29,7 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 | Clean document with no false alarm | 2/2 | 2/2 |
 | Documents fully right | 4/4 | 4/4 |
 | AI findings dropped by the proof check | — | 5 |
-| Average time per document (reading the PDF included) | 43 ms | 66 ms |
+| Average time per document (reading the PDF included) | 41 ms | 77 ms |
 
 | Document | Expected (page and rule) | Missed | False alarms | Result |
 |---|---|---|---|---|
@@ -133,6 +133,16 @@ Labels were written before the first run. Corrections made after a run are liste
 
 ## History
 
+Code + AI on the scored test set, by day. First line: problems found (recall). Second line: findings that are real problems (precision).
+
+```mermaid
+xychart-beta
+  x-axis ["16 Nov", "22 Nov"]
+  y-axis "Percent" 80 --> 100
+  line [95, 97]
+  line [93, 98]
+```
+
 | When (UTC) | Mode | Recall | Precision | Clean | Fully right |
 |---|---|---|---|---|---|
 | 2026-11-16 16:59 | code | 100% | 74% | 3/5 | 15/24 |
@@ -185,3 +195,8 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-22 15:55 | pdf code | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 15:55 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
 | 2026-11-22 15:55 | alerts held-out | 90% | 100% | — | 38/40 |
+| 2026-11-22 16:02 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 16:02 | code+ai | 97% | 98% | 4/5 | 25/27 |
+| 2026-11-22 16:02 | pdf code | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 16:02 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 16:02 | alerts held-out | 90% | 100% | — | 38/40 |
