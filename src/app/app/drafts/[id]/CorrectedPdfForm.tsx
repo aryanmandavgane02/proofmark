@@ -6,7 +6,7 @@ import { formatBytes } from "@/lib/bytes";
 import { checkPdfFile, usePdfUpload, useReady } from "../PdfUpload";
 
 /** A PDF cannot be edited here: the creator fixes the source file and uploads it again as the next version. */
-export function CorrectedPdfForm({ draftId }: { draftId: string }) {
+export function CorrectedPdfForm({ draftId, sampleCorrected }: { draftId: string; sampleCorrected?: string }) {
   const { submit, error, uploading, checking, busy } = usePdfUpload(uploadCorrectedDocument);
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -27,6 +27,11 @@ export function CorrectedPdfForm({ draftId }: { draftId: string }) {
     >
       <input type="hidden" name="draft_id" value={draftId} />
       <p className="text-sm text-muted">Fix the findings in the source file (Google Slides, Canva, PowerPoint or Word), export it as PDF again and upload it here. It becomes the next version and every page is checked again.</p>
+      {sampleCorrected && (
+        <p className="rounded-lg bg-soft p-2.5 text-sm">
+          Trying the demo? <a href={sampleCorrected} download className="font-semibold text-primary underline">Download the corrected sample deck</a>, then choose it below.
+        </p>
+      )}
       <div>
         <label htmlFor="corrected" className="mb-1 block text-sm font-semibold">Corrected PDF</label>
         <input

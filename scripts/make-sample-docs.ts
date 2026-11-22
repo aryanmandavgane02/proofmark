@@ -1,9 +1,11 @@
 // Builds the sample PDF documents with headless Chrome and Google Fonts (Poppins and Inter, the brand typefaces), then
 // reads every file back with the app's own PDF reader to prove the text, pages and fonts come out as intended.
 //   public/samples/urja-diwali-retail-deck.pdf    10-page deck for store partners, with problems planted on known pages
+//   public/samples/urja-diwali-retail-deck-corrected.pdf  the same deck with every problem fixed (the next version)
 //   public/samples/urja-cocoa-crunch-one-pager.pdf one clean page (a control: nothing should be flagged)
 //   eval/docs/urja-store-brochure-arial.pdf        2 pages set in Arial, for the scored test set
-//   e2e/fixtures/*.pdf                             files the upload must refuse, each for one reason
+//   e2e/fixtures/*.pdf                             files the upload must refuse, each for one reason, and two odd
+//                                                  but valid files: an OCR-style scan and a standard, unembedded font
 // Usage: npx tsx scripts/make-sample-docs.ts   (needs Google Chrome and a network connection for the fonts)
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -44,6 +46,42 @@ const DECK: Slide[] = [
   { title: "A note for your shoppers", lines: ["Stop feeding your family junk this Diwali.", "Share a box of real ingredients instead."] },
   { title: "Let's make it a sweet Diwali", lines: ["Order your festive stock at urjabites.in/retail.", "Team Urja Bites, Pune"] },
 ];
+
+// The deck after the creator fixed every finding: the version a reviewer approves.
+const DECK_CORRECTED: Slide[] = [
+  DECK[0],
+  { title: "Why shoppers come back", lines: ["Roasted cocoa, peanuts and dates you can taste in every bite.", "Each bar has 12 g of protein and no added sugar.", "Loved by 35,000+ customers in Bengaluru, Pune and Mumbai.", "Rated 4.6 out of 5 by 1,200 buyers on urjabites.in."] },
+  { title: "This season's flavours", lines: ["Cocoa Crunch: roasted cocoa, dates and a pinch of sea salt.", "Peanut Power: roasted peanuts, dates and cardamom.", "Both bars are made in our Pune kitchen, just in time for the festive season."] },
+  { title: "Festive gift boxes", lines: DECK[3].lines },
+  { title: "Why stores stock us", lines: ["The protein bar 35,000+ customers trust, now for festive gifting.", "A bright counter display that holds 24 bars.", "Display stands come free for partner stores."] },
+  { title: "Diwali deal for shoppers", lines: ["20% off the 6-bar box until 30 November. T&C apply.", "Shoppers can redeem it in store or at urjabites.in."] },
+  { title: "Made for festive evenings", lines: ["The perfect feel-good treat after a big Diwali dinner.", "Pairs well with a cup of masala chai."] },
+  { title: "Planning your festive shelf", lines: ["Festive stock reaches stores in the first week of November.", "Each store gets a set number of boxes.", "Plan your counter space for the week before Diwali."] },
+  { title: "A note for your shoppers", lines: ["Share a box of real ingredients this Diwali.", "Made with care in our Pune kitchen."] },
+  DECK[9],
+];
+
+/** A one-page PDF written by hand: Helvetica (a standard font, not embedded), its text visible or invisible (mode 3). */
+function handMadePdf(text: string, invisible: boolean): Buffer {
+  const stream = `BT /F1 20 Tf ${invisible ? 3 : 0} Tr 72 700 Td (${text}) Tj ET`;
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  let out = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((o, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, "0")} 00000 n \n`).join("")}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, "latin1");
+}
 
 function deckHtml(slides: Slide[]) {
   return `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>
@@ -104,6 +142,8 @@ async function main() {
   const onePager = path.resolve("public/samples/urja-cocoa-crunch-one-pager.pdf");
   const brochure = path.resolve("eval/docs/urja-store-brochure-arial.pdf");
   print(deckHtml(DECK), deck);
+  const corrected = path.resolve("public/samples/urja-diwali-retail-deck-corrected.pdf");
+  print(deckHtml(DECK_CORRECTED), corrected);
   print(a4Html(ONE_PAGER), onePager);
   print(a4Html(BROCHURE, { font: "Arial", head: "Arial" }), brochure);
 
@@ -116,6 +156,8 @@ async function main() {
   writeFileSync(path.join(fx, "empty.pdf"), "");
   const good = readFileSync(onePager);
   writeFileSync(path.join(fx, "damaged.pdf"), Buffer.concat([good.subarray(0, 400), Buffer.alloc(2000, 0x41)]));
+  writeFileSync(path.join(fx, "ocr-scan.pdf"), handMadePdf("Scanned page: roasted cocoa and dates in every bar.", true));
+  writeFileSync(path.join(fx, "standard-font.pdf"), handMadePdf("Roasted cocoa and dates in every bar.", false));
   // A password-protected copy of the one-pager (pypdf, RC4-128: needs no extra library).
   execFileSync("python3", ["-I", "-c", "import sys; from pypdf import PdfReader, PdfWriter; w = PdfWriter(clone_from=PdfReader(sys.argv[1])); w.encrypt('urja', algorithm='RC4-128'); w.write(sys.argv[2])", onePager, path.join(fx, "password.pdf")]);
 
@@ -124,6 +166,12 @@ async function main() {
   const b = await show(brochure);
   const fonts = (doc: typeof d) => new Set(doc.pages.flatMap((p) => p.fonts.map((f) => f.family)));
   const problems: string[] = [];
+  const c = await show(corrected);
+  if (c.pageCount !== 10 || [...new Set(c.pages.flatMap((p) => p.fonts.map((f) => f.family)))].some((f) => !["Poppins", "Inter"].includes(f))) problems.push("corrected deck: not 10 pages in Poppins and Inter");
+  const ocr = await readPdf(new Uint8Array(readFileSync(path.join(fx, "ocr-scan.pdf"))));
+  if (!ocr.scanned) problems.push("ocr-scan.pdf was not recognised as a scan");
+  const std = await readPdf(new Uint8Array(readFileSync(path.join(fx, "standard-font.pdf"))));
+  if (std.scanned || std.pages[0].fonts[0]?.family !== "Helvetica") problems.push(`standard-font.pdf: expected visible Helvetica, got ${JSON.stringify(std.pages[0].fonts)}`);
   if (d.pageCount !== 10) problems.push(`deck has ${d.pageCount} pages`);
   if (!fonts(d).has("Poppins") || !fonts(d).has("Inter")) problems.push("deck: Poppins or Inter missing (did Google Fonts load?)");
   if (!d.pages[3].fonts.some((f) => f.family === "Georgia")) problems.push("deck page 4 is not in Georgia");

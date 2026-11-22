@@ -14,7 +14,7 @@ import { fingerprint, runChecks, settleStaleRun, VERSION_COLUMNS, type RunResult
 import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
 import { SAMPLE_DOCUMENTS, SAMPLE_DRAFTS } from "@/lib/seed/urja";
 import { DocumentError, MAX_BYTES, readPdf, type ReadDocument } from "@/lib/documents/read";
-import { documentUploadLink, isWorkspaceDocumentPath, loadDocument, removeDocument, storeDocument } from "@/lib/documents/store";
+import { documentUploadLink, isWorkspaceDocumentPath, loadDocument, removeDocument, removeWorkspaceFiles, storeDocument } from "@/lib/documents/store";
 import { notice } from "@/lib/notice";
 import { TEXT_CHANNELS, type Channel, type DocPage } from "@/lib/checks/types";
 
@@ -88,7 +88,10 @@ export async function resetDemo() {
   const { data: created } = await admin.from("workspaces").select("created_at").eq("id", fresh).single();
   const { data: mine } = await admin.from("members").select("workspace_id").eq("user_id", s.user.id);
   const older = (mine ?? []).map((m) => m.workspace_id).filter((id) => id !== fresh);
-  if (older.length && created) await admin.from("workspaces").delete().in("id", older).eq("is_demo", true).lt("created_at", created.created_at);
+  if (older.length && created) {
+    const { data: gone } = await admin.from("workspaces").delete().in("id", older).eq("is_demo", true).lt("created_at", created.created_at).select("id");
+    await Promise.all((gone ?? []).map((w) => removeWorkspaceFiles(w.id)));
+  }
   redirect("/app");
 }
 
@@ -239,11 +242,15 @@ async function receiveDocument(s: Session, d: { upload_path: string; sample_key:
     }
   }
   if (!sample) return { error: "Choose a PDF to upload, or load a sample." };
-  const res = await fetch(new URL(sample.file, await selfOrigin()));
-  if (!res.ok) return { error: "Could not load the sample document. Please try again." };
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  const doc = await readPdf(bytes);
-  return { path: await storeDocument(s.workspace.id, bytes), doc };
+  try {
+    const res = await fetch(new URL(sample.file, await selfOrigin()));
+    if (!res.ok) return { error: "Could not load the sample document. Please try again." };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const doc = await readPdf(bytes);
+    return { path: await storeDocument(s.workspace.id, bytes), doc };
+  } catch {
+    return { error: "Could not load the sample document. Please try again." };
+  }
 }
 
 export async function createDocumentDraft(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -271,7 +278,8 @@ export async function createDocumentDraft(_prev: FormState, formData: FormData):
     // The same submission arrived twice at once: the first one made the draft (and uses this same file).
     const existing = error.code === "23505" && token ? await draftForToken(s, token) : undefined;
     if (existing) redirect(draftPath(existing));
-    return { error: error.message };
+    await removeDocument(got.path);
+    return { error: `Could not save the document (${error.message}). Please try again.` };
   }
   const { data: version, error: ve } = await s.supabase
     .from("draft_versions")
@@ -283,6 +291,7 @@ export async function createDocumentDraft(_prev: FormState, formData: FormData):
     .single();
   if (ve) {
     await createAdminClient().from("drafts").delete().eq("id", draft.id).eq("workspace_id", s.workspace.id);
+    await removeDocument(got.path);
     return { error: `Could not save the document (${ve.message}). Please try again.` };
   }
   schedule(await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: "document", version, codeChecksOnly: s.workspace.code_checks_only }));
@@ -546,6 +555,12 @@ export async function approveDraft(formData: FormData) {
   if (run?.ai_status === "running") notice(path, "The AI checks are still running. Approve again in a few seconds.", "info");
   const blocking = findings.filter((f) => f.status === "disputed" || f.status === "upheld" || (f.severity === "blocker" && f.status === "open"));
   if (blocking.length) notice(path, "Resolve the disputed findings first; upheld or blocking findings must be fixed by the creator.");
+  // A document is approved as an exact file: the stored file must still be the one that was checked.
+  if (version.file_path) {
+    const stored = await loadDocument(version.file_path);
+    const hash = stored ? createHash("sha256").update(stored).digest("hex") : null;
+    if (hash !== version.file_hash) notice(path, "The stored PDF does not match the file that was checked, so it cannot be approved. Upload the PDF again as a new version.");
+  }
   if (!(await server(s).claimDraft(draftId, ["in_review"], { status: "approved", updated_at: new Date().toISOString() }))) notice(path, ALREADY_DONE, "info");
   const overrides = findings.filter((f) => f.status === "overridden").map((f) => ({ rule: f.rule_code, quote: f.quote }));
   const { error } = await server(s).record("approvals", {

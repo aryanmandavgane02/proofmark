@@ -9,10 +9,12 @@ import { fontFamily } from "./fonts";
 export const MAX_PAGES = 20;
 export const MAX_BYTES = 15 * 1024 * 1024;
 export const MAX_CHARS = 60_000;
+/** Reading stops after this long, so a damaged or hostile file cannot hold the server. */
+export const READ_TIMEOUT_MS = 20_000;
 
 export type ReadDocument = { body: string; pages: DocPage[]; pageCount: number; hash: string; size: number; scanned: boolean };
 
-export type DocumentErrorCode = "empty" | "not_pdf" | "too_large" | "password" | "damaged" | "too_many_pages" | "no_text" | "too_much_text";
+export type DocumentErrorCode = "empty" | "not_pdf" | "too_large" | "password" | "damaged" | "too_many_pages" | "no_text" | "too_much_text" | "too_slow";
 export class DocumentError extends Error {
   constructor(message: string, readonly code: DocumentErrorCode) {
     super(message);
@@ -65,7 +67,8 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string): { t
           const close = Math.abs(last.y - y) <= Math.max(last.size, size) * 1.75;
           const soft = similar && close && y < last.y && !BULLET.test(str);
           text = text.replace(/[ \t]+$/, "");
-          text += soft ? " " : "\n";
+          // A word split at a hyphen ("6-" / "bar box") joins back without a space: "6-bar box".
+          text += soft ? (/[\p{L}\p{N}]-$/u.test(text) ? "" : " ") : "\n";
         } else if (!/\s$/.test(text) && !/^\s/.test(str) && x - last.xEnd > size * 0.25) {
           text += " "; // a visible gap on the same line (for example table cells)
         }
@@ -96,7 +99,23 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string): { t
 const PAGE_GAP = "\n\n";
 
 /** Reads and validates a PDF. Throws DocumentError with a plain reason when it cannot be checked. */
-export async function readPdf(bytes: Uint8Array): Promise<ReadDocument> {
+export async function readPdf(bytes: Uint8Array, timeoutMs = READ_TIMEOUT_MS): Promise<ReadDocument> {
+  const open: { pdf?: Awaited<ReturnType<typeof getDocumentProxy>> } = {};
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      open.pdf?.loadingTask.destroy().catch(() => {}); // stop pdf.js working on it
+      reject(new DocumentError("This PDF took too long to read. Export it again from the original file, or upload fewer pages.", "too_slow"));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([read(bytes, open), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function read(bytes: Uint8Array, open: { pdf?: Awaited<ReturnType<typeof getDocumentProxy>> }): Promise<ReadDocument> {
   if (!bytes.length) throw new DocumentError("The file is empty.", "empty");
   if (bytes.length > MAX_BYTES) throw new DocumentError(`The file is ${(bytes.length / 1048576).toFixed(1)} MB. Upload a PDF of 15 MB or less.`, "too_large");
   const head = Buffer.from(bytes.subarray(0, 1024)).toString("latin1");
@@ -106,6 +125,7 @@ export async function readPdf(bytes: Uint8Array): Promise<ReadDocument> {
   let pdf: Awaited<ReturnType<typeof getDocumentProxy>>;
   try {
     pdf = await getDocumentProxy(bytes.slice(), { fontExtraProperties: true, stopAtErrors: false, verbosity: 0 });
+    open.pdf = pdf;
   } catch (e) {
     const name = (e as { name?: string })?.name ?? "";
     if (name === "PasswordException") throw new DocumentError("This PDF is protected with a password. Remove the password, export it again and upload the new file.", "password");
@@ -157,7 +177,7 @@ export async function readPdf(bytes: Uint8Array): Promise<ReadDocument> {
     });
 
     const letters = (body.match(/[\p{L}\p{N}]/gu) ?? []).length;
-    if (letters < 20) throw new DocumentError("This PDF has no text that can be selected; it looks like scanned pages or pictures. Export it from the original file (Google Slides, Canva, PowerPoint or Word) so the words can be checked.", "no_text");
+    if (letters < 3) throw new DocumentError("This PDF has no text that can be selected; it looks like scanned pages or pictures. Export it from the original file (Google Slides, Canva, PowerPoint or Word) so the words can be checked.", "no_text");
     if (body.length > MAX_CHARS) throw new DocumentError(`This PDF has about ${Math.round(body.length / 1000)},000 characters of text. Proofmark checks up to ${MAX_CHARS / 1000},000: upload the pages that matter.`, "too_much_text");
 
     // Scans with an invisible OCR layer have text, but its fonts say nothing about the design.

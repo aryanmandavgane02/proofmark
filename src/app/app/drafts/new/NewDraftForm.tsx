@@ -2,7 +2,7 @@
 import { useActionState, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createDraft, type FormState } from "@/app/actions";
-import { CHANNELS, CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
+import { CHANNEL_LABEL, TEXT_CHANNELS, type Channel } from "@/lib/checks/types";
 import type { SeedDraft } from "@/lib/seed/urja";
 import { btn, input, Card } from "@/components/ui";
 
@@ -67,7 +67,7 @@ export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedD
             <div>
               <label htmlFor="channel" className="mb-1 block text-sm font-semibold">Channel</label>
               <select id="channel" name="channel" value={v.channel} onChange={(e) => setV({ ...v, channel: e.target.value as Channel })} className={input}>
-                {CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_LABEL[c]}</option>)}
+                {TEXT_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_LABEL[c]}</option>)}
               </select>
             </div>
           </div>

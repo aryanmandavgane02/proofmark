@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CODE_CHECK_COUNT } from "@/lib/checks";
 import { LogoMark } from "@/components/Logo";
 import { IconArrow, IconBolt, IconBook, IconCheck, IconPen, IconReset, IconShield, IconTrail, IconUser } from "@/components/icons";
 import { getSession } from "@/lib/session";
@@ -7,16 +8,16 @@ import { CloseDetails } from "./app/CloseDetails";
 import { StartButton } from "./StartButton";
 
 const steps = [
-  { t: "Submit a draft", d: "A post, an ad, an email or web copy, before it is published.", Icon: IconPen },
+  { t: "Submit a draft", d: "A post, an ad, an email, web copy or a PDF deck, before it is published.", Icon: IconPen },
   { t: "Get cited findings", d: "Each issue shows the rule or fact it breaks, why, and a suggested fix you can accept.", Icon: IconBook },
   { t: "A person approves", d: "Disputes are resolved and content is approved by people. AI never approves anything.", Icon: IconUser },
 ];
 
 // Numbers from the repository's own tests (eval/RESULTS.md, e2e/, scripts/rls-check.ts)
 const stats = [
-  { n: "13", l: "code checks run before any AI" },
+  { n: String(CODE_CHECK_COUNT), l: "code checks run before any AI" },
   { n: "100%", l: "of planted problems found by code in the scored test set" },
-  { n: "22 / 22", l: "direct database attacks refused" },
+  { n: "26 / 26", l: "direct database and storage attacks refused" },
   { n: "0", l: "approvals made by AI: a person decides" },
 ];
 

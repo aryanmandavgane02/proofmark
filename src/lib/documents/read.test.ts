@@ -54,6 +54,10 @@ describe("page text", () => {
     ], (id) => fonts[id]);
     expect(text).toBe("A big heading\nRoasted cocoa and dates in a bar that keeps up with your day.\nOrder at urjabites.in.");
   });
+  it("joins a word split at a hyphen across lines without a space", () => {
+    const { text } = assemblePage([item("Order the 6-", 50, 650, 12, "f1", true), item("bar box today.", 50, 635, 12)], (id) => fonts[id]);
+    expect(text).toBe("Order the 6-bar box today.");
+  });
   it("adds a space for a visible gap on the same line", () => {
     const { text } = assemblePage([item("Price", 50, 500, 12, "f1", false, 30), item("₹540", 200, 500, 12)], (id) => fonts[id]);
     expect(text).toBe("Price ₹540");
@@ -97,6 +101,29 @@ describe("reading PDFs", () => {
     expect(err).toBeInstanceOf(DocumentError);
     expect(err.code).toBe(code);
     expect(err.message).not.toMatch(/undefined|\[object/);
+  });
+});
+
+describe("unusual but valid PDFs", () => {
+  it("reads a scan's hidden OCR text, but does not judge its fonts", async () => {
+    const doc = await readPdf(file("e2e/fixtures/ocr-scan.pdf"));
+    expect(doc.scanned).toBe(true);
+    expect(doc.body).toContain("roasted cocoa and dates");
+    const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, scanned: doc.scanned });
+    expect(runCodeChecks(ctx).filter((f) => f.rule_code === "VIS-03")).toHaveLength(0);
+  });
+  it("names a standard font that is not embedded, and flags it", async () => {
+    const doc = await readPdf(file("e2e/fixtures/standard-font.pdf"));
+    expect(doc.scanned).toBe(false);
+    const fonts = runCodeChecks(seedContext({ body: doc.body, channel: "document", pages: doc.pages })).filter((f) => f.rule_code === "VIS-03");
+    expect(fonts).toHaveLength(1);
+    expect(fonts[0]).toMatchObject({ label: "code", page: 1 });
+    expect(fonts[0].message).toContain("Helvetica");
+  });
+  it("stops reading after the time limit", async () => {
+    const err = await readPdf(file("public/samples/urja-diwali-retail-deck.pdf"), 1).catch((e) => e);
+    expect(err).toBeInstanceOf(DocumentError);
+    expect(err.code).toBe("too_slow");
   });
 });
 

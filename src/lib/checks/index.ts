@@ -24,6 +24,9 @@ export const CODE_CHECKS: Record<string, CheckFn> = {
   typefaces: typefaceCheck,
 };
 
+/** Every code check: the text and document checks above, plus the colour check on images (VIS-02, src/lib/checks/visual.ts). */
+export const CODE_CHECK_COUNT = Object.keys(CODE_CHECKS).length + 1;
+
 const SEVERITY_RANK = { blocker: 0, major: 1, minor: 2 } as const;
 
 export function runCodeChecks(ctx: CheckContext): FindingDraft[] {

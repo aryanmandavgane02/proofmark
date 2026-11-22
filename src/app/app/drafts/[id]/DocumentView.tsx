@@ -19,6 +19,7 @@ export function DocumentView(props: {
 }) {
   const { body, pages, fileUrl, marks, findingsByPage, typefaces } = props;
   const worst = (n: number) => (findingsByPage.get(n) ?? []).map((f) => f.severity).sort((a, b) => RANK[a] - RANK[b])[0];
+  const textless = pages.filter((p) => !body.slice(p.start, p.end).trim()).map((p) => p.n);
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-soft p-3 text-sm">
@@ -31,12 +32,18 @@ export function DocumentView(props: {
       {props.scanned && (
         <p className="rounded-lg bg-[#fff6e5] p-3 text-sm text-[#7a3d00]">This looks like a scan with a hidden text layer. Its words were checked, but its typefaces could not be, so look at the design yourself.</p>
       )}
+      {textless.length > 0 && (
+        <p className="rounded-lg bg-[#fff6e5] p-3 text-sm text-[#7a3d00]">
+          {textless.length === pages.length ? "No page" : textless.length === 1 ? `Page ${textless[0]}` : `Pages ${textless.join(", ")}`} {textless.length === 1 ? "has" : "have"} no text (pictures only), so {textless.length === 1 ? "it was" : "they were"} not checked. Look at {textless.length === 1 ? "it" : "them"} in the PDF.
+        </p>
+      )}
       <nav aria-label="Pages" className="flex flex-wrap gap-1.5">
         {pages.map((p) => {
           const n = (findingsByPage.get(p.n) ?? []).length;
+          const empty = textless.includes(p.n);
           return (
-            <a key={p.n} href={`#page-${p.n}`} className={`rounded-md border px-2 py-1 text-xs font-semibold hover:brightness-95 ${CHIP[worst(p.n) ?? "clean"]}`}>
-              Page {p.n}<span className="sr-only">:</span> {n ? `· ${n}` : "✓"}<span className="sr-only">{n ? ` finding${n > 1 ? "s" : ""}` : " no findings"}</span>
+            <a key={p.n} href={`#page-${p.n}`} className={`rounded-md border px-2 py-1 text-xs font-semibold hover:brightness-95 ${empty ? "border-line bg-surface text-muted" : CHIP[worst(p.n) ?? "clean"]}`}>
+              Page {p.n}<span className="sr-only">:</span> {empty ? "· no text" : n ? `· ${n}` : "✓"}<span className="sr-only">{empty ? "" : n ? ` finding${n > 1 ? "s" : ""}` : " no findings"}</span>
             </a>
           );
         })}

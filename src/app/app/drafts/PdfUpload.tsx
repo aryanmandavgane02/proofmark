@@ -46,7 +46,9 @@ export function usePdfUpload(action: (state: FormState, formData: FormData) => P
         setUploading(true);
         const link = await prepareDocumentUpload({ size: file.size });
         if (!link.ok) throw new UploadError(link.error);
-        const res = await fetch(link.url, { method: "PUT", headers: { "content-type": "application/pdf", "x-upsert": "false" }, body: file });
+        // A stalled connection must not leave the button on "Uploading…" for ever (15 MB takes about 2 minutes at 1 Mbit/s).
+        const res = await fetch(link.url, { method: "PUT", headers: { "content-type": "application/pdf", "x-upsert": "false" }, body: file, signal: AbortSignal.timeout(180_000) })
+          .catch((e) => { throw new UploadError(e?.name === "TimeoutError" ? "The upload took too long. Check your connection and try again." : "The upload failed. Check your connection and try again."); });
         if (!res.ok) throw new UploadError(res.status === 413 ? `The file is larger than ${MAX_MB} MB.` : "The upload failed. Check your connection and try again.");
         fd.set("upload_path", link.path);
         fd.set("file_name", file.name);

@@ -148,6 +148,9 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [x] Found while testing: a file picked before the page finished loading never reached the form's state ("Choose a PDF" although one was chosen). Both PDF forms now read the file input itself, and the PDF buttons wait until the page is ready
 - [x] Font names that are codes ("YAFdJt8dAY0", "TT2Ao00", written by some design tools) are shown as "needs human judgment", never as a code-verified fact
 - [x] Results: every planted problem found on its page (code only and code + AI: recall 100%, precision 100%), typeface pages 3 of 3 with no false typeface finding, the clean one-pager clean; 4 browser tests, 19 unit tests, 4 new access checks (27 in all)
+- [x] Recheck of Phase 2: the text form no longer offers "Document (PDF)" as a channel; PDFs open through the app with a fresh five-minute link (the page never holds an expiring link) and every version's file can be opened from the version history; approval re-reads the stored file and refuses if its SHA-256 differs; pages without text are marked "no text" instead of ✓; a word split at a hyphen across lines joins back ("6-bar"); a PDF with only a few words is accepted (fewer than 3 letters means a scan); reading stops after 20 s with a message; the browser upload gives up after 3 minutes with a message; uploads that fail to save are removed, and starting over removes the old workspace's files; the AI & data page says only the text of a PDF is sent, never the file
+- [x] A corrected version of the sample deck: the full journey (dispute, routing to legal, uphold, request changes, corrected PDF, approval of that exact file, its bytes checked) is a browser test, and judges can download the corrected deck from the draft page to try it. It is also a second clean control in the scored test set (4 PDF cases, all fully right)
+- [x] Landing page numbers corrected: code checks are counted from the code (14, with typefaces); 26 of 26 database and storage attacks refused (the earlier "22 / 22" counted one positive check as an attack)
 - [ ] Real decks exported from Google Slides, Canva and PowerPoint, tried by hand (waiting for files from Aryan); the reader's line joining and font names are the parts most likely to differ
 
 ### Phase 3 · Improvement 2: outdated-content alerts
@@ -192,6 +195,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 ### Phase 7 · Documentation, roadmap, final PDF, form
 
+- [ ] README: every count from the final runs (code checks are counted in `src/lib/checks/index.ts`; database and storage attacks refused 26 of 26 plus one positive check, as of Phase 2), Round 3 sections, test table
 - [ ] README: what Proofmark is; try it in two minutes, including each improvement; complete feature list; run it yourself (prerequisites, Supabase setup, keys, migrate, run, test, deploy, troubleshooting), tested from a fresh clone
 - [ ] docs/ARCHITECTURE.md updated: documents, alerts, replay, background AI; components and data flow; the hardest problems
 - [ ] docs/TESTING.md: what was tested and how, numbers, what we found and fixed, what is still imperfect

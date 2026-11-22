@@ -96,6 +96,7 @@ export const DOC_CASES: DocCase[] = [
     ],
   },
   { id: "one-pager-clean", file: "public/samples/urja-cocoa-crunch-one-pager.pdf", note: "Clean control in the brand typefaces", expect: [] },
+  { id: "deck-diwali-corrected", file: "public/samples/urja-diwali-retail-deck-corrected.pdf", note: "The same 10-page deck with every problem fixed (the version a reviewer approves): a clean control", expect: [] },
   {
     id: "brochure-arial", file: "eval/docs/urja-store-brochure-arial.pdf", note: "Two pages set in Arial, an ended offer (fact F-14) and a term to avoid",
     expect: [{ page: 1, rule: "TERM-01" }, { page: 1, rule: "CLAIM-01" }, { page: 1, rule: "VIS-03" }, { page: 2, rule: "VIS-03" }],

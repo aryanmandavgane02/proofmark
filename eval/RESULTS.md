@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 07:25 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 10:52 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,14 +11,14 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 2/3 |
 | AI findings dropped by the proof check | — | 13 |
-| Average time per draft | 2 ms | 76 ms |
+| Average time per draft | 2 ms | 105 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
 
 ## PDF documents (Round 3)
 
-3 PDF files, labelled by hand by page and rule before the first run (`DOC_CASES` in `eval/cases.ts`; the files are built by `scripts/make-sample-docs.ts`): deck-diwali (10-page retail deck; problems planted on pages 2 to 9, pages 1 and 10 clean; page 4 set in Georgia); one-pager-clean (Clean control in the brand typefaces); brochure-arial (Two pages set in Arial, an ended offer (fact F-14) and a term to avoid). A finding counts only on the page its label gives; the same rule on another page is a false alarm.
+4 PDF files, labelled by hand by page and rule before the first run (`DOC_CASES` in `eval/cases.ts`; the files are built by `scripts/make-sample-docs.ts`): deck-diwali (10-page retail deck; problems planted on pages 2 to 9, pages 1 and 10 clean; page 4 set in Georgia); one-pager-clean (Clean control in the brand typefaces); deck-diwali-corrected (The same 10-page deck with every problem fixed (the version a reviewer approves): a clean control); brochure-arial (Two pages set in Arial, an ended offer (fact F-14) and a term to avoid). A finding counts only on the page its label gives; the same rule on another page is a false alarm.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -26,15 +26,16 @@ AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-
 | Findings on a labelled page and rule (precision) | 100% | 100% |
 | Pages in a non-brand typeface found | 3/3 | 3/3 |
 | Typeface findings on a page in the brand typefaces | 0 | 0 |
-| Clean document with no false alarm | 1/1 | 1/1 |
-| Documents fully right | 3/3 | 3/3 |
+| Clean document with no false alarm | 2/2 | 2/2 |
+| Documents fully right | 4/4 | 4/4 |
 | AI findings dropped by the proof check | — | 6 |
-| Average time per document (reading the PDF included) | 48 ms | 69 ms |
+| Average time per document (reading the PDF included) | 43 ms | 96 ms |
 
 | Document | Expected (page and rule) | Missed | False alarms | Result |
 |---|---|---|---|---|
 | deck-diwali | p2 CLAIM-01, p3 CLAIM-03, p4 VIS-03, p5 CLAIM-02, p6 DISC-01, p7 TERM-01, p8 TONE-04, p8 TONE-03, p9 TONE-01 | — | — | Pass |
 | one-pager-clean | nothing (clean) | — | — | Pass |
+| deck-diwali-corrected | nothing (clean) | — | — | Pass |
 | brochure-arial | p1 TERM-01, p1 CLAIM-01, p1 VIS-03, p2 VIS-03 | — | — | Pass |
 
 Code-only scores leave out TONE-01 on page 9 of the deck, which only the AI can judge.
@@ -107,3 +108,7 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-22 07:25 | code+ai | 95% | 93% | 3/5 | 24/27 |
 | 2026-11-22 07:25 | pdf code | 100% | 100% | 1/1 | 3/3 |
 | 2026-11-22 07:25 | pdf code+ai | 100% | 100% | 1/1 | 3/3 |
+| 2026-11-22 10:52 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 10:52 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-22 10:52 | pdf code | 100% | 100% | 2/2 | 4/4 |
+| 2026-11-22 10:52 | pdf code+ai | 100% | 100% | 2/2 | 4/4 |

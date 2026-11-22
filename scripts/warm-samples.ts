@@ -32,8 +32,9 @@ async function main() {
     console.log(`${d.key}: ${text.cached ? "already stored" : "stored"} · ${kept.length} AI finding(s) kept, ${dropped.length} dropped${img}`);
   }
   // Sample PDFs: one AI request per document (every page in it), then the second opinion.
-  for (const d of SAMPLE_DOCUMENTS) {
-    const doc = await readPdf(new Uint8Array(readFileSync(`public${d.file}`)));
+  for (const { key, file } of SAMPLE_DOCUMENTS.flatMap((d) => [{ key: d.key, file: d.file }, ...(d.corrected ? [{ key: `${d.key} (corrected)`, file: d.corrected }] : [])])) {
+    const d = { key };
+    const doc = await readPdf(new Uint8Array(readFileSync(`public${file}`)));
     const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, scanned: doc.scanned, ...(process.env.TODAY ? { today: process.env.TODAY } : {}) });
     const text = await reviewText(provider, ctx, "warm-up");
     const { kept, dropped } = proofCheck(text.review.findings, ctx, runCodeChecks(ctx));

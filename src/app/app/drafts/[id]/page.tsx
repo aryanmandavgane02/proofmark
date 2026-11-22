@@ -12,8 +12,8 @@ import { settleStaleRun } from "@/lib/pipeline";
 import { AIRunning } from "./AIRunning";
 import { DocumentView } from "./DocumentView";
 import { CorrectedPdfForm } from "./CorrectedPdfForm";
-import { signedDocumentUrl } from "@/lib/documents/store";
 import type { DocPage } from "@/lib/checks/types";
+import { SAMPLE_DOCUMENTS } from "@/lib/seed/urja";
 
 // Server actions on this page run checks; the AI half continues in the background after the response.
 export const maxDuration = 60;
@@ -51,7 +51,8 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
   const { data: rawFindings } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
   // The visitor could read this version through row-level security, so they may see its image.
   const imageUrl = version!.image_path?.startsWith(`${s.workspace.id}/`) ? await signedImageUrl(version!.image_path) : null;
-  const fileUrl = isDocument && version!.file_path ? await signedDocumentUrl(version!.file_path, s.workspace.id) : null;
+  // The PDF opens through the app (access checked, fresh link each time), so the page never holds an expiring link.
+  const fileUrl = isDocument && version!.file_path ? `/app/drafts/${id}/file?v=${version!.version}` : null;
   const imageFindings = ((rawFindings ?? []) as Finding[]).filter((f) => f.field === "image" && LIVE.includes(f.status)).length;
   const findings = ((rawFindings ?? []) as Finding[]).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || (a.start_at ?? 9e9) - (b.start_at ?? 9e9));
 
@@ -107,7 +108,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             />
             <details className="mt-4 border-t border-line pt-3">
               <summary className="cursor-pointer text-sm font-semibold text-primary">Upload a corrected PDF</summary>
-              <CorrectedPdfForm draftId={id} />
+              <CorrectedPdfForm draftId={id} sampleCorrected={SAMPLE_DOCUMENTS.find((d) => d.key === draft.sample_key)?.corrected} />
             </details>
           </Card>
           ) : (
@@ -201,6 +202,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                         {fileUrl && <a href={fileUrl} target="_blank" rel="noreferrer" className="font-semibold underline">Open the approved file ↗</a>}
                       </dd>
                       <dt>File SHA-256</dt><dd className="break-all font-mono">{approval.file_hash}</dd>
+                      <dt>File check</dt><dd>The stored file matched this fingerprint when it was approved.</dd>
                     </>
                   )}
                   <dt>Content fingerprint</dt><dd className="font-mono">{approval.fingerprint.slice(0, 16)}</dd>

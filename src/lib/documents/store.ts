@@ -48,9 +48,25 @@ export async function removeDocument(path: string) {
   await createAdminClient().storage.from(BUCKET).remove([path]);
 }
 
-/** A link to the exact stored file, valid for an hour; only for a file inside the visitor's own workspace. */
-export async function signedDocumentUrl(path: string, workspaceId: string): Promise<string | null> {
+/** A short-lived link to the exact stored file; only for a file inside the visitor's own workspace. */
+export async function signedDocumentUrl(path: string, workspaceId: string, seconds = 300): Promise<string | null> {
   if (!isWorkspaceDocumentPath(workspaceId, path)) return null;
-  const { data } = await createAdminClient().storage.from(BUCKET).createSignedUrl(path, 3600);
+  const { data } = await createAdminClient().storage.from(BUCKET).createSignedUrl(path, seconds);
   return data?.signedUrl ?? null;
+}
+
+/** Removes every stored file of a workspace (draft images and documents), for example when a demo is reset. Best effort. */
+export async function removeWorkspaceFiles(workspaceId: string) {
+  const db = createAdminClient();
+  for (const bucket of ["drafts", BUCKET]) {
+    try {
+      for (let round = 0; round < 20; round++) {
+        const { data } = await db.storage.from(bucket).list(workspaceId, { limit: 1000 });
+        if (!data?.length) break;
+        await db.storage.from(bucket).remove(data.map((f) => `${workspaceId}/${f.name}`));
+      }
+    } catch {
+      // Files left behind are private and unreachable once the workspace is gone; never fail a reset over them.
+    }
+  }
 }

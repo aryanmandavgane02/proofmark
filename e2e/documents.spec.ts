@@ -80,7 +80,7 @@ test("document: the reviewer approves the exact file", async ({ page }) => {
   await expect(page.getByText(/Approved by Meera/)).toBeVisible();
   await expect(page.getByText("Approved file", { exact: true })).toBeVisible();
   await expect(page.getByText(hash, { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open the approved file ↗" })).toHaveAttribute("href", /\/documents\//);
+  await expect(page.getByRole("link", { name: "Open the approved file ↗" })).toHaveAttribute("href", /\/file\?v=1$/);
 });
 
 test("document: an uploaded PDF, the same file again, then a corrected PDF as the next version", async ({ page }) => {
@@ -131,4 +131,63 @@ test("document: files that cannot be checked are refused with the reason", async
   // Nothing was created for any of them.
   await page.goto("/app");
   await expect(page.getByText(/Bad file:/)).toHaveCount(0);
+});
+
+test("document: the full review journey, ending with the exact corrected file approved", async ({ page }) => {
+  test.setTimeout(240_000);
+  await startDemo(page);
+  await page.goto("/app/drafts/new?mode=document&sample=diwali-deck");
+  await page.getByRole("button", { name: "Check this document" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  await waitForAI(page);
+
+  // Arjun disputes the two blockers (page 3 and page 5) so the deck can go to review.
+  for (const quote of ["“boosts immunity”", "“India's #1 protein bar”"]) {
+    const c = card(page, quote).first();
+    await c.getByText("Dispute", { exact: true }).click();
+    await c.getByPlaceholder("Why does this not apply here?").fill("Our nutritionist signed this off for the festive deck.");
+    await c.getByRole("button", { name: "Send dispute to the reviewer" }).click();
+    await expect(card(page, quote).first()).toContainText(/disputed/i);
+  }
+  await page.getByRole("button", { name: "Submit for review" }).click();
+  // Claims findings route the deck to legal.
+  await expect(page.getByText(/Assigned to/)).toContainText("Ritu");
+
+  // Ritu upholds both disputes and sends the deck back.
+  await actAs(page, "Ritu · Legal and compliance");
+  for (const quote of ["“boosts immunity”", "“India's #1 protein bar”"]) {
+    const c = card(page, quote).first();
+    await c.getByPlaceholder("Reason (saved with the decision)").fill("Health claims and rankings need proof we do not have.");
+    await c.getByRole("button", { name: "Uphold: it must be fixed" }).click();
+    await expect(card(page, quote).first()).toContainText(/upheld/i);
+  }
+  await page.getByText("Request changes", { exact: true }).click();
+  await page.getByPlaceholder("What should the creator change?").fill("Fix every finding, including the Georgia page, and upload the corrected deck.");
+  await page.getByRole("button", { name: "Send back to the creator" }).click();
+  await expect(page.getByText("Changes requested", { exact: true }).first()).toBeVisible();
+
+  // Arjun uploads the corrected deck: version 2, every page checked again, nothing left.
+  await actAs(page, "Arjun · Creator");
+  await page.getByText("Upload a corrected PDF").click();
+  await expect(page.getByRole("link", { name: "Download the corrected sample deck" })).toBeVisible();
+  await page.getByLabel("Corrected PDF").setInputFiles("public/samples/urja-diwali-retail-deck-corrected.pdf");
+  await page.getByRole("button", { name: "Upload and check again" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Version 2 uploaded" })).toBeVisible({ timeout: 60_000 });
+  await waitForAI(page);
+  await expect(page.getByRole("heading", { name: "No open findings" })).toBeVisible();
+  await page.getByRole("button", { name: "Submit for review" }).click();
+  await expect(page.getByText(/Assigned to/)).toContainText("Meera");
+
+  // Meera approves; the approval names the exact file, and that link serves exactly those bytes.
+  await actAs(page, "Meera · Brand manager");
+  await page.getByRole("button", { name: "Approve this version" }).click();
+  await expect(page.getByText(/Approved by Meera/)).toBeVisible();
+  const bytes = readFileSync("public/samples/urja-diwali-retail-deck-corrected.pdf");
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  await expect(page.getByText(hash, { exact: true })).toBeVisible();
+  const link = page.getByRole("link", { name: "Open the approved file ↗" });
+  await expect(link).toHaveAttribute("href", /\/file\?v=2$/);
+  const res = await page.request.get((await link.getAttribute("href"))!);
+  expect(res.headers()["content-type"]).toContain("application/pdf");
+  expect(createHash("sha256").update(await res.body()).digest("hex")).toBe(hash);
 });

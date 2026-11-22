@@ -188,11 +188,12 @@ export const TYPEFACES: { name: string; note: string }[] = [
   { name: "Inter", note: "Body text" },
 ];
 
-export type SeedDocument = { key: string; title: string; file: string; pages: number; note: string };
+/** `corrected`: the same document with every problem fixed, to try "Upload a corrected PDF" in the demo. */
+export type SeedDocument = { key: string; title: string; file: string; pages: number; note: string; corrected?: string };
 
 /** Sample PDFs (built by scripts/make-sample-docs.ts). The deck's planted problems are listed in eval/cases.ts. */
 export const SAMPLE_DOCUMENTS: SeedDocument[] = [
-  { key: "diwali-deck", title: "Diwali retail deck", file: "/samples/urja-diwali-retail-deck.pdf", pages: 10, note: "A 10-page deck for store partners: problems on several pages, and one page in the wrong typeface." },
+  { key: "diwali-deck", title: "Diwali retail deck", file: "/samples/urja-diwali-retail-deck.pdf", pages: 10, note: "A 10-page deck for store partners: problems on several pages, and one page in the wrong typeface.", corrected: "/samples/urja-diwali-retail-deck-corrected.pdf" },
   { key: "one-pager", title: "Cocoa Crunch one-pager", file: "/samples/urja-cocoa-crunch-one-pager.pdf", pages: 1, note: "A clean control: the checker should find nothing." },
 ];
 

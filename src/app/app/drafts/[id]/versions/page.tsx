@@ -54,7 +54,12 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
                   <span className="text-xs text-muted">{timeAgo(v.created_at)}</span>
                 </div>
                 <p className="text-muted">{v.change_note ?? "First version"} · by {personBy.get(v.created_by) ?? "—"}</p>
-                {v.file_hash && <p className="text-xs text-muted">{v.file_name} · {v.page_count} page{v.page_count === 1 ? "" : "s"} · <span className="font-mono" title={`SHA-256 ${v.file_hash}`}>{v.file_hash.slice(0, 12)}</span></p>}
+                {v.file_hash && (
+                  <p className="text-xs text-muted">
+                    {v.file_name} · {v.page_count} page{v.page_count === 1 ? "" : "s"} · <span className="font-mono" title={`SHA-256 ${v.file_hash}`}>{v.file_hash.slice(0, 12)}</span>{" "}
+                    <a href={`/app/drafts/${id}/file?v=${v.version}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">Open this PDF ↗</a>
+                  </p>
+                )}
                 <p className="text-xs">{open(v.id)} open finding(s){appr ? ` · ${appr.valid ? "approved" : "approval withdrawn after edit"} by ${personBy.get(appr.approver_id)}` : ""}</p>
                 {v.version > 1 && <Link className="text-xs font-semibold text-primary hover:underline" href={`?from=${v.version - 1}&to=${v.version}`}>Compare with version {v.version - 1}</Link>}
               </div>
