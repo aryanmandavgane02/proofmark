@@ -8,6 +8,11 @@ import { Highlighted, type Mark } from "./Highlighted";
 import { signedImageUrl } from "@/lib/images";
 import { PendingButton } from "./PendingButton";
 import { describeEvent } from "@/lib/events";
+import { settleStaleRun } from "@/lib/pipeline";
+import { AIRunning } from "./AIRunning";
+
+// Server actions on this page run checks; the AI half continues in the background after the response.
+export const maxDuration = 60;
 
 type Finding = {
   id: string; category: string; severity: string; rule_code: string; fact_code: string | null; field: string; quote: string;
@@ -33,7 +38,9 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     s.supabase.from("approvals").select("*").eq("draft_id", id).order("created_at", { ascending: false }),
     s.supabase.from("decisions").select("finding_id, action, reason, person_id, created_at").eq("draft_id", id),
   ]);
-  const { data: run } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: latestRun } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const run = await settleStaleRun(latestRun);
+  const aiRunning = run?.ai_status === "running";
   const { data: rawFindings } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
   // The visitor could read this version through row-level security, so they may see its image.
   const imageUrl = version!.image_path ? await signedImageUrl(version!.image_path) : null;
@@ -113,14 +120,16 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             {(draft.status === "draft" || draft.status === "changes_requested") && (
               <form action={submitForReview} className="space-y-2">
                 <input type="hidden" name="draft_id" value={id} />
-                {openBlockers.length > 0 ? (
+                {aiRunning ? (
+                  <p className="text-sm text-muted">Waiting for the AI checks to finish before this can be submitted.</p>
+                ) : openBlockers.length > 0 ? (
                   <p className="text-sm text-red">
                     {openBlockers.length} blocker{openBlockers.length > 1 ? "s" : ""} must be fixed or disputed before review: {openBlockers.map((f) => f.rule_code).join(", ")}.
                   </p>
                 ) : (
                   <p className="text-sm text-muted">{live.length ? `${live.length} finding${live.length > 1 ? "s" : ""} still open or disputed. The reviewer will see them.` : "No open findings."} Proofmark picks the reviewer from the kind of findings left.</p>
                 )}
-                <PendingButton className={btn.primary} disabled={openBlockers.length > 0} pendingText="Submitting…">Submit for review</PendingButton>
+                <PendingButton className={btn.primary} disabled={aiRunning || openBlockers.length > 0} pendingText="Submitting…">Submit for review</PendingButton>
               </form>
             )}
             {draft.status === "in_review" && (
@@ -138,7 +147,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                     )}
                     <form action={approveDraft}>
                       <input type="hidden" name="draft_id" value={id} />
-                      <PendingButton className={btn.accent} disabled={disputed.length + upheld.length + openBlockers.length > 0} pendingText="Approving…">Approve this version</PendingButton>
+                      <PendingButton className={btn.accent} disabled={aiRunning || disputed.length + upheld.length + openBlockers.length > 0} pendingText="Approving…">Approve this version</PendingButton>
                     </form>
                     <details>
                       <summary className="cursor-pointer text-sm font-semibold text-primary">Request changes</summary>
@@ -196,8 +205,9 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
             <h2 className="text-lg font-semibold text-primary-d">{live.length ? `${live.length} finding${live.length > 1 ? "s" : ""}` : "No open findings"}</h2>
-            <span className="text-xs text-muted">{run?.ai_status === "off" ? "Code checks only (AI off)" : run?.ai_status === "unavailable" ? "Code checks only (AI unavailable)" : run?.ai_model ? "Code checks + AI" : "Code checks"}</span>
+            <span className="text-xs text-muted">{aiRunning ? "Code checks done · AI running" : run?.ai_status === "off" ? "Code checks only (AI off)" : run?.ai_status === "unavailable" ? "Code checks only (AI unavailable)" : run?.ai_model ? "Code checks + AI" : "Code checks"}</span>
           </div>
+          {aiRunning && <AIRunning startedAt={run!.created_at} />}
           {findings.length > 0 && (() => {
             const blocking = live.filter((f) => f.status !== "open" || f.severity === "blocker");
             const should = live.filter((f) => f.status === "open" && f.severity === "major");
@@ -367,6 +377,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                 <dt className="text-muted">Code checks</dt><dd>{findings.filter((f) => f.label === "code").length} finding(s), {run.ms - (run.ai_ms ?? 0)} ms, no AI involved</dd>
                 <dt className="text-muted">AI checks</dt>
                 <dd>
+                  {run.ai_status === "running" && "Running now. The page updates on its own when the AI findings arrive."}
                   {run.ai_status === "off" && "Off: this workspace runs code checks only, so nothing was sent to an AI service."}
                   {run.ai_status === "unavailable" && `Did not run: ${run.ai_error ?? "service unavailable"}`}
                   {(run.ai_status === "ok" || run.ai_status === "cached") && <>{run.ai_model} · {run.ai_requests} request{run.ai_requests === 1 ? "" : "s"}{run.ai_status === "cached" ? " (stored result reused for identical content)" : ""} · {run.ai_ms} ms</>}
@@ -385,7 +396,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                         </ul>
                       )}
                     </>
-                  ) : "Not needed: no AI findings."}
+                  ) : run.ai_status === "running" ? "Waiting for the AI findings." : "Not needed: no AI findings."}
                 </dd>
                 <dt className="text-muted">Second opinion</dt><dd>Tone and messaging findings are checked again independently. If the two disagree, the finding is labelled &ldquo;needs human judgment&rdquo;.</dd>
               </dl>

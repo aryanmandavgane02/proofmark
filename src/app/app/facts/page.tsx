@@ -3,6 +3,9 @@ import { Card, PageTitle } from "@/components/ui";
 import { todayIST } from "@/lib/pipeline";
 import { ColorForm, FactForm, TermForm, type FactRow } from "./BrandForms";
 
+// Saving facts may re-check approved content.
+export const maxDuration = 60;
+
 export default async function Facts(props: PageProps<"/app/facts">) {
   const sp = await props.searchParams;
   const s = await requireSession();

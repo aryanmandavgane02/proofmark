@@ -35,6 +35,8 @@ export async function proposeWording(formData: FormData) {
   const { insights } = await loadInsights(s, view !== "mine");
   const u = insights.unclear.find((x) => x.rule.code === code);
   if (!u) back(view, code, "That rule has no disputes to learn from.");
+  const { data: waiting } = await s.supabase.from("rule_proposals").select("id").eq("workspace_id", s.workspace.id).eq("rule_code", code).eq("status", "proposed").limit(1);
+  if (waiting?.length) back(view, code, "A proposal for this rule is already waiting below. Accept it, edit it, or keep the current wording.");
   const provider = getProvider();
   if (!provider || s.workspace.code_checks_only) back(view, code, "AI is off here. You can still write clearer wording yourself below.");
   const evidence: ClarifyEvidence[] = u.evidence.map((r) => {
@@ -67,20 +69,21 @@ export async function acceptWording(formData: FormData) {
   if (statement.length < 10) back(view, code, "The rule needs at least a short sentence.");
   const { data: rule } = await s.supabase.from("rules").select("statement").eq("workspace_id", s.workspace.id).eq("code", code).eq("status", "approved").maybeSingle();
   if (!rule) back(view, code, "That rule is not in the approved rulebook.");
-  const { error } = await s.supabase.from("rules").update({ statement, updated_at: new Date().toISOString() }).eq("workspace_id", s.workspace.id).eq("code", code);
-  if (error) back(view, code, error.message);
-  const why = String(formData.get("why") ?? "").slice(0, 120);
-  const version = await publishApprovedRules(s, `Clarified ${code}${why ? ` after ${why}` : ""}`);
+  if (rule.statement === statement) back(view, code, "This wording is already the rule's wording, so there is nothing to publish.");
   const now = new Date().toISOString();
   const db = createAdminClient();
   const proposalId = String(formData.get("proposal_id") ?? "");
-  const decided = { status: "accepted", statement, decided_by: s.person.id, decided_at: now, published_version: version };
-  const { data: updated } = proposalId
-    ? await db.from("rule_proposals").update(decided).eq("id", proposalId).eq("workspace_id", s.workspace.id).eq("status", "proposed").select("id")
-    : { data: [] };
-  if (!updated?.length) {
-    await db.from("rule_proposals").insert({ workspace_id: s.workspace.id, rule_code: code, old_statement: rule.statement, person_id: s.person.id, rationale: "Written by the brand manager.", ...decided });
+  // Claim the proposal first, so a double click or a second tab cannot publish it twice.
+  if (proposalId) {
+    const { data: claimed } = await db.from("rule_proposals").update({ status: "accepted", statement, decided_by: s.person.id, decided_at: now }).eq("id", proposalId).eq("workspace_id", s.workspace.id).eq("status", "proposed").select("id");
+    if (!claimed?.length) back(view, code, "This proposal was already decided, maybe in another tab.");
   }
+  const { error } = await s.supabase.from("rules").update({ statement, updated_at: now }).eq("workspace_id", s.workspace.id).eq("code", code);
+  if (error) back(view, code, error.message);
+  const why = String(formData.get("why") ?? "").slice(0, 120);
+  const { version } = await publishApprovedRules(s, `Clarified ${code}${why ? ` after ${why}` : ""}`);
+  if (proposalId) await db.from("rule_proposals").update({ published_version: version }).eq("id", proposalId);
+  else await db.from("rule_proposals").insert({ workspace_id: s.workspace.id, rule_code: code, old_statement: rule.statement, person_id: s.person.id, rationale: "Written by the brand manager.", status: "accepted", statement, decided_by: s.person.id, decided_at: now, published_version: version });
   await event(s.workspace.id, s.person.id, "rule.clarified", { code, version, from: rule.statement, to: statement });
   revalidatePath("/app", "layout");
   back(view, code, `Published rulebook v${version} with the clearer wording for ${code}. New checks use it from now on.`);

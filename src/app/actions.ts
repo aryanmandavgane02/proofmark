@@ -2,18 +2,24 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { seedDemoWorkspace } from "@/lib/seed/seed-workspace";
 import { selfOrigin } from "@/lib/origin";
 import { requireSession } from "@/lib/session";
-import { fingerprint, runChecks } from "@/lib/pipeline";
+import { fingerprint, runChecks, settleStaleRun, type RunResult } from "@/lib/pipeline";
 import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
 import { SAMPLE_DRAFTS } from "@/lib/seed/urja";
+import { notice } from "@/lib/notice";
 import type { Channel } from "@/lib/checks/types";
 
 type Session = Awaited<ReturnType<typeof requireSession>>;
+
+const draftPath = (id: string) => `/app/drafts/${id}`;
+const NOT_REVIEWER = "Only a reviewer or the brand manager can do this. Switch person with “Acting as” at the top.";
+const ALREADY_DONE = "This was already done, maybe in another tab. The page now shows the latest state.";
 
 /**
  * Workflow state (draft status, finding status, versions' intent) is written with the server key,
@@ -29,11 +35,28 @@ function server(s: Session) {
     record: (table: "events" | "comments" | "decisions" | "approvals", row: Record<string, unknown>) =>
       db.from(table).insert({ ...row, workspace_id: s.workspace.id, ...(table === "approvals" ? { approver_id: s.person.id } : { person_id: s.person.id }) }),
     withdrawApprovals: (draftId: string) => db.from("approvals").update({ valid: false }).eq("draft_id", draftId).eq("workspace_id", s.workspace.id).eq("valid", true),
+    /**
+     * Status changes only happen from an expected status, in one statement. A double click or a stale tab
+     * therefore changes nothing the second time, and the caller tells the visitor instead.
+     */
+    claimFinding: async (findingId: string, from: string[], to: string) => {
+      const { data } = await db.from("findings").update({ status: to }).eq("id", findingId).eq("workspace_id", s.workspace.id).in("status", from).select("id");
+      return (data ?? []).length > 0;
+    },
+    claimDraft: async (draftId: string, from: string[], values: Record<string, unknown>) => {
+      const { data } = await db.from("drafts").update(values).eq("id", draftId).eq("workspace_id", s.workspace.id).in("status", from).select("id");
+      return (data ?? []).length > 0;
+    },
   };
 }
 
 async function logEvent(s: Session, type: string, draftId: string | null, detail: Record<string, unknown> = {}) {
   await server(s).record("events", { draft_id: draftId, type, detail });
+}
+
+/** Starts the AI half of a check after the response is sent; the page shows the code findings meanwhile. */
+function schedule(result: RunResult) {
+  if (result.ai) after(result.ai);
 }
 
 // ── Demo workspace ───────────────────────────────────────────────────────────
@@ -55,22 +78,26 @@ export async function startDemo() {
 export async function resetDemo() {
   const s = await requireSession();
   const admin = createAdminClient();
+  const fresh = await seedDemoWorkspace(s.user.id);
+  // Remove the visitor's older demo workspaces. Comparing creation times (rather than "all but the new one")
+  // means two quick resets cannot delete each other's new workspace.
+  const { data: created } = await admin.from("workspaces").select("created_at").eq("id", fresh).single();
   const { data: mine } = await admin.from("members").select("workspace_id").eq("user_id", s.user.id);
-  await seedDemoWorkspace(s.user.id);
-  const old = (mine ?? []).map((m) => m.workspace_id);
-  if (old.length) await admin.from("workspaces").delete().in("id", old).eq("is_demo", true);
+  const older = (mine ?? []).map((m) => m.workspace_id).filter((id) => id !== fresh);
+  if (older.length && created) await admin.from("workspaces").delete().in("id", older).eq("is_demo", true).lt("created_at", created.created_at);
   redirect("/app");
 }
 
 export async function switchPerson(formData: FormData) {
   const s = await requireSession();
   const personId = String(formData.get("person_id"));
-  if (!s.people.some((p) => p.id === personId)) return;
+  const back = String(formData.get("back") ?? "/app");
+  const path = back.startsWith("/app") ? back : "/app";
+  if (!s.people.some((p) => p.id === personId)) notice(path, "That person is not part of this workspace.");
   await s.supabase.from("members").update({ active_person_id: personId }).eq("workspace_id", s.workspace.id).eq("user_id", s.user.id);
   // The header (in the shared layout) shows who you act as, so refresh the whole layout, not just the page.
   revalidatePath("/app", "layout");
-  const back = String(formData.get("back") ?? "/app");
-  redirect(back.startsWith("/app") ? back : "/app");
+  redirect(path);
 }
 
 // ── Drafts ─────────────────────────────────────────────────────────────────
@@ -81,9 +108,15 @@ const DraftInput = z.object({
   body: z.string().trim().min(1, "Write or paste the content").max(5000, "Keep it under 5,000 characters"),
   alt_text: z.string().trim().max(400).default(""),
   sample_key: z.string().max(40).optional(),
+  client_token: z.string().max(64).optional(),
 });
 
 export type FormState = { error?: string } | undefined;
+
+async function draftForToken(s: Session, token: string) {
+  const { data } = await s.supabase.from("drafts").select("id").eq("workspace_id", s.workspace.id).eq("client_token", token).maybeSingle();
+  return data?.id as string | undefined;
+}
 
 export async function createDraft(_prev: FormState, formData: FormData): Promise<FormState> {
   const s = await requireSession();
@@ -91,6 +124,13 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
   const parsed = DraftInput.safeParse(fields);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form" };
   const d = parsed.data;
+  const token = d.client_token || null;
+
+  // The same form submitted twice (double click, refresh, retry) opens the draft it already created.
+  if (token) {
+    const existing = await draftForToken(s, token);
+    if (existing) redirect(draftPath(existing));
+  }
 
   // Optional image: an uploaded file, or the sample ad's image when a sample was loaded.
   let image_path: string | null = null;
@@ -112,10 +152,14 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
 
   const { data: draft, error } = await s.supabase
     .from("drafts")
-    .insert({ workspace_id: s.workspace.id, title: d.title, channel: d.channel, created_by: s.person.id, sample_key: d.sample_key || null })
+    .insert({ workspace_id: s.workspace.id, title: d.title, channel: d.channel, created_by: s.person.id, sample_key: d.sample_key || null, client_token: token })
     .select("id")
     .single();
-  if (error) return { error: error.message };
+  if (error) {
+    const existing = error.code === "23505" && token ? await draftForToken(s, token) : undefined;
+    if (existing) redirect(draftPath(existing));
+    return { error: error.message };
+  }
 
   const { data: version, error: ve } = await s.supabase
     .from("draft_versions")
@@ -125,16 +169,19 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
     })
     .select("id, draft_id, version, body, alt_text, image_path")
     .single();
-  if (ve) return { error: ve.message };
+  if (ve) {
+    await createAdminClient().from("drafts").delete().eq("id", draft.id).eq("workspace_id", s.workspace.id);
+    return { error: `Could not save the draft (${ve.message}). Please try again.` };
+  }
 
-  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: d.channel, version, codeChecksOnly: s.workspace.code_checks_only });
+  schedule(await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: d.channel, version, codeChecksOnly: s.workspace.code_checks_only }));
   await logEvent(s, "draft.created", draft.id, { title: d.title, channel: d.channel, sample: d.sample_key || null, image: !!image_path });
-  redirect(`/app/drafts/${draft.id}`);
+  redirect(draftPath(draft.id));
 }
 
 async function loadDraft(s: Session, draftId: string) {
-  const { data: draft } = await s.supabase.from("drafts").select("*").eq("id", draftId).single();
-  if (!draft) throw new Error("Draft not found");
+  const { data: draft } = await s.supabase.from("drafts").select("*").eq("id", draftId).maybeSingle();
+  if (!draft) notice("/app", "That draft no longer exists. The demo may have been reset.");
   const { data: version } = await s.supabase
     .from("draft_versions")
     .select("id, draft_id, version, body, alt_text, image_path, intent, intent_confirmed")
@@ -159,7 +206,11 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
     })
     .select("id, draft_id, version, body, alt_text, image_path")
     .single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Two saves at the same moment both try to create the next version; the second one simply stops.
+    if (error.code === "23505") notice(draftPath(draftId), ALREADY_DONE, "info");
+    throw new Error(error.message);
+  }
 
   const wasApproved = draft.status === "approved";
   await server(s).drafts({ current_version: next, updated_at: new Date().toISOString(), ...(wasApproved ? { status: "draft" } : {}) }, draftId);
@@ -167,10 +218,10 @@ async function newVersion(s: Session, draftId: string, change: { body?: string; 
     await server(s).withdrawApprovals(draftId);
     await logEvent(s, "approval.invalidated", draftId, { reason: "edited after approval", version: next });
   }
-  await runChecks(s.supabase, {
+  schedule(await runChecks(s.supabase, {
     workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version: v,
     codeChecksOnly: s.workspace.code_checks_only, reuseFrom: change.reuseRunId ? { runId: change.reuseRunId, version: draft.current_version } : undefined,
-  });
+  }));
   await logEvent(s, "version.created", draftId, { version: next, note: change.note });
 }
 
@@ -179,48 +230,60 @@ export async function saveEdit(formData: FormData) {
   const draftId = String(formData.get("draft_id"));
   const body = String(formData.get("body") ?? "").trim();
   const alt_text = String(formData.get("alt_text") ?? "").trim();
-  if (!body || body.length > 5000) return;
+  if (!body) notice(draftPath(draftId), "The content can't be empty.");
+  if (body.length > 5000) notice(draftPath(draftId), "Keep the content under 5,000 characters.");
+  const { version } = await loadDraft(s, draftId);
+  if (body === version.body && alt_text === version.alt_text) notice(draftPath(draftId), "Nothing changed, so no new version was saved.", "info");
   await newVersion(s, draftId, { body, alt_text, note: "Edited by hand" });
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(draftPath(draftId));
 }
 
 export async function acceptFix(formData: FormData) {
   const s = await requireSession();
   const findingId = String(formData.get("finding_id"));
-  const { data: f } = await s.supabase.from("findings").select("*").eq("id", findingId).single();
-  if (!f || f.status !== "open" && f.status !== "upheld") return;
+  const { data: f } = await s.supabase.from("findings").select("*").eq("id", findingId).maybeSingle();
+  if (!f) notice("/app", "That finding no longer exists.");
+  const path = draftPath(f.draft_id);
+  if (f.status !== "open" && f.status !== "upheld") notice(path, ALREADY_DONE, "info");
   const { version } = await loadDraft(s, f.draft_id);
+  if (f.draft_version_id !== version.id) notice(path, "That finding belongs to an older version. The page now shows the current findings.", "info");
 
   let body = version.body;
   let alt = version.alt_text;
   if (f.fix_kind === "replace" && f.fix_text != null) {
     const at = f.start_at != null && body.slice(f.start_at, f.end_at) === f.quote ? f.start_at : body.indexOf(f.quote);
-    if (at < 0) return;
+    if (at < 0) notice(path, "The text this fix applies to has changed. Run the checks again for fresh suggestions.", "info");
     body = body.slice(0, at) + f.fix_text + body.slice(at + f.quote.length);
   } else if (f.fix_kind === "append" && f.fix_text) {
     body = body + f.fix_text;
   } else if (f.fix_kind === "set_alt" && f.fix_text) {
     alt = f.fix_text;
-  } else return;
+  } else notice(path, "This finding has no automatic fix. Edit the text yourself, or dispute it.", "info");
 
-  await server(s).finding({ status: "accepted" }, findingId);
+  if (!(await server(s).claimFinding(findingId, ["open", "upheld"], "accepted"))) notice(path, ALREADY_DONE, "info");
+  try {
+    await newVersion(s, f.draft_id, { body, alt_text: alt, note: `Accepted the suggested fix for ${f.rule_code}`, reuseRunId: f.check_run_id });
+  } catch (e) {
+    await server(s).finding({ status: f.status }, findingId); // put the finding back if the new version could not be saved
+    throw e;
+  }
   await server(s).record("decisions", { draft_id: f.draft_id, finding_id: findingId, rule_code: f.rule_code, action: "accept" });
-  await newVersion(s, f.draft_id, { body, alt_text: alt, note: `Accepted the suggested fix for ${f.rule_code}`, reuseRunId: f.check_run_id });
-  revalidatePath(`/app/drafts/${f.draft_id}`);
+  revalidatePath(path);
 }
 
 export async function disputeFinding(formData: FormData) {
   const s = await requireSession();
   const findingId = String(formData.get("finding_id"));
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 1000);
-  if (reason.length < 3) return;
-  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).single();
-  if (!f || f.status !== "open") return;
-  await server(s).finding({ status: "disputed" }, findingId);
+  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).maybeSingle();
+  if (!f) notice("/app", "That finding no longer exists.");
+  const path = draftPath(f.draft_id);
+  if (reason.length < 3) notice(path, "Give a reason (a few words) so the reviewer can decide.");
+  if (!(await server(s).claimFinding(findingId, ["open"], "disputed"))) notice(path, ALREADY_DONE, "info");
   await server(s).record("decisions", { draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: "dispute", reason });
   await server(s).record("comments", { draft_id: f.draft_id, finding_id: f.id, body: `Disputed ${f.rule_code}: ${reason}` });
   await logEvent(s, "finding.disputed", f.draft_id, { rule: f.rule_code, reason });
-  revalidatePath(`/app/drafts/${f.draft_id}`);
+  revalidatePath(path);
 }
 
 // ── Review and approval ─────────────────────────────────────────────────────
@@ -228,9 +291,16 @@ export async function disputeFinding(formData: FormData) {
 /** Findings from the latest check run of the current version. */
 async function currentFindings(s: Session, draftId: string) {
   const { version } = await loadDraft(s, draftId);
-  const { data: run } = await s.supabase.from("check_runs").select("id").eq("draft_version_id", version.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: latest } = await s.supabase
+    .from("check_runs")
+    .select("id, fingerprint, rulebook_version, ai_model, ai_status, ai_error, created_at")
+    .eq("draft_version_id", version.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const run = await settleStaleRun(latest);
   const { data } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
-  return { version, findings: data ?? [] };
+  return { version, run, findings: data ?? [] };
 }
 
 /** Runs the checks again on the same version, for example after the AI service was unavailable. */
@@ -238,9 +308,11 @@ export async function rerunChecks(formData: FormData) {
   const s = await requireSession();
   const draftId = String(formData.get("draft_id"));
   const { draft, version } = await loadDraft(s, draftId);
-  await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version, codeChecksOnly: s.workspace.code_checks_only });
+  const { run } = await currentFindings(s, draftId);
+  if (run?.ai_status === "running") notice(draftPath(draftId), "The checks are already running. The results appear here in a few seconds.", "info");
+  schedule(await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: draft.channel as Channel, version, codeChecksOnly: s.workspace.code_checks_only }));
   await logEvent(s, "checks.rerun", draftId, { version: version.version });
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(draftPath(draftId));
 }
 
 /** The creator confirms (or corrects) what the draft is for. Fixes are judged against this purpose. */
@@ -249,17 +321,19 @@ export async function confirmIntent(formData: FormData) {
   const draftId = String(formData.get("draft_id"));
   const clip = (k: string) => String(formData.get(k) ?? "").trim().slice(0, 200);
   const intent = { goal: clip("goal"), audience: clip("audience"), call_to_action: clip("call_to_action") };
+  if (!intent.goal || !intent.audience || !intent.call_to_action) notice(draftPath(draftId), "Fill in the goal, the audience and the call to action.");
   const { version } = await loadDraft(s, draftId);
   await server(s).version({ intent, intent_confirmed: true }, version.id);
   await logEvent(s, "intent.confirmed", draftId, intent);
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(draftPath(draftId));
 }
 
 /** Manager setting: run code checks only, so no content is sent to any AI service. */
 export async function setCodeChecksOnly(formData: FormData) {
   const s = await requireSession();
-  if (s.person.role !== "manager") return;
+  if (s.person.role !== "manager") notice("/app/ai", "Only the brand manager can change this. Switch to Meera with “Acting as”.");
   const on = formData.get("on") === "true";
+  if (on === s.workspace.code_checks_only) notice("/app/ai", on ? "Code checks only is already on." : "AI checks are already on.", "info");
   await s.supabase.from("workspaces").update({ code_checks_only: on }).eq("id", s.workspace.id);
   await logEvent(s, "settings.code_checks_only", null, { on });
   revalidatePath("/app", "layout");
@@ -268,11 +342,14 @@ export async function setCodeChecksOnly(formData: FormData) {
 export async function submitForReview(formData: FormData) {
   const s = await requireSession();
   const draftId = String(formData.get("draft_id"));
+  const path = draftPath(draftId);
   const { draft } = await loadDraft(s, draftId);
-  if (draft.status !== "draft" && draft.status !== "changes_requested") return;
-  const { findings } = await currentFindings(s, draftId);
+  if (draft.status === "in_review") notice(path, "This draft is already waiting for review.", "info");
+  if (draft.status === "approved") notice(path, "This version is already approved. Editing it starts a new version.", "info");
+  const { findings, run } = await currentFindings(s, draftId);
+  if (run?.ai_status === "running") notice(path, "The AI checks are still running. Submit again in a few seconds.", "info");
   const openBlockers = findings.filter((f) => f.severity === "blocker" && (f.status === "open" || f.status === "upheld"));
-  if (openBlockers.length) return;
+  if (openBlockers.length) notice(path, `Fix or dispute the blocker${openBlockers.length > 1 ? "s" : ""} first: ${[...new Set(openBlockers.map((f) => f.rule_code))].join(", ")}.`);
 
   // Route by risk: claims to legal, visual issues to the design lead, everything else to the brand manager.
   const live = findings.filter((f) => ["open", "disputed", "upheld"].includes(f.status));
@@ -290,59 +367,67 @@ export async function submitForReview(formData: FormData) {
     reviewer = design;
     reason = `Visual finding${visual.length > 1 ? "s" : ""} ${[...new Set(visual.map((f) => f.rule_code))].join(", ")} go${visual.length > 1 ? "" : "es"} to the design lead.`;
   }
-  await server(s).drafts({ status: "in_review", reviewer_id: reviewer?.id ?? null, route_reason: reason, updated_at: new Date().toISOString() }, draftId);
+  const ok = await server(s).claimDraft(draftId, ["draft", "changes_requested"], { status: "in_review", reviewer_id: reviewer?.id ?? null, route_reason: reason, updated_at: new Date().toISOString() });
+  if (!ok) notice(path, ALREADY_DONE, "info");
   await logEvent(s, "draft.submitted", draftId, { reviewer: reviewer?.name, reason });
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(path);
 }
 
 export async function resolveDispute(formData: FormData) {
   const s = await requireSession();
-  if (s.person.role === "creator") return;
   const findingId = String(formData.get("finding_id"));
   const decision = String(formData.get("decision")) === "override" ? "override" : "uphold";
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 1000);
-  if (reason.length < 3) return;
-  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).single();
-  if (!f || f.status !== "disputed") return;
-  await server(s).finding({ status: decision === "override" ? "overridden" : "upheld" }, findingId);
+  const { data: f } = await s.supabase.from("findings").select("id, draft_id, rule_code, status").eq("id", findingId).maybeSingle();
+  if (!f) notice("/app", "That finding no longer exists.");
+  const path = draftPath(f.draft_id);
+  if (s.person.role === "creator") notice(path, NOT_REVIEWER);
+  if (reason.length < 3) notice(path, "Give a reason (a few words). It is saved with the decision.");
+  if (!(await server(s).claimFinding(findingId, ["disputed"], decision === "override" ? "overridden" : "upheld"))) notice(path, ALREADY_DONE, "info");
   await server(s).record("decisions", { draft_id: f.draft_id, finding_id: f.id, rule_code: f.rule_code, action: decision, reason });
   await server(s).record("comments", { draft_id: f.draft_id, finding_id: f.id, body: `${decision === "override" ? "Overrode" : "Upheld"} ${f.rule_code}: ${reason}` });
   await logEvent(s, decision === "override" ? "finding.overridden" : "finding.upheld", f.draft_id, { rule: f.rule_code, reason });
-  revalidatePath(`/app/drafts/${f.draft_id}`);
+  revalidatePath(path);
 }
 
 export async function approveDraft(formData: FormData) {
   const s = await requireSession();
-  if (s.person.role === "creator") return;
   const draftId = String(formData.get("draft_id"));
-  if ((await loadDraft(s, draftId)).draft.status !== "in_review") return;
-  const { version, findings } = await currentFindings(s, draftId);
+  const path = draftPath(draftId);
+  if (s.person.role === "creator") notice(path, NOT_REVIEWER);
+  const { draft } = await loadDraft(s, draftId);
+  if (draft.status === "approved") notice(path, "This version is already approved.", "info");
+  if (draft.status !== "in_review") notice(path, "This draft is not waiting for review. The creator submits it first.", "info");
+  const { version, findings, run } = await currentFindings(s, draftId);
+  if (run?.ai_status === "running") notice(path, "The AI checks are still running. Approve again in a few seconds.", "info");
   const blocking = findings.filter((f) => f.status === "disputed" || f.status === "upheld" || (f.severity === "blocker" && f.status === "open"));
-  if (blocking.length) return;
-  const { data: run } = await s.supabase.from("check_runs").select("fingerprint, rulebook_version, ai_model").eq("draft_version_id", version.id).order("created_at", { ascending: false }).limit(1).single();
+  if (blocking.length) notice(path, "Resolve the disputed findings first; upheld or blocking findings must be fixed by the creator.");
+  if (!(await server(s).claimDraft(draftId, ["in_review"], { status: "approved", updated_at: new Date().toISOString() }))) notice(path, ALREADY_DONE, "info");
   const overrides = findings.filter((f) => f.status === "overridden").map((f) => ({ rule: f.rule_code, quote: f.quote }));
   const { error } = await server(s).record("approvals", {
     draft_id: draftId, draft_version_id: version.id, fingerprint: run?.fingerprint ?? "",
     rulebook_version: run?.rulebook_version ?? s.workspace.rulebook_version, overrides,
     ai_services: run?.ai_model ? [run.ai_model] : [],
   });
-  if (error) throw new Error(error.message);
-  await server(s).drafts({ status: "approved", updated_at: new Date().toISOString() }, draftId);
+  if (error) {
+    await server(s).drafts({ status: "in_review" }, draftId);
+    notice(path, "The approval could not be saved. Please try again.");
+  }
   await logEvent(s, "draft.approved", draftId, { version: version.version, overrides: overrides.length });
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(path);
 }
 
 export async function requestChanges(formData: FormData) {
   const s = await requireSession();
-  if (s.person.role === "creator") return;
   const draftId = String(formData.get("draft_id"));
+  const path = draftPath(draftId);
+  if (s.person.role === "creator") notice(path, NOT_REVIEWER);
   const note = String(formData.get("note") ?? "").trim().slice(0, 2000);
-  if (note.length < 3) return;
-  if ((await loadDraft(s, draftId)).draft.status !== "in_review") return;
+  if (note.length < 3) notice(path, "Say what the creator should change (a few words).");
+  if (!(await server(s).claimDraft(draftId, ["in_review"], { status: "changes_requested", updated_at: new Date().toISOString() }))) notice(path, ALREADY_DONE, "info");
   await server(s).record("comments", { draft_id: draftId, body: note });
-  await server(s).drafts({ status: "changes_requested", updated_at: new Date().toISOString() }, draftId);
   await logEvent(s, "draft.changes_requested", draftId, { note });
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(path);
 }
 
 export async function addComment(formData: FormData) {
@@ -350,12 +435,19 @@ export async function addComment(formData: FormData) {
   const draftId = String(formData.get("draft_id"));
   const findingId = String(formData.get("finding_id") ?? "") || null;
   const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
-  if (!body) return;
+  const path = draftPath(draftId);
+  if (!body) notice(path, "Write a comment first.");
   // Both ids are read through the visitor's own access rules before the server writes the comment.
   const { data: draft } = await s.supabase.from("drafts").select("id").eq("id", draftId).eq("workspace_id", s.workspace.id).maybeSingle();
-  if (!draft) return;
-  if (findingId && !(await s.supabase.from("findings").select("id").eq("id", findingId).eq("draft_id", draftId).maybeSingle()).data) return;
+  if (!draft) notice("/app", "That draft no longer exists. The demo may have been reset.");
+  if (findingId && !(await s.supabase.from("findings").select("id").eq("id", findingId).eq("draft_id", draftId).maybeSingle()).data) notice(path, "That finding no longer exists.");
+  // The same comment posted twice in quick succession (double click) is saved once.
+  const { data: last } = await s.supabase.from("comments").select("body, person_id, created_at").eq("draft_id", draftId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (last && last.body === body && last.person_id === s.person.id && Date.now() - new Date(last.created_at).getTime() < 30_000) {
+    revalidatePath(path);
+    return;
+  }
   await server(s).record("comments", { draft_id: draftId, finding_id: findingId, body });
   await logEvent(s, "comment.added", draftId, { on_finding: !!findingId });
-  revalidatePath(`/app/drafts/${draftId}`);
+  revalidatePath(path);
 }

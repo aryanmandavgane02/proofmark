@@ -20,6 +20,7 @@ AI assistance: planned and built with Claude Code (Anthropic), disclosed in DISC
 | 4 | Tighten the interface so someone new completes the main journey | A "What's new" path to each improvement, feedback on every action, a page-by-page view for documents | 1, 5, 6 |
 | 5 | Test the main journeys end to end and fix what testing finds | Browser tests on Chrome, Safari's engine and Firefox, desktop and phone; full crawl; a second round of user tests | 6 |
 | 6 | Someone else must be able to clone the repo and run it from the README | README rewritten and tested from a fresh clone, step by step | 7 |
+| + | Organisers' tip (WhatsApp): use a demo account and put its credentials on the website so judges can log in easily | Proofmark needs no login: one click creates a private demo workspace with four ready-made people. A "Demo access" box on the landing page says so plainly (no username or password) and lists the four people and what each can do; the README and PDF repeat it | 1 |
 
 Not required, so not done: no video, no social-media posts. Only the form below.
 
@@ -115,7 +116,8 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [x] Confirmed there are no commits between the Round 2 deadline and the Round 3 start
 - [x] Spike: font names per page from a PDF. pdf.js (through unpdf) returns them with `fontExtraProperties`, e.g. page 2 uses "CAAAAA+Georgia"; 16 pages in about 0.1 s
 - [ ] Spike: browser uploads a PDF straight to private storage with a signed upload link (Vercel functions accept requests of only about 4.5 MB)
-- [ ] Spike: background AI with Next.js `after()` on Vercel, and the function time limit
+- [x] Background AI: Next.js 16 docs confirm `after()` runs after the response even when the action redirects, and `maxDuration` is set per page for server actions. To be verified on production in Phase 1
+- [x] Found while re-reading the code: the AI step has no overall time limit. Each request may wait 25 s per model and falls through to the second model, so a slow AI could hold a check for about 150 s. Phase 1 fixes it
 - [ ] Baseline: all tests green; scored test set re-run so "before" numbers are recorded
 - [x] This plan committed
 
@@ -127,6 +129,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [ ] **Same action twice:** creating a draft is idempotent (a token per form); publishing only happens when something changed; one open wording proposal per rule; duplicate comments ignored; double-clicking "Start the live demo" keeps one workspace
 - [ ] **Loading states** for every app page, so navigation never looks frozen
 - [ ] Explicit function time limits for the pages that run checks
+- [ ] **Demo access box** on the landing page (organisers' tip): no login, no password; the four demo people and what each can do
 - [ ] Tests: the first reliability cases (double submit, stale tab, refresh during a check)
 
 ### Phase 2 · Improvement 1: PDF documents and decks
@@ -264,4 +267,5 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | PDFs go straight from the browser to private storage | Vercel functions accept requests of only about 4.5 MB; real decks are often larger |
 | Sun 22 Nov | Fonts read with pdf.js (`fontExtraProperties`) | Spike: real names per page, about 0.1 s for 16 pages |
 | Sun 22 Nov | Seed an approved-content library in each demo workspace, labelled as sample | Improvement 2 needs approved content to protect, and judges start with an empty workspace |
+| Sun 22 Nov | No demo credentials needed; a "Demo access" box explains the one-click demo and the four people | Organisers suggested putting demo credentials on the site; ours has no login, so we make that explicit instead |
 | Sun 22 Nov | Pages joined with a page map instead of checking pages separately | Every existing check keeps working, and an offer on page 3 with "T&C apply" on page 10 is not a false alarm |

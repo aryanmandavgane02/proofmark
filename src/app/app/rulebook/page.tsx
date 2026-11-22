@@ -4,11 +4,15 @@ import { Card, CategoryChip, PageTitle, SeverityChip, btn, input, timeAgo } from
 import { CATEGORIES, CHANNELS, CHANNEL_LABEL } from "@/lib/checks/types";
 import { approveAllVerified, publishRulebook, reviewRule } from "@/app/brand-actions";
 import { PendingButton } from "../drafts/[id]/PendingButton";
+import { pendingChanges as diffRules } from "@/lib/rulebook";
+
+// Publishing and importing run here; importing reads a PDF and asks the AI once.
+export const maxDuration = 60;
 
 const KIND: Record<string, string> = { code: "Checked by code", ai: "Checked by AI", both: "Code + AI" };
 type RuleRow = {
   code: string; category: string; title: string; statement: string; severity: string; channels: string[]; check_kind: string;
-  source_doc: string; source_page: number | null; source_quote: string; builtin: boolean; status: string; import_id: string | null;
+  source_doc: string; source_page: number | null; source_quote: string; builtin: boolean; status: string; import_id: string | null; params?: unknown;
 };
 
 function RuleForm({ r, primary }: { r: RuleRow; primary: "approve" | "save" }) {
@@ -49,7 +53,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
   const s = await requireSession();
   const manager = s.person.role === "manager";
   const [{ data: rulesRaw }, { data: versions }, importRes] = await Promise.all([
-    s.supabase.from("rules").select("code, category, title, statement, severity, channels, check_kind, source_doc, source_page, source_quote, builtin, status, import_id").eq("workspace_id", s.workspace.id).order("code"),
+    s.supabase.from("rules").select("code, category, title, statement, severity, channels, params, check_kind, source_doc, source_page, source_quote, builtin, status, import_id").eq("workspace_id", s.workspace.id).order("code"),
     s.supabase.from("rulebook_versions").select("version, note, published_at, published_by, snapshot").eq("workspace_id", s.workspace.id).order("version", { ascending: false }),
     sp.import ? s.supabase.from("imports").select("*").eq("id", String(sp.import)).maybeSingle() : Promise.resolve({ data: null }),
   ]);
@@ -61,10 +65,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
 
   // What would change if the manager published now
   const approved = rules.filter((r) => r.status === "approved");
-  const sig = (r: RuleRow) => JSON.stringify([r.title, r.statement, r.severity, [...r.channels].sort()]);
-  const added = approved.filter((r) => !live.has(r.code)).map((r) => r.code);
-  const changed = approved.filter((r) => live.has(r.code) && sig(live.get(r.code)!) !== sig(r)).map((r) => r.code);
-  const removed = [...live.keys()].filter((code) => !approved.some((r) => r.code === code));
+  const { added, changed, removed } = diffRules(approved, [...live.values()]);
   const pendingChanges = added.length + changed.length + removed.length;
   const drafts = rules.filter((r) => r.status === "draft");
   const fromImport = imp ? drafts.filter((r) => r.import_id === imp.id) : [];

@@ -50,6 +50,10 @@ async function main() {
   check("creator cannot insert findings directly", !!(await a.c.from("findings").insert({ workspace_id: a.ws, draft_id: draft!.id, draft_version_id: v!.id, check_run_id: realRun!.id, category: "claims", severity: "minor", rule_code: "X", quote: "x", message: "x", label: "code" })).error);
   check("creator cannot mark a blocker accepted without fixing it", ((await a.c.from("findings").update({ status: "accepted" }).eq("id", blocker!.id).select("id")).data ?? []).length === 0);
   check("creator cannot push a draft into review directly", ((await a.c.from("drafts").update({ status: "in_review" }).eq("id", draft!.id).select("id")).data ?? []).length === 0);
+  const token = `t-${Date.now()}`;
+  await a.c.from("drafts").insert({ workspace_id: a.ws, title: "once", channel: "email", created_by: id("Arjun"), client_token: token });
+  const again = await a.c.from("drafts").insert({ workspace_id: a.ws, title: "twice", channel: "email", created_by: id("Arjun"), client_token: token });
+  check("the same New draft form token cannot create a second draft", again.error?.code === "23505");
   check("creator cannot rewrite a checked version", ((await a.c.from("draft_versions").update({ body: "tampered" }).eq("id", v!.id).select("id")).data ?? []).length === 0);
 
   await actAs("Ritu");

@@ -4,7 +4,8 @@ export type ImagePart = { mimeType: string; data: string };
 export interface AIProvider {
   readonly name: string;
   /** Returns JSON matching `schema`. Throws AIUnavailableError when the model cannot be reached. */
-  generateJSON<T>(input: { system: string; prompt: string; schema: Record<string, unknown>; images?: ImagePart[] }): Promise<{ data: T; model: string }>;
+  /** `deadline` (epoch ms) caps the whole call, retries and fallback model included. */
+  generateJSON<T>(input: { system: string; prompt: string; schema: Record<string, unknown>; images?: ImagePart[]; deadline?: number }): Promise<{ data: T; model: string }>;
 }
 
 export class AIUnavailableError extends Error {

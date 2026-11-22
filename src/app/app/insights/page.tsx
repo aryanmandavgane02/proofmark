@@ -24,6 +24,9 @@ function Bar({ value, max }: { value: number; max: number }) {
   return <span className="block h-2 rounded-full bg-soft" aria-hidden><span className="bar-grow block h-2 rounded-full bg-gradient-to-r from-primary to-violet" style={{ width: `${Math.max(4, (value / Math.max(1, max)) * 100)}%` }} /></span>;
 }
 
+// Proposing clearer wording asks the AI once.
+export const maxDuration = 60;
+
 export default async function Insights(props: PageProps<"/app/insights">) {
   const sp = await props.searchParams;
   const view = sp.view === "mine" ? "mine" : "all";

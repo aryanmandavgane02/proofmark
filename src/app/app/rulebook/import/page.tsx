@@ -2,6 +2,9 @@ import { requireSession } from "@/lib/session";
 import { PageTitle } from "@/components/ui";
 import { ImportForm } from "./ImportForm";
 
+// Importing reads a PDF and asks the AI once.
+export const maxDuration = 60;
+
 export default async function ImportRules() {
   const s = await requireSession();
   return (

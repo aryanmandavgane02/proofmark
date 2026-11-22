@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { selfOrigin } from "@/lib/origin";
-import { publishApprovedRules } from "@/lib/rulebook";
+import { pendingChanges, publishApprovedRules } from "@/lib/rulebook";
+import { notice } from "@/lib/notice";
 import { requireSession } from "@/lib/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProvider } from "@/lib/ai/gemini";
@@ -102,15 +103,17 @@ const RuleEdit = z.object({
   severity: z.enum(["blocker", "major", "minor"]),
 });
 
+const MANAGER_ONLY = "Only the brand manager can change the rulebook. Switch to Meera with “Acting as”.";
+
 export async function reviewRule(formData: FormData) {
   const s = await managerSession();
-  if (!s) return;
+  if (!s) notice("/app/rulebook", MANAGER_ONLY);
   const decision = String(formData.get("decision"));
   const parsed = RuleEdit.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  if (!parsed.success) notice("/app/rulebook", "Each rule needs a title and a rule of at least a few words.");
   const r = parsed.data;
   const channels = formData.getAll("channels").map(String).filter((c) => (CHANNELS as string[]).includes(c));
-  if (!channels.length) return; // no channel ticked would otherwise read as "all channels"
+  if (!channels.length) notice("/app/rulebook", `Tick at least one channel for ${r.code}.`); // none ticked would otherwise read as "all channels"
   const status = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : undefined;
   await s.supabase
     .from("rules")
@@ -123,7 +126,7 @@ export async function reviewRule(formData: FormData) {
 
 export async function approveAllVerified(formData: FormData) {
   const s = await managerSession();
-  if (!s) return;
+  if (!s) notice("/app/rulebook", MANAGER_ONLY);
   const importId = String(formData.get("import_id"));
   const { data } = await s.supabase.from("rules").update({ status: "approved", updated_at: new Date().toISOString() }).eq("workspace_id", s.workspace.id).eq("import_id", importId).eq("status", "draft").select("code");
   await logEvent(s, "rule.approved", { code: (data ?? []).map((r) => r.code).join(", ") });
@@ -132,10 +135,17 @@ export async function approveAllVerified(formData: FormData) {
 
 export async function publishRulebook(formData: FormData) {
   const s = await managerSession();
-  if (!s) return;
+  if (!s) notice("/app/rulebook", MANAGER_ONLY);
   const note = String(formData.get("note") ?? "").trim().slice(0, 200) || "Rule changes";
-  await publishApprovedRules(s, note);
+  const [{ data: approved }, { data: latest }] = await Promise.all([
+    s.supabase.from("rules").select("code, title, statement, severity, channels, params").eq("workspace_id", s.workspace.id).eq("status", "approved"),
+    s.supabase.from("rulebook_versions").select("version, snapshot").eq("workspace_id", s.workspace.id).order("version", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const pending = pendingChanges(approved ?? [], (latest?.snapshot ?? []) as never[]);
+  if (latest && !pending.added.length && !pending.changed.length && !pending.removed.length) notice("/app/rulebook", `Nothing to publish: v${latest.version} already has these rules.`, "info");
+  const { version, already } = await publishApprovedRules(s, note);
   revalidatePath("/app", "layout");
+  notice("/app/rulebook", already ? `Already published as v${version}.` : `Published rulebook v${version}. New checks use it from now on.`, already ? "info" : "success");
 }
 
 // ── Facts, terms and colours ───────────────────────────────────────────────
@@ -182,6 +192,8 @@ export async function addTerm(_prev: BrandFormState, formData: FormData): Promis
   const avoid = String(formData.get("avoid") ?? "").split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10);
   const reason = String(formData.get("reason") ?? "").trim().slice(0, 200) || "Approved term.";
   if (!preferred || !avoid.length) return { error: "Give the approved term and at least one word to avoid." };
+  const { data: existing } = await s.supabase.from("terms").select("preferred").eq("workspace_id", s.workspace.id);
+  if ((existing ?? []).some((t) => t.preferred.toLowerCase() === preferred.toLowerCase())) return { error: `“${preferred}” is already in the glossary.` };
   const { error } = await s.supabase.from("terms").insert({ workspace_id: s.workspace.id, preferred, avoid, case_sensitive: formData.get("case_sensitive") === "on", reason });
   if (error) return { error: error.message };
   await logEvent(s, "term.added", { preferred });
@@ -195,6 +207,9 @@ export async function addColor(_prev: BrandFormState, formData: FormData): Promi
   const name = String(formData.get("name") ?? "").trim().slice(0, 40);
   const hex = String(formData.get("hex") ?? "").trim().toUpperCase();
   if (!name || !/^#[0-9A-F]{6}$/.test(hex)) return { error: "Give a name and a colour like #F4A300." };
+  const { data: existing } = await s.supabase.from("assets").select("name, hex").eq("workspace_id", s.workspace.id).eq("kind", "color");
+  const same = (existing ?? []).find((a) => (a.hex ?? "").toUpperCase() === hex);
+  if (same) return { error: `${hex} is already in the palette as ${same.name}.` };
   const { error } = await s.supabase.from("assets").insert({ workspace_id: s.workspace.id, kind: "color", name, hex });
   if (error) return { error: error.message };
   await logEvent(s, "color.added", { name, hex });

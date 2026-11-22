@@ -26,6 +26,34 @@ const trust = [
   { t: "Full audit trail", d: "Each approval is tied to one exact version. Any later edit withdraws it.", Icon: IconTrail },
 ];
 
+const demoPeople = [
+  { name: "Arjun", role: "Creator at the agency", does: "writes drafts, accepts fixes, disputes findings" },
+  { name: "Meera", role: "Brand manager", does: "rules, facts, insights; approves anything" },
+  { name: "Ritu", role: "Legal and compliance", does: "reviews claims, decides disputes" },
+  { name: "Kabir", role: "Design lead", does: "reviews visual findings" },
+];
+
+/** The organisers suggested putting demo credentials on the site; Proofmark has no login, so this says so plainly. */
+function DemoAccess() {
+  return (
+    <div className="mt-5 max-w-xl rounded-2xl border border-line/80 bg-surface/90 p-4 shadow-card backdrop-blur" aria-labelledby="demo-access">
+      <h2 id="demo-access" className="text-sm font-bold text-primary-d">Demo access: no username, no password</h2>
+      <p className="mt-1 text-sm text-muted">
+        The button above signs you in to your own private demo. You get four demo people; switch between them any time with
+        {" "}<b className="text-ink">&ldquo;Acting as&rdquo;</b> at the top of the app. The guided checklist switches for you.
+      </p>
+      <ul className="mt-2 grid gap-1.5 text-sm sm:grid-cols-2">
+        {demoPeople.map((p) => (
+          <li key={p.name} className="rounded-lg bg-soft px-3 py-2">
+            <b className="text-ink">{p.name}</b> <span className="text-muted">· {p.role}</span>
+            <span className="block text-xs text-muted">{p.does}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** A looping, decorative preview of a check: the draft, two findings popping in, and the approval stamp. */
 function Preview() {
   return (
@@ -60,6 +88,9 @@ function Preview() {
     </div>
   );
 }
+
+// Starting the demo creates a private workspace.
+export const maxDuration = 60;
 
 export default async function Home() {
   const s = await getSession();
@@ -125,6 +156,7 @@ export default async function Home() {
             No sign-up. You get a private copy of a fictional snack brand, <b className="text-ink">Urja Bites</b>, with its brand rules, approved facts and
             sample drafts, and you can act as the creator, the brand manager or the reviewers.
           </p>
+          <DemoAccess />
         </section>
         <Preview />
       </main>

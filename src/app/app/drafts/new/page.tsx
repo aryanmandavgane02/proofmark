@@ -3,6 +3,9 @@ import { PageTitle } from "@/components/ui";
 import { SAMPLE_DRAFTS } from "@/lib/seed/urja";
 import { NewDraftForm } from "./NewDraftForm";
 
+// Creating a draft runs the checks; the AI half continues in the background after the response.
+export const maxDuration = 60;
+
 export default async function NewDraft(props: PageProps<"/app/drafts/new">) {
   const s = await requireSession();
   const { sample } = await props.searchParams;
