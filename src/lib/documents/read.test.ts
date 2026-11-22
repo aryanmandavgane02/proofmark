@@ -71,7 +71,7 @@ describe("page text", () => {
     ]);
   });
   it("keeps lines of code as separate lines instead of joining them like a paragraph", () => {
-    const code = { ...fonts, f4: "AAAAAJ+CourierNewPSMT" };
+    const code: Record<string, string> = { ...fonts, f4: "AAAAAJ+CourierNewPSMT" };
     const { text } = assemblePage([
       item("class Menu {", 50, 650, 12, "f4", true),
       item("static void show() {", 50, 635, 12, "f4", true),
@@ -114,7 +114,10 @@ describe("letter-spaced text", () => {
   const perLetter = (text: string) => {
     const fn: number[] = [OPS.beginText, OPS.setTextMatrix];
     const args: unknown[][] = [[], [[1, 0, 0, 1, 0, 0]]];
-    for (const c of text) fn.push(OPS.showText, OPS.moveText), args.push([[glyph(c)]], [7, 0]);
+    for (const c of text) {
+      fn.push(OPS.showText, OPS.moveText);
+      args.push([[glyph(c)]], [7, 0]);
+    }
     return glyphStream(fn, args, OPS);
   };
   const font = () => "AAAAAA+Inter-Regular";
