@@ -150,7 +150,7 @@ export function factsCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
 }
 
 // "#1" is a ranking, not "#13" or a reference in code ("invokespecial #1 // Method"); the product name after it stays on the same line.
-const SUPERLATIVE = /(?:\b(?:India['’]s|the world['’]s|the country['’]s|the)[ \t]+)?(?:#1(?!\d)(?![ \t]*(?:\/\/|=))|No\.?\s?1\b|number one|best|tastiest|healthiest|top-rated|leading|unbeatable)(?:[ \t]+((?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+(?:[ \t](?!(?:in|for|of|at|on|to|with|and|ever|yet)\b)[a-z]+)?))?/gi;
+const SUPERLATIVE = /(?:\b(?:India['’]s|the world['’]s|the country['’]s|the)[ \t]+)?(?:#1(?!\d)(?![ \t]*(?:\/\/|=))|No\.?\s?1\b|number one|best|tastiest|healthiest|top-rated|leading|unbeatable)(?:[ \t]+((?!(?:in|for|of|at|on|to|with|and|ever|yet|we|you|they|it|is|are|was|can|will|that|this|our|your)\b)[a-z]+(?:[ \t](?!(?:in|for|of|at|on|to|with|and|ever|yet|we|you|they|it|is|are|was|can|will|that|this|our|your)\b)[a-z]+)?))?/gi;
 
 /** Words that number things rather than rank them: "Order #1", "Step #1", "Issue #1". */
 const NUMBERING = /\b(?:order|issue|step|ticket|item|slide|page|part|chapter|episode|volume|case|room|table|batch|invoice|row|line|level|round|task|question|exercise|example|figure|test|bug|version)[ \t]*$/i;

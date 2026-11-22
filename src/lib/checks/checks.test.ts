@@ -182,6 +182,7 @@ describe("claims", () => {
     }
     expect(superlativesCheck(ctx("Rated #1 by snackers."), rule("CLAIM-02"))).toHaveLength(1);
     expect(superlativesCheck(ctx("One clean calculation, exact best answer\nTHINK OF IT AS"), rule("CLAIM-02"))[0].quote).toBe("best answer");
+    expect(superlativesCheck(ctx("Harder search, best answer we can find."), rule("CLAIM-02"))[0].quote).toBe("best answer");
   });
   it("CLAIM-02 stops the product name at small words", () => {
     expect(superlativesCheck(ctx("The best bar in India."), rule("CLAIM-02"))[0].fix_text).toBe("The bar 35,000+ customers trust");
