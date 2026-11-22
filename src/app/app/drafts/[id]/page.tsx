@@ -204,7 +204,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
         {/* Right: findings */}
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold text-primary-d">{live.length ? `${live.length} finding${live.length > 1 ? "s" : ""}` : "No open findings"}</h2>
+            <h2 className="text-lg font-semibold text-primary-d">{live.length ? `${live.length} finding${live.length > 1 ? "s" : ""}${aiRunning ? " so far" : ""}` : aiRunning ? "No findings from code checks" : "No open findings"}</h2>
             <span className="text-xs text-muted">{aiRunning ? "Code checks done · AI running" : run?.ai_status === "off" ? "Code checks only (AI off)" : run?.ai_status === "unavailable" ? "Code checks only (AI unavailable)" : run?.ai_model ? "Code checks + AI" : "Code checks"}</span>
           </div>
           {aiRunning && <AIRunning startedAt={run!.created_at} />}
@@ -270,7 +270,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               <p className="mt-2 text-xs text-muted">Suggested fixes are written to keep this purpose.</p>
             </Card>
           )}
-          {findings.length === 0 && (
+          {findings.length === 0 && !aiRunning && (
             <Card className="p-5 text-sm text-muted">Nothing breaks the approved rules, facts or terms. It can go to review as it is.</Card>
           )}
           {[...findings].sort((a, b) => Number(!LIVE.includes(a.status)) - Number(!LIVE.includes(b.status)) || (ORDER[a.severity] ?? 3) - (ORDER[b.severity] ?? 3)).map((f) => {

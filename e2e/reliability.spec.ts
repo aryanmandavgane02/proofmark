@@ -59,7 +59,7 @@ test("AI findings arrive on their own, also after a refresh", async ({ page }) =
   await page.getByRole("button", { name: "Check this draft" }).click();
   await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 30_000 });
   // Code findings are on the page straight away; the AI ones follow.
-  await expect(page.getByText(/dealt with|No open findings/).first()).toBeVisible();
+  await expect(page.getByText(/dealt with|No open findings|No findings from code checks/).first()).toBeVisible();
   await expect(page.getByText(/AI checks are running/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit for review" })).toBeDisabled();
   await page.reload();

@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-16 17:37 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 06:36 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,7 +11,7 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 2/3 |
 | AI findings dropped by the proof check | — | 13 |
-| Average time per draft | 3 ms | 122 ms |
+| Average time per draft | 2 ms | 77 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
@@ -77,3 +77,5 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-16 17:04 | code+ai | 95% | 93% | 3/5 | 24/27 |
 | 2026-11-16 17:37 | code | 100% | 100% | 5/5 | 24/24 |
 | 2026-11-16 17:37 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-22 06:36 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 06:36 | code+ai | 95% | 93% | 3/5 | 24/27 |

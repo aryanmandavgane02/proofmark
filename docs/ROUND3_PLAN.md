@@ -118,19 +118,19 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [ ] Spike: browser uploads a PDF straight to private storage with a signed upload link (Vercel functions accept requests of only about 4.5 MB)
 - [x] Background AI: Next.js 16 docs confirm `after()` runs after the response even when the action redirects, and `maxDuration` is set per page for server actions. To be verified on production in Phase 1
 - [x] Found while re-reading the code: the AI step has no overall time limit. Each request may wait 25 s per model and falls through to the second model, so a slow AI could hold a check for about 150 s. Phase 1 fixes it
-- [ ] Baseline: all tests green; scored test set re-run so "before" numbers are recorded
+- [x] Baseline: all tests green; scored test set re-run so "before" numbers are recorded (same as Round 2: code 100% / 100%, code + AI 95% / 93%)
 - [x] This plan committed
 
 ### Phase 1 · Foundations: nothing hangs, every action answers
 
-- [ ] **AI time limit** for the whole AI step (text review, second opinion, image review, retries included). When it runs out, code findings show and the page says "AI took too long, run it again"
-- [ ] **AI in the background:** code findings appear at once; AI findings follow while the page says "AI checks running" and refreshes itself. If the AI has not finished after about 90 seconds, the page says so and offers to run it again. Submit and approve wait until the AI is done. *Fallback if the spike fails: AI in the request, within the time limit, with a clear progress message*
-- [ ] **Feedback on every action:** a refused action (stale tab, wrong person, already done, too short a reason) shows a plain notice instead of silently doing nothing
-- [ ] **Same action twice:** creating a draft is idempotent (a token per form); publishing only happens when something changed; one open wording proposal per rule; duplicate comments ignored; double-clicking "Start the live demo" keeps one workspace
-- [ ] **Loading states** for every app page, so navigation never looks frozen
-- [ ] Explicit function time limits for the pages that run checks
-- [ ] **Demo access box** on the landing page (organisers' tip): no login, no password; the four demo people and what each can do
-- [ ] Tests: the first reliability cases (double submit, stale tab, refresh during a check)
+- [x] **AI time limit** for the whole AI step (text review, second opinion, image review, retries included). When it runs out, code findings show and the page says "AI took too long, run it again"
+- [x] **AI in the background:** code findings appear at once; AI findings follow while the page says "AI checks running" and refreshes itself. If the AI has not finished after about 90 seconds, the page says so and offers to run it again. Submit and approve wait until the AI is done. *Fallback if the spike fails: AI in the request, within the time limit, with a clear progress message*
+- [x] **Feedback on every action:** a refused action (stale tab, wrong person, already done, too short a reason) shows a plain notice instead of silently doing nothing
+- [x] **Same action twice:** creating a draft is idempotent (a token per form); publishing only happens when something changed; one open wording proposal per rule; duplicate comments ignored; double-clicking "Start the live demo" keeps one workspace
+- [x] **Loading states** for every app page, so navigation never looks frozen
+- [x] Explicit function time limits for the pages that run checks
+- [x] **Demo access box** on the landing page (organisers' tip): no login, no password; the four demo people and what each can do
+- [x] Tests: the first reliability cases (double submit, stale tab, refresh during a check)
 
 ### Phase 2 · Improvement 1: PDF documents and decks
 
@@ -268,4 +268,5 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | Fonts read with pdf.js (`fontExtraProperties`) | Spike: real names per page, about 0.1 s for 16 pages |
 | Sun 22 Nov | Seed an approved-content library in each demo workspace, labelled as sample | Improvement 2 needs approved content to protect, and judges start with an empty workspace |
 | Sun 22 Nov | No demo credentials needed; a "Demo access" box explains the one-click demo and the four people | Organisers suggested putting demo credentials on the site; ours has no login, so we make that explicit instead |
+| Sun 22 Nov | Background AI shipped (Phase 1); verified on production | A fresh check on production took 29.5 s of AI time (Gemini's free tier was slow, about 15 s per request): judges now see code findings at once instead of a 30 s spinner. Documents will need a longer AI budget than posts |
 | Sun 22 Nov | Pages joined with a page map instead of checking pages separately | Every existing check keeps working, and an offer on page 3 with "T&C apply" on page 10 is not a false alarm |
