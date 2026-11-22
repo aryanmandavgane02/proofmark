@@ -75,6 +75,17 @@ async function main() {
   check("AI result store is not readable by visitors", ((await a.c.from("check_cache").select("key").limit(1)).data ?? []).length === 0);
   check("AI usage counter cannot be called by visitors", !!(await a.c.rpc("take_ai_request", { p_scope: "x", p_limit: 999 })).error);
 
+  // Documents (PDFs) are in a private bucket: only the server reads them or hands out one-time upload links.
+  const { createClient: adminClient } = await import("@supabase/supabase-js");
+  const server = adminClient(URL, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+  const docPath = `${a.ws}/00000000-0000-4000-8000-000000000000.pdf`;
+  await server.storage.from("documents").upload(docPath, new TextEncoder().encode("%PDF-1.4 test"), { contentType: "application/pdf", upsert: true });
+  check("visitor cannot download a stored document directly", !!(await a.c.storage.from("documents").download(docPath)).error);
+  check("visitor cannot list stored documents", ((await a.c.storage.from("documents").list(a.ws)).data ?? []).length === 0);
+  check("visitor cannot make an upload link without the server", !!(await a.c.storage.from("documents").createSignedUploadUrl(`${a.ws}/x.pdf`)).error);
+  check("visitor cannot upload a document without a link from the server", !!(await a.c.storage.from("documents").upload(`${a.ws}/y.pdf`, new TextEncoder().encode("%PDF-1.4"), { contentType: "application/pdf" })).error);
+  await server.storage.from("documents").remove([docPath]);
+
   // clean up the two test workspaces
   const { createClient: admin } = await import("@supabase/supabase-js");
   await admin(URL, process.env.SUPABASE_SERVICE_ROLE_KEY!).from("workspaces").delete().in("id", [a.ws, b.ws]);

@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/session";
 import { Card, PageTitle, StatusPill, btn, timeAgo } from "@/components/ui";
 import { CHANNEL_LABEL, type Channel } from "@/lib/checks/types";
 import { resetDemo, switchPerson } from "@/app/actions";
-import { IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser } from "@/components/icons";
+import { IconChart, IconCheck, IconFile, IconImage, IconReset, IconUser, IconPages } from "@/components/icons";
 import { CloseDetails } from "./CloseDetails";
 
 type Step = { title: string; detail: string; done: boolean; person: string; href: string; cta: string };
@@ -83,8 +83,9 @@ export default async function StartHere() {
 
       <section aria-labelledby="more" className="mt-6">
         <h2 id="more" className="font-semibold text-primary-d">More to try</h2>
-        <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
+            { href: "/app/drafts/new?mode=document&sample=diwali-deck", t: "Check a PDF deck", d: "A 10-page deck: every page checked, each finding with its page, fonts outside the brand typefaces flagged.", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet" },
             { href: "/app/drafts/new?sample=diwali-ad", t: "Check an image ad", d: "Logo, brand colours, text in the picture and alt text.", Icon: IconImage, tint: "from-[#fde7d6] to-[#fff4ea] text-[#8a3a00]" },
             { href: "/app/rulebook/import", t: "Import rules from a PDF", d: "As Meera: the AI drafts rules, code checks every quote, you approve and publish.", Icon: IconFile, tint: "from-[#e2e6f6] to-[#f1effd] text-primary-d" },
             { href: "/app/insights", t: "See insights", d: "Repeated mistakes, a rule flagged as unclear, and AI-proposed clearer wording.", Icon: IconChart, tint: "from-[#d8f0ea] to-[#eef8f5] text-[#0a5c4f]" },

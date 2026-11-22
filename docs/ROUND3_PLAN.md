@@ -115,7 +115,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [x] Round 3 rules, scoring and the exact form fields read
 - [x] Confirmed there are no commits between the Round 2 deadline and the Round 3 start
 - [x] Spike: font names per page from a PDF. pdf.js (through unpdf) returns them with `fontExtraProperties`, e.g. page 2 uses "CAAAAA+Georgia"; 16 pages in about 0.1 s
-- [ ] Spike: browser uploads a PDF straight to private storage with a signed upload link (Vercel functions accept requests of only about 4.5 MB)
+- [x] Spike: browser uploads a PDF straight to private storage with a signed upload link (Vercel functions accept requests of only about 4.5 MB). A plain PUT with no key works and the bytes match; reusing the link, a wrong file type, another path and a file over 15 MB are all refused; the browser is allowed (CORS)
 - [x] Background AI: Next.js 16 docs confirm `after()` runs after the response even when the action redirects, and `maxDuration` is set per page for server actions. To be verified on production in Phase 1
 - [x] Found while re-reading the code: the AI step has no overall time limit. Each request may wait 25 s per model and falls through to the second model, so a slow AI could hold a check for about 150 s. Phase 1 fixes it
 - [x] Baseline: all tests green; scored test set re-run so "before" numbers are recorded (same as Round 2: code 100% / 100%, code + AI 95% / 93%)
@@ -135,16 +135,20 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 ### Phase 2 · Improvement 1: PDF documents and decks
 
-- [ ] Migration: a "Document (PDF)" channel; version fields for the file (path, name, SHA-256, page count, pages with their text ranges and fonts); a page number on findings; a private `documents` storage bucket (PDF only, 15 MB); typefaces as brand assets
-- [ ] Brand typefaces: the Urja guide's "Type" page names Poppins (headlines) and Inter (body); new code rule VIS-03 "Brand typefaces" for documents; typefaces listed and editable on the Facts page like colours. The guide PDF is regenerated and its quotes re-verified
-- [ ] Upload: New draft offers "Text or image" and "Document (PDF)". The browser uploads straight to storage; the server checks it is a real PDF, at most 20 pages and 15 MB, not password-protected and not a scan without text, and says exactly what is wrong otherwise
-- [ ] Reading: text per page, fonts per page, file fingerprint
-- [ ] Checking: pages joined with a page map so every existing code check runs unchanged (offers and "T&C apply" work across pages); one AI request for the whole document with page markers, then the proof check and the second opinion; every finding gets its page; font check per page, with names normalised ("AAAAAA+Poppins-Bold" is Poppins) and symbol and emoji fonts ignored
-- [ ] Draft page for documents: page-by-page view with highlights; findings show "Page 3" and jump to the page; a page index with findings per page; "Open page 3 in the PDF". No "Accept fix" (a PDF cannot be edited here); instead "Upload a corrected PDF" creates a new version. The approval shows the file fingerprint and opens the exact approved file
-- [ ] Samples: a 10-page "Urja Bites Diwali retail deck" generated in the repo with planted problems on known pages and one page in a non-brand font, plus a clean one-pager; one click from New draft and Start here
-- [ ] Scored test set: PDF cases with expected (page, rule) pairs; page-level recall and precision and font detection published in eval/RESULTS.md
-- [ ] Tests: unit (page mapping, font names, limits); browser (sample deck end to end through approval; corrected upload; bad PDFs: not a PDF, too many pages, too large, password-protected, scanned, empty)
-- [ ] Stored AI answers for the sample deck, so it opens instantly for judges
+- [x] Migration: a "Document (PDF)" channel; version fields for the file (path, name, SHA-256, page count, pages with their text ranges and fonts); a page number on findings; a private `documents` storage bucket (PDF only, 15 MB); typefaces as brand assets
+- [x] Brand typefaces: the Urja guide's "Type" page names Poppins (headlines) and Inter (body); new code rule VIS-03 "Brand typefaces" for documents; typefaces listed and editable on the Facts page like colours. The guide PDF is regenerated and its quotes re-verified
+- [x] Upload: New draft offers "Text or image" and "Document (PDF)". The browser uploads straight to storage; the server checks it is a real PDF, at most 20 pages and 15 MB, not password-protected and not a scan without text, and says exactly what is wrong otherwise
+- [x] Reading: text per page, fonts per page, file fingerprint
+- [x] Checking: pages joined with a page map so every existing code check runs unchanged (offers and "T&C apply" work across pages); one AI request for the whole document with page markers, then the proof check and the second opinion; every finding gets its page; font check per page, with names normalised ("AAAAAA+Poppins-Bold" is Poppins) and symbol and emoji fonts ignored
+- [x] Draft page for documents: page-by-page view with highlights; findings show "Page 3" and jump to the page; a page index with findings per page; "Open page 3 in the PDF". No "Accept fix" (a PDF cannot be edited here); instead "Upload a corrected PDF" creates a new version. The approval shows the file fingerprint and opens the exact approved file
+- [x] Samples: a 10-page "Urja Bites Diwali retail deck" generated in the repo with planted problems on known pages and one page in a non-brand font, plus a clean one-pager; one click from New draft and Start here
+- [x] Scored test set: PDF cases with expected (page, rule) pairs; page-level recall and precision and font detection published in eval/RESULTS.md
+- [x] Tests: unit (page mapping, font names, limits); browser (sample deck end to end through approval; corrected upload; bad PDFs: not a PDF, too many pages, too large, password-protected, scanned, empty)
+- [x] Stored AI answers for the sample deck, so it opens instantly for judges
+- [x] Found while testing: a file picked before the page finished loading never reached the form's state ("Choose a PDF" although one was chosen). Both PDF forms now read the file input itself, and the PDF buttons wait until the page is ready
+- [x] Font names that are codes ("YAFdJt8dAY0", "TT2Ao00", written by some design tools) are shown as "needs human judgment", never as a code-verified fact
+- [x] Results: every planted problem found on its page (code only and code + AI: recall 100%, precision 100%), typeface pages 3 of 3 with no false typeface finding, the clean one-pager clean; 4 browser tests, 19 unit tests, 4 new access checks (27 in all)
+- [ ] Real decks exported from Google Slides, Canva and PowerPoint, tried by hand (waiting for files from Aryan); the reader's line joining and font names are the parts most likely to differ
 
 ### Phase 3 · Improvement 2: outdated-content alerts
 
@@ -271,4 +275,7 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | No demo credentials needed; a "Demo access" box explains the one-click demo and the four people | Organisers suggested putting demo credentials on the site; ours has no login, so we make that explicit instead |
 | Sun 22 Nov | Background AI shipped (Phase 1); verified on production | A fresh check on production took 29.5 s of AI time (Gemini's free tier was slow, about 15 s per request): judges now see code findings at once instead of a 30 s spinner. Documents will need a longer AI budget than posts |
 | Sun 22 Nov | The New draft key is the form token plus what was sent | Found while rechecking Phase 1: going Back in the browser brings back the same form and token, so a second, edited draft would have opened the first one instead. Covered by a browser test now |
+| Sun 22 Nov | A typeface finding quotes the text set in that font, with its position | More useful than "page 4 uses Georgia": the reviewer sees which words, and the page view highlights them |
+| Sun 22 Nov | No "Accept fix" for PDFs; a corrected PDF is uploaded as the next version | A PDF cannot be edited in the browser, and the approval must belong to one exact file (its SHA-256 is stored with the approval) |
+| Sun 22 Nov | Pictures inside PDFs are not checked (declared in the app and the docs) | Reviewing page images needs pages rendered on the server; the promise is text, the checks and typefaces on every page |
 | Sun 22 Nov | Pages joined with a page map instead of checking pages separately | Every existing check keeps working, and an offer on page 3 with "T&C apply" on page 10 is not a false alarm |

@@ -1,7 +1,9 @@
 import { requireSession } from "@/lib/session";
 import { Card, PageTitle } from "@/components/ui";
 import { todayIST } from "@/lib/pipeline";
-import { ColorForm, FactForm, TermForm, type FactRow } from "./BrandForms";
+import { ColorForm, FactForm, TermForm, TypefaceForm, type FactRow } from "./BrandForms";
+import { removeTypeface } from "@/app/brand-actions";
+import { PendingButton } from "../drafts/[id]/PendingButton";
 
 // Saving facts may re-check approved content.
 export const maxDuration = 60;
@@ -79,6 +81,24 @@ export default async function Facts(props: PageProps<"/app/facts">) {
           </Card>
         ))}
       </div>
+      <h2 className="mb-2 mt-8 text-sm font-semibold text-primary-d">Typefaces (rule VIS-03, checked in PDF documents)</h2>
+      {manager && <details className="mb-3"><summary className="cursor-pointer text-sm font-semibold text-primary">Add a typeface</summary><div className="mt-2"><TypefaceForm /></div></details>}
+      <Card className="divide-y divide-line">
+        {(assets ?? []).filter((a) => a.kind === "font").map((a) => (
+          <div key={a.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">
+            <span className="font-semibold text-ink">{a.name}</span>
+            <span className="text-muted">{a.note || "Any text"}</span>
+            {manager && (
+              <form action={removeTypeface} className="ml-auto">
+                <input type="hidden" name="id" value={a.id} />
+                <PendingButton className="text-xs font-semibold text-muted underline hover:text-red" pendingText="Removing…">Remove</PendingButton>
+              </form>
+            )}
+          </div>
+        ))}
+        {!(assets ?? []).some((a) => a.kind === "font") && <p className="p-3 text-sm text-muted">No typefaces yet, so the typeface check has nothing to compare documents with.</p>}
+      </Card>
+      <p className="mt-2 text-xs text-muted">A font in a PDF counts as a brand typeface when its family matches, in any weight or style (for example “Poppins-Bold”). Icon and emoji fonts are ignored.</p>
     </>
   );
 }

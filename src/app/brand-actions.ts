@@ -13,6 +13,7 @@ import { AIUnavailableError } from "@/lib/ai/provider";
 import { MAX_PDF_BYTES, draftRulesFromPages, pdfPages } from "@/lib/ai/import";
 import { verifyImportedRules } from "@/lib/checks/import-verify";
 import { CHANNELS } from "@/lib/checks/types";
+import { sameFamily } from "@/lib/documents/fonts";
 
 export type BrandFormState = { error?: string; ok?: string } | undefined;
 type Session = Awaited<ReturnType<typeof requireSession>>;
@@ -217,4 +218,35 @@ export async function addColor(_prev: BrandFormState, formData: FormData): Promi
   await logEvent(s, "color.added", { name, hex });
   revalidatePath("/app/facts");
   return { ok: `Added ${name} ${hex}.` };
+}
+
+// ── Typefaces (rule VIS-03, checked in PDF documents) ───────────────────────
+
+export async function addTypeface(_prev: BrandFormState, formData: FormData): Promise<BrandFormState> {
+  const s = await managerSession();
+  if (!s) return { error: "Only the brand manager can change the typefaces." };
+  const name = String(formData.get("name") ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+  const note = String(formData.get("note") ?? "").trim().slice(0, 60);
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} &'.-]{1,59}$/u.test(name)) return { error: "Give the typeface's family name, for example Noto Sans." };
+  const { data: existing } = await s.supabase.from("assets").select("name").eq("workspace_id", s.workspace.id).eq("kind", "font");
+  if ((existing ?? []).some((a) => sameFamily(a.name, name) || sameFamily(name, a.name))) return { error: `${name} is already a brand typeface.` };
+  const { error } = await s.supabase.from("assets").insert({ workspace_id: s.workspace.id, kind: "font", name, note });
+  if (error) return { error: error.message };
+  await logEvent(s, "typeface.added", { name });
+  revalidatePath("/app/facts");
+  return { ok: `Added ${name}. Documents checked from now on may use it.` };
+}
+
+export async function removeTypeface(formData: FormData) {
+  const s = await managerSession();
+  if (!s) notice("/app/facts", "Only the brand manager can change the typefaces. Switch to Meera with “Acting as”.");
+  const id = String(formData.get("id"));
+  const { data: fonts } = await s.supabase.from("assets").select("id, name").eq("workspace_id", s.workspace.id).eq("kind", "font");
+  const target = (fonts ?? []).find((f) => f.id === id);
+  if (!target) notice("/app/facts", "That typeface was already removed.", "info");
+  if ((fonts ?? []).length <= 1) notice("/app/facts", "Keep at least one brand typeface, or the typeface check has nothing to compare with.");
+  await createAdminClient().from("assets").delete().eq("id", id).eq("workspace_id", s.workspace.id).eq("kind", "font");
+  await logEvent(s, "typeface.removed", { name: target.name });
+  revalidatePath("/app/facts");
+  notice("/app/facts", `Removed ${target.name}. Documents checked from now on are compared with the other typefaces.`, "success");
 }

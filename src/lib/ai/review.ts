@@ -67,8 +67,28 @@ function brandBlock(ctx: CheckContext): string {
 }
 
 export function textPrompt(ctx: CheckContext) {
+  if (ctx.pages?.length) {
+    const doc = ctx.pages.map((p) => `[PAGE ${p.n}]\n${ctx.body.slice(p.start, p.end)}`).join("\n\n");
+    return `${brandBlock(ctx)}\n\nCHANNEL: document (a PDF of ${ctx.pages.length} page${ctx.pages.length > 1 ? "s" : ""}, such as a deck or brochure)\n\nDRAFT (between the markers). Each page starts with a [PAGE n] line, which is not part of the text.\n<<<DRAFT\n${doc}\nDRAFT>>>\n\nFor each violation, give the page it is on and quote text from that page only. Judge rules about the whole piece (such as one clear call to action, or leading with taste) once for the whole document, not page by page.\nAlso state the document's intent: its goal, its audience and its call to action, in a few words each.`;
+  }
   return `${brandBlock(ctx)}\n\nCHANNEL: ${ctx.channel}\n\nDRAFT (between the markers)\n<<<DRAFT\n${ctx.body}\nDRAFT>>>\n\nAlso state the draft's intent: its goal, its audience and its call to action, in a few words each.`;
 }
+
+/** Documents: each finding also names its page, so a quote that appears on several pages lands on the right one. */
+const DOC_TEXT_SCHEMA = {
+  ...TEXT_SCHEMA,
+  properties: {
+    ...TEXT_SCHEMA.properties,
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { page: { type: "integer" }, rule_code: { type: "string" }, quote: { type: "string" }, why: { type: "string" }, fix: { type: "string" } },
+        required: ["page", "rule_code", "quote", "why", "fix"],
+      },
+    },
+  },
+};
 
 /** Key for the shared result store: same draft, rules, facts and prompt version give the same stored answer. */
 export function cacheKey(kind: string, ctx: CheckContext, extra = ""): string {
@@ -97,8 +117,9 @@ export async function reviewText(provider: AIProvider, ctx: CheckContext, worksp
   const hit = await readCache<TextReview>(key);
   if (hit) return { review: hit.result, model: hit.model, cached: true, requests: 0 };
   await takeRequest(workspaceId);
-  const { data, model } = await provider.generateJSON<TextReview>({ system: SYSTEM, prompt: textPrompt(ctx), schema: TEXT_SCHEMA, deadline });
-  const review: TextReview = { intent: data.intent, findings: Array.isArray(data.findings) ? data.findings.slice(0, 20) : [] };
+  const doc = !!ctx.pages?.length;
+  const { data, model } = await provider.generateJSON<TextReview>({ system: SYSTEM, prompt: textPrompt(ctx), schema: doc ? DOC_TEXT_SCHEMA : TEXT_SCHEMA, deadline });
+  const review: TextReview = { intent: data.intent, findings: Array.isArray(data.findings) ? data.findings.slice(0, doc ? 40 : 20) : [] };
   await writeCache(key, review, model);
   return { review, model, cached: false, requests: 1 };
 }

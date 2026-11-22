@@ -97,6 +97,12 @@ export const RULES: SeedRule[] = [
     statement: "Large areas of colour must come from the brand palette.",
     source_page: 6, source_quote: "Large areas of colour must come from the brand palette: Saffron, Cocoa, Cream and Leaf.",
   },
+  // Type (guide page 7). Checked in PDF documents and decks, where the fonts are embedded in the file.
+  {
+    code: "VIS-03", category: "visual", title: "Brand typefaces", severity: "major", channels: ["document"], check_kind: "code", check_type: "typefaces",
+    statement: "Set all text in the brand typefaces: Poppins for headlines and Inter for body text.",
+    source_page: 7, source_quote: "Set all text in the brand typefaces: Poppins for headlines and Inter for body text.",
+  },
   // Claims (guide pages 14–15)
   {
     code: "CLAIM-01", category: "claims", title: "Numbers match approved facts", severity: "major", check_kind: "code", check_type: "facts",
@@ -175,6 +181,19 @@ export const PALETTE: { name: string; hex: string; note: string }[] = [
   { name: "Cocoa", hex: "#4A2C1D", note: "Text and logo background." },
   { name: "Cream", hex: "#FFF4E0", note: "Backgrounds and logo background." },
   { name: "Leaf", hex: "#2F7D32", note: "Accents only." },
+];
+
+export const TYPEFACES: { name: string; note: string }[] = [
+  { name: "Poppins", note: "Headlines" },
+  { name: "Inter", note: "Body text" },
+];
+
+export type SeedDocument = { key: string; title: string; file: string; pages: number; note: string };
+
+/** Sample PDFs (built by scripts/make-sample-docs.ts). The deck's planted problems are listed in eval/cases.ts. */
+export const SAMPLE_DOCUMENTS: SeedDocument[] = [
+  { key: "diwali-deck", title: "Diwali retail deck", file: "/samples/urja-diwali-retail-deck.pdf", pages: 10, note: "A 10-page deck for store partners: problems on several pages, and one page in the wrong typeface." },
+  { key: "one-pager", title: "Cocoa Crunch one-pager", file: "/samples/urja-cocoa-crunch-one-pager.pdf", pages: 1, note: "A clean control: the checker should find nothing." },
 ];
 
 export type SeedDraft = { key: string; title: string; channel: "instagram" | "linkedin" | "email" | "website" | "ad"; body: string; alt_text: string; image?: string; note: string };

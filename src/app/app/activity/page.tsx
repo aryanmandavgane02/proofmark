@@ -8,7 +8,7 @@ export default async function AuditTrail() {
   const [{ data: events }, { data: drafts }, { data: approvals }] = await Promise.all([
     s.supabase.from("events").select("id, type, person_id, draft_id, detail, created_at").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }).limit(200),
     s.supabase.from("drafts").select("id, title").eq("workspace_id", s.workspace.id),
-    s.supabase.from("approvals").select("id, draft_id, approver_id, rulebook_version, fingerprint, overrides, ai_services, valid, created_at").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }),
+    s.supabase.from("approvals").select("id, draft_id, approver_id, rulebook_version, fingerprint, file_hash, overrides, ai_services, valid, created_at").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }),
   ]);
   const title = new Map((drafts ?? []).map((d) => [d.id, d.title]));
   const who = new Map(s.people.map((p) => [p.id, p.name]));
@@ -29,7 +29,7 @@ export default async function AuditTrail() {
                 <td className="p-2.5">{who.get(a.approver_id)}</td>
                 <td className="p-2.5">{timeAgo(a.created_at)}</td>
                 <td className="p-2.5">v{a.rulebook_version}</td>
-                <td className="p-2.5 font-mono text-xs">{a.fingerprint.slice(0, 12)}</td>
+                <td className="p-2.5 font-mono text-xs">{a.fingerprint.slice(0, 12)}{a.file_hash && <span className="block text-muted" title={`SHA-256 of the approved PDF: ${a.file_hash}`}>PDF {a.file_hash.slice(0, 12)}</span>}</td>
                 <td className="p-2.5">{a.overrides.length ? a.overrides.map((o: { rule: string }) => o.rule).join(", ") : "none"}</td>
                 <td className="p-2.5">{a.valid ? "Valid" : "Withdrawn: edited after approval"}</td>
               </tr>

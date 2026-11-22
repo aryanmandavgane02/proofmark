@@ -10,17 +10,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { seedDemoWorkspace } from "@/lib/seed/seed-workspace";
 import { selfOrigin } from "@/lib/origin";
 import { requireSession } from "@/lib/session";
-import { fingerprint, runChecks, settleStaleRun, type RunResult } from "@/lib/pipeline";
+import { fingerprint, runChecks, settleStaleRun, VERSION_COLUMNS, type RunResult } from "@/lib/pipeline";
 import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
-import { SAMPLE_DRAFTS } from "@/lib/seed/urja";
+import { SAMPLE_DOCUMENTS, SAMPLE_DRAFTS } from "@/lib/seed/urja";
+import { DocumentError, MAX_BYTES, readPdf, type ReadDocument } from "@/lib/documents/read";
+import { documentUploadLink, isWorkspaceDocumentPath, loadDocument, removeDocument, storeDocument } from "@/lib/documents/store";
 import { notice } from "@/lib/notice";
-import type { Channel } from "@/lib/checks/types";
+import { TEXT_CHANNELS, type Channel, type DocPage } from "@/lib/checks/types";
 
 type Session = Awaited<ReturnType<typeof requireSession>>;
 
 const draftPath = (id: string) => `/app/drafts/${id}`;
 const NOT_REVIEWER = "Only a reviewer or the brand manager can do this. Switch person with “Acting as” at the top.";
 const ALREADY_DONE = "This was already done, maybe in another tab. The page now shows the latest state.";
+const DOCUMENT_NO_EDIT = "A PDF cannot be edited here. Change the source file (for example in Google Slides, Canva or PowerPoint), export it as PDF again and use “Upload a corrected PDF”.";
 
 /**
  * Workflow state (draft status, finding status, versions' intent) is written with the server key,
@@ -105,7 +108,7 @@ export async function switchPerson(formData: FormData) {
 
 const DraftInput = z.object({
   title: z.string().trim().min(1, "Give the draft a title").max(120),
-  channel: z.enum(["instagram", "linkedin", "email", "website", "ad"]),
+  channel: z.enum(TEXT_CHANNELS),
   body: z.string().trim().min(1, "Write or paste the content").max(5000, "Keep it under 5,000 characters"),
   alt_text: z.string().trim().max(400).default(""),
   sample_key: z.string().max(40).optional(),
@@ -181,7 +184,7 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
       workspace_id: s.workspace.id, draft_id: draft.id, version: 1, body: d.body, alt_text: d.alt_text, image_path,
       fingerprint: fingerprint({ body: d.body, alt_text: d.alt_text, image_path, channel: d.channel }), created_by: s.person.id,
     })
-    .select("id, draft_id, version, body, alt_text, image_path")
+    .select(VERSION_COLUMNS)
     .single();
   if (ve) {
     await createAdminClient().from("drafts").delete().eq("id", draft.id).eq("workspace_id", s.workspace.id);
@@ -193,32 +196,157 @@ export async function createDraft(_prev: FormState, formData: FormData): Promise
   redirect(draftPath(draft.id));
 }
 
+// ── Documents (PDF) ─────────────────────────────────────────────────────────
+
+const DocumentInput = z.object({
+  title: z.string().trim().min(1, "Give the document a title").max(120),
+  upload_path: z.string().max(200).default(""),
+  file_name: z.string().max(300).default(""),
+  sample_key: z.string().max(40).default(""),
+  client_token: z.string().max(64).optional(),
+});
+
+const cleanFileName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120) || "document.pdf";
+
+/**
+ * Step 1 of an upload: a one-time link that puts the PDF straight into private storage.
+ * (A Vercel function accepts a request body of about 4.5 MB at most, and real decks are often larger.)
+ */
+export async function prepareDocumentUpload(input: { size: number }): Promise<{ ok: true; path: string; url: string } | { ok: false; error: string }> {
+  const s = await requireSession();
+  const size = Number(input?.size);
+  if (!Number.isFinite(size) || size <= 0) return { ok: false, error: "The file is empty." };
+  if (size > MAX_BYTES) return { ok: false, error: `The file is ${(size / 1048576).toFixed(1)} MB. Upload a PDF of 15 MB or less.` };
+  try {
+    return { ok: true, ...(await documentUploadLink(s.workspace.id)) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "The upload could not be started. Please try again." };
+  }
+}
+
+/** Step 2: reads the uploaded PDF (or a sample) and refuses anything that cannot be checked, saying exactly why. */
+async function receiveDocument(s: Session, d: { upload_path: string; sample_key: string }): Promise<{ path: string; doc: ReadDocument } | { error: string }> {
+  const sample = SAMPLE_DOCUMENTS.find((x) => x.key === d.sample_key);
+  if (d.upload_path) {
+    if (!isWorkspaceDocumentPath(s.workspace.id, d.upload_path)) return { error: "That upload does not belong to this workspace. Choose the file again." };
+    const bytes = await loadDocument(d.upload_path);
+    if (!bytes) return { error: "The upload did not arrive. Check your connection and choose the file again." };
+    try {
+      return { path: d.upload_path, doc: await readPdf(bytes) };
+    } catch (e) {
+      await removeDocument(d.upload_path);
+      return { error: e instanceof DocumentError ? e.message : "This PDF could not be read. Export it again and upload the new file." };
+    }
+  }
+  if (!sample) return { error: "Choose a PDF to upload, or load a sample." };
+  const res = await fetch(new URL(sample.file, await selfOrigin()));
+  if (!res.ok) return { error: "Could not load the sample document. Please try again." };
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const doc = await readPdf(bytes);
+  return { path: await storeDocument(s.workspace.id, bytes), doc };
+}
+
+export async function createDocumentDraft(_prev: FormState, formData: FormData): Promise<FormState> {
+  const s = await requireSession();
+  const parsed = DocumentInput.safeParse(Object.fromEntries([...formData.entries()].filter(([, v]) => typeof v === "string")));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form" };
+  const d = parsed.data;
+  const sample = SAMPLE_DOCUMENTS.find((x) => x.key === d.sample_key);
+  const token = d.client_token ? submissionKey(d.client_token, ["document", d.title, d.upload_path, d.upload_path ? "" : d.sample_key]) : null;
+  if (token) {
+    const existing = await draftForToken(s, token);
+    if (existing) redirect(draftPath(existing));
+  }
+  const got = await receiveDocument(s, d);
+  if ("error" in got) return { error: got.error };
+  const name = d.upload_path ? cleanFileName(d.file_name) : sample!.file.split("/").pop()!;
+  const file = documentFile(got.path, name, got.doc);
+
+  const { data: draft, error } = await s.supabase
+    .from("drafts")
+    .insert({ workspace_id: s.workspace.id, title: d.title, channel: "document", created_by: s.person.id, sample_key: d.upload_path ? null : d.sample_key || null, client_token: token })
+    .select("id")
+    .single();
+  if (error) {
+    // The same submission arrived twice at once: the first one made the draft (and uses this same file).
+    const existing = error.code === "23505" && token ? await draftForToken(s, token) : undefined;
+    if (existing) redirect(draftPath(existing));
+    return { error: error.message };
+  }
+  const { data: version, error: ve } = await s.supabase
+    .from("draft_versions")
+    .insert({
+      workspace_id: s.workspace.id, draft_id: draft.id, version: 1, body: got.doc.body, alt_text: "", image_path: null, ...file,
+      fingerprint: fingerprint({ body: got.doc.body, alt_text: "", image_path: null, channel: "document", file_hash: file.file_hash }), created_by: s.person.id,
+    })
+    .select(VERSION_COLUMNS)
+    .single();
+  if (ve) {
+    await createAdminClient().from("drafts").delete().eq("id", draft.id).eq("workspace_id", s.workspace.id);
+    return { error: `Could not save the document (${ve.message}). Please try again.` };
+  }
+  schedule(await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: "document", version, codeChecksOnly: s.workspace.code_checks_only }));
+  await logEvent(s, "draft.created", draft.id, { title: d.title, channel: "document", sample: sample && !d.upload_path ? sample.key : null, file: name, pages: file.page_count });
+  redirect(draftPath(draft.id));
+}
+
+/** A corrected PDF becomes the next version of a document and is checked again. */
+export async function uploadCorrectedDocument(_prev: FormState, formData: FormData): Promise<FormState> {
+  const s = await requireSession();
+  const draftId = String(formData.get("draft_id"));
+  const { draft, version } = await loadDraft(s, draftId);
+  if (draft.channel !== "document") return { error: "Only documents take a corrected PDF." };
+  const upload_path = String(formData.get("upload_path") ?? "");
+  if (!upload_path) return { error: "Choose the corrected PDF first." };
+  const got = await receiveDocument(s, { upload_path, sample_key: "" });
+  if ("error" in got) return { error: got.error };
+  if (got.doc.hash === version.file_hash) {
+    await removeDocument(got.path);
+    return { error: `This is the same file as version ${version.version}, so nothing changed. Upload the corrected PDF.` };
+  }
+  const name = cleanFileName(String(formData.get("file_name") ?? ""));
+  await newVersion(s, draftId, { body: got.doc.body, alt_text: "", note: `Uploaded a corrected PDF (${name})`, file: documentFile(got.path, name, got.doc) });
+  revalidatePath(draftPath(draftId));
+  notice(draftPath(draftId), `Version ${draft.current_version + 1} uploaded. Every page is being checked again.`, "success");
+}
+
 async function loadDraft(s: Session, draftId: string) {
   const { data: draft } = await s.supabase.from("drafts").select("*").eq("id", draftId).maybeSingle();
   if (!draft) notice("/app", "That draft no longer exists. The demo may have been reset.");
   const { data: version } = await s.supabase
     .from("draft_versions")
-    .select("id, draft_id, version, body, alt_text, image_path, intent, intent_confirmed")
+    .select(`${VERSION_COLUMNS}, intent, intent_confirmed, file_path, file_name, file_size, page_count`)
     .eq("draft_id", draftId)
     .eq("version", draft.current_version)
     .single();
   return { draft, version: version! };
 }
 
+/** The stored file of a document version. */
+type DocumentFile = { file_path: string; file_name: string; file_hash: string; file_size: number; page_count: number; pages: DocPage[]; scanned: boolean };
+
+function documentFile(path: string, name: string, doc: ReadDocument): DocumentFile {
+  return { file_path: path, file_name: name, file_hash: doc.hash, file_size: doc.size, page_count: doc.pageCount, pages: doc.pages, scanned: doc.scanned };
+}
+
 /** Saves a new version of a draft and re-checks it. An approved draft goes back for re-approval. */
-async function newVersion(s: Session, draftId: string, change: { body?: string; alt_text?: string; note: string; reuseRunId?: string }) {
+async function newVersion(s: Session, draftId: string, change: { body?: string; alt_text?: string; note: string; reuseRunId?: string; file?: DocumentFile }) {
   const { draft, version } = await loadDraft(s, draftId);
   const body = change.body ?? version.body;
   const alt_text = change.alt_text ?? version.alt_text;
   const next = draft.current_version + 1;
+  const file: DocumentFile | null = change.file ?? (version.file_path
+    ? { file_path: version.file_path, file_name: version.file_name, file_hash: version.file_hash, file_size: version.file_size, page_count: version.page_count, pages: version.pages, scanned: version.scanned }
+    : null);
   const { data: v, error } = await s.supabase
     .from("draft_versions")
     .insert({
       workspace_id: s.workspace.id, draft_id: draftId, version: next, body, alt_text, image_path: version.image_path,
-      intent: version.intent, intent_confirmed: version.intent_confirmed,
-      fingerprint: fingerprint({ body, alt_text, image_path: version.image_path, channel: draft.channel }), change_note: change.note, created_by: s.person.id,
+      // A new file may say something else: keep the intent only if the creator confirmed it, so the AI suggests a fresh one.
+      intent: change.file && !version.intent_confirmed ? null : version.intent, intent_confirmed: version.intent_confirmed, ...(file ?? {}),
+      fingerprint: fingerprint({ body, alt_text, image_path: version.image_path, channel: draft.channel, file_hash: file?.file_hash }), change_note: change.note, created_by: s.person.id,
     })
-    .select("id, draft_id, version, body, alt_text, image_path")
+    .select(VERSION_COLUMNS)
     .single();
   if (error) {
     // Two saves at the same moment both try to create the next version; the second one simply stops.
@@ -244,9 +372,10 @@ export async function saveEdit(formData: FormData) {
   const draftId = String(formData.get("draft_id"));
   const body = String(formData.get("body") ?? "").trim();
   const alt_text = String(formData.get("alt_text") ?? "").trim();
+  const { draft, version } = await loadDraft(s, draftId);
+  if (draft.channel === "document") notice(draftPath(draftId), DOCUMENT_NO_EDIT, "info");
   if (!body) notice(draftPath(draftId), "The content can't be empty.");
   if (body.length > 5000) notice(draftPath(draftId), "Keep the content under 5,000 characters.");
-  const { version } = await loadDraft(s, draftId);
   if (body === version.body && alt_text === version.alt_text) notice(draftPath(draftId), "Nothing changed, so no new version was saved.", "info");
   await newVersion(s, draftId, { body, alt_text, note: "Edited by hand" });
   revalidatePath(draftPath(draftId));
@@ -259,7 +388,8 @@ export async function acceptFix(formData: FormData) {
   if (!f) notice("/app", "That finding no longer exists.");
   const path = draftPath(f.draft_id);
   if (f.status !== "open" && f.status !== "upheld") notice(path, ALREADY_DONE, "info");
-  const { version } = await loadDraft(s, f.draft_id);
+  const { draft, version } = await loadDraft(s, f.draft_id);
+  if (draft.channel === "document") notice(path, DOCUMENT_NO_EDIT, "info");
   if (f.draft_version_id !== version.id) notice(path, "That finding belongs to an older version. The page now shows the current findings.", "info");
 
   let body = version.body;
@@ -419,7 +549,7 @@ export async function approveDraft(formData: FormData) {
   if (!(await server(s).claimDraft(draftId, ["in_review"], { status: "approved", updated_at: new Date().toISOString() }))) notice(path, ALREADY_DONE, "info");
   const overrides = findings.filter((f) => f.status === "overridden").map((f) => ({ rule: f.rule_code, quote: f.quote }));
   const { error } = await server(s).record("approvals", {
-    draft_id: draftId, draft_version_id: version.id, fingerprint: run?.fingerprint ?? "",
+    draft_id: draftId, draft_version_id: version.id, fingerprint: run?.fingerprint ?? "", file_hash: version.file_hash ?? null,
     rulebook_version: run?.rulebook_version ?? s.workspace.rulebook_version, overrides,
     ai_services: run?.ai_model ? [run.ai_model] : [],
   });

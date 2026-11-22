@@ -4,6 +4,7 @@ import { ruleApplies } from "./types";
 import { allCapsCheck, emojiCheck, glossaryCheck, hashtagCheck, pressureCheck, readabilityCheck } from "./style";
 import { absolutesCheck, disclaimerCheck, factsCheck, healthClaimsCheck, superlativesCheck } from "./claims";
 import { altTextCheck } from "./accessibility";
+import { typefaceCheck } from "./visual";
 
 type CheckFn = (ctx: CheckContext, rule: Rule) => FindingDraft[];
 
@@ -20,6 +21,7 @@ export const CODE_CHECKS: Record<string, CheckFn> = {
   absolutes: absolutesCheck,
   disclaimer: disclaimerCheck,
   alt_text: altTextCheck,
+  typefaces: typefaceCheck,
 };
 
 const SEVERITY_RANK = { blocker: 0, major: 1, minor: 2 } as const;

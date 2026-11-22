@@ -1,6 +1,6 @@
 // Converts the seed brand into check-ready objects (used by tests, the eval and the seeder).
-import type { CheckContext, Channel, Fact, PaletteColor, Rule, Term } from "@/lib/checks/types";
-import { BRAND_GUIDE, FACTS, PALETTE, RULES, TERMS } from "./urja";
+import type { CheckContext, Channel, DocPage, Fact, PaletteColor, Rule, Term, Typeface } from "@/lib/checks/types";
+import { BRAND_GUIDE, FACTS, PALETTE, RULES, TERMS, TYPEFACES } from "./urja";
 
 export function seedRules(): Rule[] {
   return RULES.map((r) => ({
@@ -26,9 +26,14 @@ export function seedPalette(): PaletteColor[] {
   return PALETTE.map((p) => ({ name: p.name, hex: p.hex }));
 }
 
-export function seedContext(input: { body: string; alt_text?: string; channel: Channel; hasImage?: boolean; today?: string }): CheckContext {
+export function seedTypefaces(): Typeface[] {
+  return TYPEFACES.map((t) => ({ name: t.name, note: t.note }));
+}
+
+export function seedContext(input: { body: string; alt_text?: string; channel: Channel; hasImage?: boolean; today?: string; pages?: DocPage[]; scanned?: boolean }): CheckContext {
   return {
     body: input.body, alt_text: input.alt_text ?? "", channel: input.channel, hasImage: input.hasImage ?? false,
-    rules: seedRules(), facts: seedFacts(), terms: seedTerms(), palette: seedPalette(), today: input.today ?? "2026-11-16",
+    rules: seedRules(), facts: seedFacts(), terms: seedTerms(), palette: seedPalette(), typefaces: seedTypefaces(),
+    pages: input.pages, scanned: input.scanned, today: input.today ?? "2026-11-16",
   };
 }

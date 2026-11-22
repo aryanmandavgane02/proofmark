@@ -10,6 +10,10 @@ import { PendingButton } from "./PendingButton";
 import { describeEvent } from "@/lib/events";
 import { settleStaleRun } from "@/lib/pipeline";
 import { AIRunning } from "./AIRunning";
+import { DocumentView } from "./DocumentView";
+import { CorrectedPdfForm } from "./CorrectedPdfForm";
+import { signedDocumentUrl } from "@/lib/documents/store";
+import type { DocPage } from "@/lib/checks/types";
 
 // Server actions on this page run checks; the AI half continues in the background after the response.
 export const maxDuration = 60;
@@ -17,6 +21,7 @@ export const maxDuration = 60;
 type Finding = {
   id: string; category: string; severity: string; rule_code: string; fact_code: string | null; field: string; quote: string;
   start_at: number | null; end_at: number | null; message: string; fix_kind: string; fix_text: string | null; label: string; status: string;
+  page: number | null;
 };
 
 const ORDER = { blocker: 0, major: 1, minor: 2 } as Record<string, number>;
@@ -28,7 +33,8 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
   const { data: draft } = await s.supabase.from("drafts").select("*").eq("id", id).maybeSingle();
   if (!draft) notFound();
 
-  const [{ data: version }, { data: versions }, { data: rules }, { data: facts }, { data: comments }, { data: events }, { data: approvals }, { data: decisions }] = await Promise.all([
+  const isDocument = draft.channel === "document";
+  const [{ data: version }, { data: versions }, { data: rules }, { data: facts }, { data: comments }, { data: events }, { data: approvals }, { data: decisions }, { data: typefaces }] = await Promise.all([
     s.supabase.from("draft_versions").select("*").eq("draft_id", id).eq("version", draft.current_version).single(),
     s.supabase.from("draft_versions").select("version, change_note, created_at, created_by").eq("draft_id", id).order("version", { ascending: false }),
     s.supabase.from("rules").select("code, title, statement, source_doc, source_page, source_quote, builtin").eq("workspace_id", s.workspace.id),
@@ -37,13 +43,15 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     s.supabase.from("events").select("id, type, person_id, detail, created_at").eq("draft_id", id).order("created_at"),
     s.supabase.from("approvals").select("*").eq("draft_id", id).order("created_at", { ascending: false }),
     s.supabase.from("decisions").select("finding_id, action, reason, person_id, created_at").eq("draft_id", id),
+    s.supabase.from("assets").select("name, note").eq("workspace_id", s.workspace.id).eq("kind", "font"),
   ]);
   const { data: latestRun } = await s.supabase.from("check_runs").select("*").eq("draft_version_id", version!.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   const run = await settleStaleRun(latestRun);
   const aiRunning = run?.ai_status === "running";
   const { data: rawFindings } = run ? await s.supabase.from("findings").select("*").eq("check_run_id", run.id) : { data: [] };
   // The visitor could read this version through row-level security, so they may see its image.
-  const imageUrl = version!.image_path ? await signedImageUrl(version!.image_path) : null;
+  const imageUrl = version!.image_path?.startsWith(`${s.workspace.id}/`) ? await signedImageUrl(version!.image_path) : null;
+  const fileUrl = isDocument && version!.file_path ? await signedDocumentUrl(version!.file_path, s.workspace.id) : null;
   const imageFindings = ((rawFindings ?? []) as Finding[]).filter((f) => f.field === "image" && LIVE.includes(f.status)).length;
   const findings = ((rawFindings ?? []) as Finding[]).sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || (a.start_at ?? 9e9) - (b.start_at ?? 9e9));
 
@@ -68,8 +76,10 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
   const reviewer = draft.reviewer_id ? personBy.get(draft.reviewer_id) : null;
   const approval = (approvals ?? []).find((a) => a.valid);
   const marks: Mark[] = live
-    .filter((f) => f.field === "body" && f.start_at != null && f.end_at != null)
+    .filter((f) => (f.field === "body" || f.field === "document") && f.start_at != null && f.end_at != null)
     .map((f) => ({ id: f.id, start: f.start_at!, end: f.end_at!, severity: f.severity }));
+  const findingsByPage = new Map<number, Finding[]>();
+  for (const f of live) if (f.page != null) findingsByPage.set(f.page, [...(findingsByPage.get(f.page) ?? []), f]);
 
   return (
     <div className="space-y-6">
@@ -77,7 +87,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
         <div>
           <h1 className="text-2xl font-bold text-primary-d">{draft.title}</h1>
           <p className="mt-1 text-sm text-muted">
-            {CHANNEL_LABEL[draft.channel as Channel]} · version {draft.current_version} · checked against rulebook v{run?.rulebook_version ?? s.workspace.rulebook_version}
+            {CHANNEL_LABEL[draft.channel as Channel]}{isDocument && version!.page_count ? ` · ${version!.page_count} page${version!.page_count > 1 ? "s" : ""}` : ""} · version {draft.current_version} · checked against rulebook v{run?.rulebook_version ?? s.workspace.rulebook_version}
             {run && <> · {run.ms} ms</>}
           </p>
         </div>
@@ -87,6 +97,20 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         {/* Left: content */}
         <div className="space-y-4">
+          {isDocument ? (
+          <Card className="p-5">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Document</h2>
+            <DocumentView
+              body={version!.body} pages={(version!.pages ?? []) as DocPage[]} scanned={!!version!.scanned} fileUrl={fileUrl}
+              fileName={version!.file_name ?? "document.pdf"} fileSize={version!.file_size ?? 0} fileHash={version!.file_hash ?? ""}
+              marks={marks} findingsByPage={findingsByPage} typefaces={(typefaces ?? []).map((t) => ({ name: t.name, note: t.note ?? "" }))}
+            />
+            <details className="mt-4 border-t border-line pt-3">
+              <summary className="cursor-pointer text-sm font-semibold text-primary">Upload a corrected PDF</summary>
+              <CorrectedPdfForm draftId={id} />
+            </details>
+          </Card>
+          ) : (
           <Card className="p-5">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Content</h2>
             {imageUrl && (
@@ -113,6 +137,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               </form>
             </details>
           </Card>
+          )}
 
           {/* Workflow */}
           <Card className="p-5">
@@ -168,12 +193,22 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                 <p className="font-semibold">Approved by {personBy.get(approval.approver_id)?.name} · {timeAgo(approval.created_at)}</p>
                 <dl className="mt-2 grid grid-cols-[120px_1fr] gap-x-3 gap-y-1 text-xs">
                   <dt>Version</dt><dd>{draft.current_version}</dd>
+                  {isDocument && approval.file_hash && (
+                    <>
+                      <dt>Approved file</dt>
+                      <dd>
+                        {version!.file_name} ({version!.page_count} page{version!.page_count > 1 ? "s" : ""}){" "}
+                        {fileUrl && <a href={fileUrl} target="_blank" rel="noreferrer" className="font-semibold underline">Open the approved file ↗</a>}
+                      </dd>
+                      <dt>File SHA-256</dt><dd className="break-all font-mono">{approval.file_hash}</dd>
+                    </>
+                  )}
                   <dt>Content fingerprint</dt><dd className="font-mono">{approval.fingerprint.slice(0, 16)}</dd>
                   <dt>Rulebook</dt><dd>v{approval.rulebook_version}</dd>
                   <dt>Overrides</dt><dd>{approval.overrides.length ? approval.overrides.map((o: { rule: string }) => o.rule).join(", ") : "none"}</dd>
                   <dt>AI services used</dt><dd>{approval.ai_services.length ? approval.ai_services.join(", ") : "none (code checks only)"}</dd>
                 </dl>
-                <p className="mt-2 text-xs">Any later edit creates a new version and needs a new approval.</p>
+                <p className="mt-2 text-xs">{isDocument ? "This approval is for this exact file. A corrected PDF becomes a new version and needs a new approval." : "Any later edit creates a new version and needs a new approval."}</p>
               </div>
             )}
           </Card>
@@ -286,6 +321,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                     <SeverityChip severity={f.severity} />
                     <CategoryChip category={f.category} />
                     <LabelChip label={f.label} />
+                    {f.page != null && <a href={`#page-${f.page}`} className="rounded-md border border-primary/30 bg-soft px-1.5 py-0.5 text-xs font-bold text-primary-d hover:bg-[#e3e7f3]">Page {f.page}</a>}
                     {f.status !== "open" && <span className="ml-auto text-xs font-semibold uppercase text-muted">{f.status}</span>}
                   </div>
                   <p className="mt-2 font-semibold text-ink">&ldquo;{f.quote}&rdquo;</p>
@@ -310,7 +346,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   {fact && !f.fix_text && <p className="mt-1 text-sm text-muted">Fact <b>{f.fact_code}</b>: {fact.statement} <span className="text-xs">({fact.source}; owner {fact.owner}{fact.status !== "approved" ? `; ${fact.status}` : ""})</span></p>}
                   {f.fix_text && (
                     <div className="mt-2 rounded-xl border border-[#cfe9e1] bg-gradient-to-r from-[#eef7f4] to-[#f4faf8] p-2.5 text-sm">
-                      <span className="font-semibold text-[#0a5c4f]">Suggested {f.fix_kind === "none" ? "correction" : "fix"}:</span>{" "}
+                      <span className="font-semibold text-[#0a5c4f]">Suggested {f.fix_kind === "none" ? "correction" : isDocument ? "wording" : "fix"}:</span>{" "}
                       {f.fix_kind === "none" ? f.fix_text : <span className="font-medium">&ldquo;{f.fix_text.trim()}&rdquo;</span>}
                       {fact && <span className="mt-1 block text-xs text-[#0a5c4f]">Based on approved fact <b>{f.fact_code}</b>: {fact.statement} Source: {fact.source}; owner: {fact.owner}{fact.status !== "approved" ? ` (${fact.status})` : ""}.</span>}
                     </div>
@@ -336,7 +372,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   </details>
                   {(f.status === "open" || f.status === "upheld") && (
                     <div className="mt-3 flex flex-wrap items-start gap-2">
-                      {f.fix_kind !== "none" && (
+                      {f.fix_kind !== "none" && !isDocument && (
                         <form action={acceptFix}>
                           <input type="hidden" name="finding_id" value={f.id} />
                           <PendingButton className={`${btn.small} bg-accent text-white hover:brightness-110`} pendingText="Applying…">Accept fix</PendingButton>
@@ -374,6 +410,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               <summary className="cursor-pointer font-semibold text-primary-d">How this was checked</summary>
               <dl className="mt-3 grid grid-cols-[150px_1fr] gap-x-3 gap-y-1.5">
                 <dt className="text-muted">Rulebook</dt><dd>v{run.rulebook_version}</dd>
+                {isDocument && <><dt className="text-muted">Document</dt><dd>{version!.page_count} page{version!.page_count > 1 ? "s" : ""} read from the PDF: the text of every page and the font of every piece of text. Every finding names its page. Pictures inside the PDF are not checked yet.</dd></>}
                 <dt className="text-muted">Code checks</dt><dd>{findings.filter((f) => f.label === "code").length} finding(s), {run.ms - (run.ai_ms ?? 0)} ms, no AI involved</dd>
                 <dt className="text-muted">AI checks</dt>
                 <dd>

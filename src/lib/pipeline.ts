@@ -12,12 +12,17 @@ import { analyseImage, loadImage } from "@/lib/images";
 import { paletteCheck } from "@/lib/checks/visual";
 import { attachAltSuggestion, imageAIFindings, imageTextFindings } from "@/lib/checks/image-findings";
 import { ruleApplies } from "@/lib/checks/types";
+import { withPages } from "@/lib/documents/read";
 import { URJA_LOGO_PNG_BASE64 } from "@/lib/seed/logo-png";
-import type { Channel, CheckContext, Fact, FindingDraft, PaletteColor, Rule, Term } from "@/lib/checks/types";
+import type { Channel, CheckContext, DocPage, Fact, FindingDraft, PaletteColor, Rule, Term, Typeface } from "@/lib/checks/types";
 
-export function fingerprint(v: { body: string; alt_text: string; image_path: string | null; channel: string }): string {
-  return createHash("sha256").update(JSON.stringify([v.channel, v.body, v.alt_text, v.image_path ?? ""])).digest("hex").slice(0, 32);
+/** What an approval is bound to: the channel, the text, the alt text, the image and, for a document, the exact file. */
+export function fingerprint(v: { body: string; alt_text: string; image_path: string | null; channel: string; file_hash?: string | null }): string {
+  const parts = [v.channel, v.body, v.alt_text, v.image_path ?? ""];
+  if (v.file_hash) parts.push(v.file_hash);
+  return createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 32);
 }
+
 
 export function todayIST(): string {
   return new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
@@ -37,18 +42,25 @@ export async function loadBrand(db: SupabaseClient, workspaceId: string) {
     publishedRules(db, workspaceId),
     db.from("facts").select("*").eq("workspace_id", workspaceId),
     db.from("terms").select("*").eq("workspace_id", workspaceId),
-    db.from("assets").select("*").eq("workspace_id", workspaceId).eq("kind", "color"),
+    db.from("assets").select("*").eq("workspace_id", workspaceId).in("kind", ["color", "font"]),
   ]);
   return {
     rules: published.rules,
     rulebookVersion: published.version,
     facts: (facts.data ?? []).map((f) => ({ ...f, value: f.value == null ? null : Number(f.value) })) as Fact[],
     terms: (terms.data ?? []) as Term[],
-    palette: (assets.data ?? []).map((a) => ({ name: a.name, hex: a.hex })) as PaletteColor[],
+    palette: (assets.data ?? []).filter((a) => a.kind === "color").map((a) => ({ name: a.name, hex: a.hex })) as PaletteColor[],
+    typefaces: (assets.data ?? []).filter((a) => a.kind === "font").map((a) => ({ name: a.name, note: a.note ?? "" })) as Typeface[],
   };
 }
 
-type VersionRow = { id: string; draft_id: string; version: number; body: string; alt_text: string; image_path: string | null };
+type VersionRow = {
+  id: string; draft_id: string; version: number; body: string; alt_text: string; image_path: string | null;
+  /** Documents only. */
+  file_hash?: string | null; pages?: DocPage[] | null; scanned?: boolean | null;
+};
+/** The version columns runChecks needs. */
+export const VERSION_COLUMNS = "id, draft_id, version, body, alt_text, image_path, file_hash, pages, scanned";
 type RunInput = { workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean; reuseFrom?: { runId: string; version: number } };
 export type RunResult = { runId: string; count: number; fingerprint: string; ai?: () => Promise<void> };
 
@@ -77,6 +89,7 @@ async function insertFindings(findings: FindingDraft[], at: FindingRowInput) {
     rule_code: f.rule_code,
     fact_code: f.fact_code ?? null,
     field: f.field,
+    page: f.page ?? null,
     quote: f.quote,
     start_at: f.start,
     end_at: f.end,
@@ -106,10 +119,12 @@ export async function runChecks(db: SupabaseClient, input: RunInput): Promise<Ru
     channel: input.channel,
     hasImage: !!input.version.image_path,
     ...brand,
+    pages: input.version.pages ?? undefined,
+    scanned: !!input.version.scanned,
     today: todayIST(),
   };
 
-  const codeFindings: FindingDraft[] = runCodeChecks(ctx);
+  const codeFindings: FindingDraft[] = withPages(runCodeChecks(ctx), ctx.pages);
   const fp = fingerprint({ ...input.version, channel: input.channel });
 
   // Image: colours are checked by code; everything else about the picture goes to the AI.
@@ -152,7 +167,7 @@ export async function runChecks(db: SupabaseClient, input: RunInput): Promise<Ru
         }
         reusedFindings.push({
           category: f.category, severity: f.severity, rule_code: f.rule_code, fact_code: f.fact_code, field: f.field,
-          quote: f.quote, start, end, message: f.message, fix_kind: f.fix_kind, fix_text: f.fix_text, label: f.label,
+          quote: f.quote, start, end, message: f.message, fix_kind: f.fix_kind, fix_text: f.fix_text, label: f.label, page: f.page,
         });
       }
       reused = { model: prevRun.ai_model, count: reusedFindings.length, fromVersion: input.reuseFrom.version };
@@ -259,7 +274,7 @@ async function runAIStage(p: {
 
   try {
     if (intent) await admin.from("draft_versions").update({ intent }).eq("id", at.versionId).eq("workspace_id", at.workspaceId).is("intent", null);
-    await insertFindings(sortFindings(aiFindings), at);
+    await insertFindings(withPages(sortFindings(aiFindings), ctx.pages), at);
     if (altSuggestion) {
       await admin.from("findings").update({ fix_kind: "set_alt", fix_text: altSuggestion.fix_text, message: altSuggestion.message })
         .eq("check_run_id", at.runId).eq("rule_code", "A11Y-01").eq("field", "alt_text").eq("fix_kind", "none");

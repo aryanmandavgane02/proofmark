@@ -21,7 +21,7 @@ export function guidePages(): GuidePage[] {
     },
     5: { title: "Logo", blocks: [q("VIS-01"), "Keep clear space around the logo equal to the height of the letter U. The minimum width is 80 pixels on screen."] },
     6: { title: "Colour", blocks: [q("VIS-02"), ...PALETTE.map((p) => `${p.name} ${p.hex}: ${p.note}`)] },
-    7: { title: "Type", blocks: ["Headlines use a bold sans-serif. Body text uses a regular sans-serif at 16 pixels or larger on screen."] },
+    7: { title: "Type", blocks: [q("VIS-03"), "Headlines are Poppins Bold. Body text is Inter Regular at 16 pixels or larger on screen.", "Export decks and documents to PDF with the fonts embedded, so the typefaces can be checked."] },
     8: { title: "Voice", blocks: [q("TONE-01"), q("TONE-02")] },
     9: { title: "Tone in practice", blocks: [q("TONE-03"), q("TONE-04"), "Instead of “Hurry, offer ends soon!!!” write “Offer ends 30 November.”"] },
     10: { title: "Messaging", blocks: [q("MSG-01"), q("MSG-02")] },

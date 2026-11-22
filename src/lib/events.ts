@@ -27,6 +27,8 @@ export function describeEvent(type: string, detail: Record<string, unknown>): st
     case "fact.edited": return `edited fact ${detail.code}.`;
     case "term.added": return `added the glossary term \u201c${detail.preferred}\u201d.`;
     case "color.added": return `added the brand colour ${detail.name} ${detail.hex}.`;
+    case "typeface.added": return `added the brand typeface ${detail.name}.`;
+    case "typeface.removed": return `removed the brand typeface ${detail.name}.`;
     default: return type.replace(".", " ") + ".";
   }
 }

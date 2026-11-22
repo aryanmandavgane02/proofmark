@@ -1,6 +1,6 @@
 # Scored test set: results
 
-27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 06:36 UTC.
+27 hand-labelled drafts for the fictional brand Urja Bites (`eval/cases.ts`): 5 clean controls, 19 with problems code can find (including a prompt-injection case and a draft with ten problems) and 3 judgment cases only AI can find. Run with `npm run eval`. Generated 2026-11-22 07:25 UTC.
 
 | Measure | Code checks only | Code + AI |
 |---|---|---|
@@ -11,10 +11,34 @@
 | Code fixes that clear their own finding | 25/25 | 25/25 |
 | False alarms shown as “needs human judgment” | no false alarms | 2/3 |
 | AI findings dropped by the proof check | — | 13 |
-| Average time per draft | 2 ms | 77 ms |
+| Average time per draft | 2 ms | 76 ms |
 
 Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.
 AI model: gemini-3.5-flash-lite. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.
+
+## PDF documents (Round 3)
+
+3 PDF files, labelled by hand by page and rule before the first run (`DOC_CASES` in `eval/cases.ts`; the files are built by `scripts/make-sample-docs.ts`): deck-diwali (10-page retail deck; problems planted on pages 2 to 9, pages 1 and 10 clean; page 4 set in Georgia); one-pager-clean (Clean control in the brand typefaces); brochure-arial (Two pages set in Arial, an ended offer (fact F-14) and a term to avoid). A finding counts only on the page its label gives; the same rule on another page is a false alarm.
+
+| Measure | Code checks only | Code + AI |
+|---|---|---|
+| Problems found on the right page (recall) | 100% | 100% |
+| Findings on a labelled page and rule (precision) | 100% | 100% |
+| Pages in a non-brand typeface found | 3/3 | 3/3 |
+| Typeface findings on a page in the brand typefaces | 0 | 0 |
+| Clean document with no false alarm | 1/1 | 1/1 |
+| Documents fully right | 3/3 | 3/3 |
+| AI findings dropped by the proof check | — | 6 |
+| Average time per document (reading the PDF included) | 48 ms | 69 ms |
+
+| Document | Expected (page and rule) | Missed | False alarms | Result |
+|---|---|---|---|---|
+| deck-diwali | p2 CLAIM-01, p3 CLAIM-03, p4 VIS-03, p5 CLAIM-02, p6 DISC-01, p7 TERM-01, p8 TONE-04, p8 TONE-03, p9 TONE-01 | — | — | Pass |
+| one-pager-clean | nothing (clean) | — | — | Pass |
+| brochure-arial | p1 TERM-01, p1 CLAIM-01, p1 VIS-03, p2 VIS-03 | — | — | Pass |
+
+Code-only scores leave out TONE-01 on page 9 of the deck, which only the AI can judge.
+These files were made for the test, with problems planted on known pages. The scores show that reading pages, placing findings on their page, typeface detection and the checks work on PDFs; they do not measure every real-world layout, which varies more between design tools.
 
 ## What the failures show
 
@@ -79,3 +103,7 @@ Labels were written before the first run. Corrections made after a run are liste
 | 2026-11-16 17:37 | code+ai | 95% | 93% | 3/5 | 24/27 |
 | 2026-11-22 06:36 | code | 100% | 100% | 5/5 | 24/24 |
 | 2026-11-22 06:36 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-22 07:25 | code | 100% | 100% | 5/5 | 24/24 |
+| 2026-11-22 07:25 | code+ai | 95% | 93% | 3/5 | 24/27 |
+| 2026-11-22 07:25 | pdf code | 100% | 100% | 1/1 | 3/3 |
+| 2026-11-22 07:25 | pdf code+ai | 100% | 100% | 1/1 | 3/3 |

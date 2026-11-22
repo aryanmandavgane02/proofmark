@@ -80,3 +80,24 @@ export const CASES: EvalCase[] = [
   { id: "many-problems", channel: "instagram", expect: ["TONE-04", "CLAIM-02", "TERM-01", "CLAIM-01", "CLAIM-03", "DISC-01", "SOC-01", "MSG-01", "MSG-02", "A11Y-01"], note: "Nine problems in two lines, plus missing alt text",
     body: "Hurry!!! India's #1 energy bar is 50% off and cures tiredness. #protein" },
 ];
+
+/**
+ * PDF documents (Round 3, improvement 1). Each expected finding is a page and a rule, labelled by hand from the files
+ * (built by scripts/make-sample-docs.ts) before the first run. A finding on another page or rule counts as a false alarm.
+ */
+export type DocCase = { id: string; file: string; expect: { page: number; rule: string }[]; note: string };
+
+export const DOC_CASES: DocCase[] = [
+  {
+    id: "deck-diwali", file: "public/samples/urja-diwali-retail-deck.pdf", note: "10-page retail deck; problems planted on pages 2 to 9, pages 1 and 10 clean; page 4 set in Georgia",
+    expect: [
+      { page: 2, rule: "CLAIM-01" }, { page: 3, rule: "CLAIM-03" }, { page: 4, rule: "VIS-03" }, { page: 5, rule: "CLAIM-02" }, { page: 6, rule: "DISC-01" },
+      { page: 7, rule: "TERM-01" }, { page: 8, rule: "TONE-04" }, { page: 8, rule: "TONE-03" }, { page: 9, rule: "TONE-01" },
+    ],
+  },
+  { id: "one-pager-clean", file: "public/samples/urja-cocoa-crunch-one-pager.pdf", note: "Clean control in the brand typefaces", expect: [] },
+  {
+    id: "brochure-arial", file: "eval/docs/urja-store-brochure-arial.pdf", note: "Two pages set in Arial, an ended offer (fact F-14) and a term to avoid",
+    expect: [{ page: 1, rule: "TERM-01" }, { page: 1, rule: "CLAIM-01" }, { page: 1, rule: "VIS-03" }, { page: 2, rule: "VIS-03" }],
+  },
+];

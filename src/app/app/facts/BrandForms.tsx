@@ -1,7 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { addColor, addTerm, saveFact, type BrandFormState } from "@/app/brand-actions";
+import { addColor, addTerm, addTypeface, saveFact, type BrandFormState } from "@/app/brand-actions";
 import { btn, input } from "@/components/ui";
 
 function Save({ label }: { label: string }) {
@@ -57,6 +57,17 @@ export function ColorForm() {
       <label className="text-xs font-semibold text-muted">Name<input name="name" required className={input} placeholder="Festive Gold" /></label>
       <label className="text-xs font-semibold text-muted">Hex colour<input name="hex" required pattern="#[0-9A-Fa-f]{6}" className={input} placeholder="#E0B040" /></label>
       <Save label="Add colour" /><Result state={state} />
+    </form>
+  );
+}
+
+export function TypefaceForm() {
+  const [state, action] = useActionState<BrandFormState, FormData>(addTypeface, undefined);
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-soft p-3 text-sm">
+      <label className="text-xs font-semibold text-muted">Family name<input name="name" required maxLength={60} className={input} placeholder="Noto Sans Devanagari" /></label>
+      <label className="text-xs font-semibold text-muted">Used for<input name="note" maxLength={60} className={input} placeholder="Hindi text" /></label>
+      <Save label="Add typeface" /><Result state={state} />
     </form>
   );
 }

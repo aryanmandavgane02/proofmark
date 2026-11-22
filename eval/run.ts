@@ -10,7 +10,9 @@ import type { FindingDraft } from "../src/lib/checks/types";
 import { seedContext, seedRules } from "../src/lib/seed/context";
 import { getProvider } from "../src/lib/ai/gemini";
 import { reviewText, secondOpinion } from "../src/lib/ai/review";
-import { CASES, LABEL_CORRECTIONS, type EvalCase } from "./cases";
+import { CASES, DOC_CASES, LABEL_CORRECTIONS, type DocCase, type EvalCase } from "./cases";
+import { readPdf, withPages } from "../src/lib/documents/read";
+import type { CheckContext } from "../src/lib/checks/types";
 
 const RULES = seedRules();
 const unavailable: string[] = [];
@@ -20,8 +22,13 @@ type CaseResult = { id: string; expected: string[]; found: string[]; missed: str
 type Run = { judgmentFalse?: string; mode: "code" | "code+ai"; when: string; model: string | null; cases: CaseResult[]; recall: number; precision: number; cleanOk: string; passed: string; fixes: string; dropped: number; avgMs: number };
 
 async function check(c: EvalCase, withAI: boolean): Promise<{ findings: FindingDraft[]; dropped: number; ms: number; model: string | null }> {
+  return checkContext(c.id, seedContext({ body: c.body, alt_text: c.alt_text, channel: c.channel }), withAI);
+}
+
+/** The same steps as the app: code checks, then the AI review, the proof check and the second opinion. */
+async function checkContext(id: string, ctx: CheckContext, withAI: boolean): Promise<{ findings: FindingDraft[]; dropped: number; ms: number; model: string | null }> {
   const t = Date.now();
-  const ctx = seedContext({ body: c.body, alt_text: c.alt_text, channel: c.channel });
+  const c = { id };
   const code = runCodeChecks(ctx);
   if (!withAI) return { findings: code, dropped: 0, ms: Date.now() - t, model: null };
   const provider = getProvider();
@@ -93,14 +100,55 @@ async function run(withAI: boolean): Promise<Run> {
   };
 }
 
+type DocResult = { id: string; expected: string[]; missed: string[]; falseAlarms: string[]; pass: boolean; ms: number };
+type DocRun = { mode: "pdf code" | "pdf code+ai"; when: string; model: string | null; cases: DocResult[]; recall: number; precision: number; cleanOk: string; passed: string; fonts: string; fontFalse: number; dropped: number; avgMs: number };
+
+/** PDF cases are scored by page: a finding counts only on the page and rule the label gives. */
+async function runDocs(withAI: boolean): Promise<DocRun> {
+  const cases: DocResult[] = [];
+  let tp = 0, all = 0, dropped = 0, fontHit = 0, fontExp = 0, fontFalse = 0, model: string | null = null;
+  for (const c of DOC_CASES as DocCase[]) {
+    const started = Date.now();
+    const doc = await readPdf(new Uint8Array(readFileSync(c.file)));
+    const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, scanned: doc.scanned });
+    const r = await checkContext(c.id, ctx, withAI);
+    model ??= r.model;
+    const findings = withPages(r.findings, doc.pages);
+    const key = (page: number | null | undefined, rule: string) => `p${page ?? "?"} ${rule}`;
+    const labelled = c.expect.map((e) => key(e.page, e.rule));
+    const expected = c.expect.filter((e) => withAI || !aiOnly.has(e.rule)).map((e) => key(e.page, e.rule));
+    const found = new Set(findings.map((f) => key(f.page, f.rule_code)));
+    const missed = expected.filter((e) => !found.has(e));
+    const wrong = findings.filter((f) => !labelled.includes(key(f.page, f.rule_code)));
+    tp += findings.length - wrong.length;
+    all += findings.length;
+    dropped += r.dropped;
+    const fontExpected = c.expect.filter((e) => e.rule === "VIS-03").map((e) => key(e.page, e.rule));
+    fontExp += fontExpected.length;
+    fontHit += fontExpected.filter((e) => found.has(e)).length;
+    fontFalse += wrong.filter((f) => f.rule_code === "VIS-03").length;
+    const falseAlarms = wrong.map((f) => `${key(f.page, f.rule_code)} “${f.quote.slice(0, 40)}”${f.label === "needs_judgment" ? " (needs judgment)" : ""}`);
+    cases.push({ id: c.id, expected, missed, falseAlarms, pass: !missed.length && !falseAlarms.length, ms: Date.now() - started });
+  }
+  const exp = cases.reduce((n, c) => n + c.expected.length, 0);
+  const hit = cases.reduce((n, c) => n + c.expected.length - c.missed.length, 0);
+  const clean = cases.filter((c) => !DOC_CASES.find((x) => x.id === c.id)!.expect.length);
+  return {
+    mode: withAI ? "pdf code+ai" : "pdf code", when: new Date().toISOString(), model, cases, recall: hit / exp, precision: all ? tp / all : 1,
+    cleanOk: `${clean.filter((c) => !c.falseAlarms.length).length}/${clean.length}`, passed: `${cases.filter((c) => c.pass).length}/${cases.length}`,
+    fonts: `${fontHit}/${fontExp}`, fontFalse, dropped, avgMs: Math.round(cases.reduce((n, c) => n + c.ms, 0) / cases.length),
+  };
+}
+
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 async function main() {
   const codeOnly = process.argv.includes("--code");
   const runs = [await run(false), ...(codeOnly ? [] : [await run(true)])];
+  const docRuns = [await runDocs(false), ...(codeOnly ? [] : [await runDocs(true)])];
   const histFile = "eval/history.json";
-  const history: Omit<Run, "cases">[] = existsSync(histFile) ? JSON.parse(readFileSync(histFile, "utf8")) : [];
-  for (const r of runs) { const { cases: _c, ...summary } = r; void _c; history.push(summary); }
+  const history: (Omit<Run, "cases"> | Omit<DocRun, "cases">)[] = existsSync(histFile) ? JSON.parse(readFileSync(histFile, "utf8")) : [];
+  for (const r of [...runs, ...docRuns]) { const { cases: _c, ...summary } = r; void _c; history.push(summary); }
   writeFileSync(histFile, JSON.stringify(history, null, 2) + "\n");
 
   const latest = runs.at(-1)!;
@@ -125,6 +173,30 @@ async function main() {
     "Code-only scores leave out the three judgment cases and the AI-only rules in the many-problems draft, because code cannot check them by design.",
     ...(unavailable.length ? [`AI was unavailable for: ${unavailable.join(", ")} (scored on code checks only, as the app does).`, ""] : []),
     `AI model: ${latest.model ?? "none"}. AI answers are stored by exact prompt, so a re-run gives the same answers unless a prompt or rule changes.`,
+    "",
+    "## PDF documents (Round 3)",
+    "",
+    `${DOC_CASES.length} PDF files, labelled by hand by page and rule before the first run (\`DOC_CASES\` in \`eval/cases.ts\`; the files are built by \`scripts/make-sample-docs.ts\`): ${DOC_CASES.map((c) => `${c.id} (${c.note})`).join("; ")}. A finding counts only on the page its label gives; the same rule on another page is a false alarm.`,
+    "",
+    "| Measure | Code checks only | Code + AI |",
+    "|---|---|---|",
+    ...([
+      ["Problems found on the right page (recall)", (r: DocRun) => pct(r.recall)],
+      ["Findings on a labelled page and rule (precision)", (r: DocRun) => pct(r.precision)],
+      ["Pages in a non-brand typeface found", (r: DocRun) => r.fonts],
+      ["Typeface findings on a page in the brand typefaces", (r: DocRun) => String(r.fontFalse)],
+      ["Clean document with no false alarm", (r: DocRun) => r.cleanOk],
+      ["Documents fully right", (r: DocRun) => r.passed],
+      ["AI findings dropped by the proof check", (r: DocRun) => (r.mode === "pdf code" ? "—" : String(r.dropped))],
+      ["Average time per document (reading the PDF included)", (r: DocRun) => `${r.avgMs} ms`],
+    ] as [string, (r: DocRun) => string][]).map(([label, f]) => `| ${label} | ${f(docRuns[0])} | ${docRuns[1] ? f(docRuns[1]) : "not run"} |`),
+    "",
+    "| Document | Expected (page and rule) | Missed | False alarms | Result |",
+    "|---|---|---|---|---|",
+    ...docRuns.at(-1)!.cases.map((c) => `| ${c.id} | ${c.expected.join(", ") || "nothing (clean)"} | ${c.missed.join(", ") || "—"} | ${c.falseAlarms.join("; ") || "—"} | ${c.pass ? "Pass" : "**Fail**"} |`),
+    "",
+    "Code-only scores leave out TONE-01 on page 9 of the deck, which only the AI can judge.",
+    "These files were made for the test, with problems planted on known pages. The scores show that reading pages, placing findings on their page, typeface detection and the checks work on PDFs; they do not measure every real-world layout, which varies more between design tools.",
     "",
     "## What the failures show",
     "",
@@ -155,6 +227,8 @@ async function main() {
   ].join("\n");
   writeFileSync("eval/RESULTS.md", md);
   for (const r of runs) console.log(`${r.mode}: recall ${pct(r.recall)}, precision ${pct(r.precision)}, clean ${r.cleanOk}, passed ${r.passed}, fixes ${r.fixes}, dropped ${r.dropped}`);
+  for (const r of docRuns) console.log(`${r.mode}: recall ${pct(r.recall)}, precision ${pct(r.precision)}, typeface pages ${r.fonts} (false ${r.fontFalse}), clean ${r.cleanOk}, passed ${r.passed}, dropped ${r.dropped}`);
+  for (const c of docRuns.at(-1)!.cases.filter((c) => !c.pass)) console.log(`  FAIL ${c.id}: missed [${c.missed}] false [${c.falseAlarms.join("; ")}]`);
   for (const c of latest.cases.filter((c) => !c.pass)) console.log(`  FAIL ${c.id}: missed [${c.missed}] false [${c.falseAlarms.join("; ")}]`);
 }
 main().catch((e) => { console.error(e); process.exit(1); });

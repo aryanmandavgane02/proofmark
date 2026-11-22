@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BRAND_GUIDE, PEOPLE } from "./urja";
-import { seedFacts, seedPalette, seedRules, seedTerms } from "./context";
+import { seedFacts, seedPalette, seedRules, seedTerms, seedTypefaces } from "./context";
 
 /** Creates a private copy of the Urja Bites demo workspace for one visitor. Returns the workspace id. */
 export async function seedDemoWorkspace(userId: string): Promise<string> {
@@ -37,6 +37,7 @@ export async function seedDemoWorkspace(userId: string): Promise<string> {
   must(
     await db.from("assets").insert([
       ...seedPalette().map((c) => ({ workspace_id: ws.id, kind: "color", name: c.name, hex: c.hex })),
+      ...seedTypefaces().map((t) => ({ workspace_id: ws.id, kind: "font", name: t.name, note: t.note })),
       { workspace_id: ws.id, kind: "logo", name: "Urja Bites logo", file_path: "/demo/urja-logo.svg", note: "Primary logo. Cream or Cocoa backgrounds only." },
     ]),
     "assets",

@@ -8,7 +8,7 @@ import type { CheckContext, FindingDraft } from "./types";
 import { ruleApplies } from "./types";
 import { overlaps } from "./text";
 
-export type AIFinding = { rule_code: string; quote: string; why: string; fix?: string | null };
+export type AIFinding = { rule_code: string; quote: string; why: string; fix?: string | null; page?: number | null };
 export type Dropped = { rule_code: string; quote: string; reason: string };
 
 const norm = (s: string) => s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').toLowerCase();
@@ -56,7 +56,10 @@ export function proofCheck(ai: AIFinding[], ctx: CheckContext, codeFindings: Fin
       dropped.push({ rule_code: a.rule_code, quote: a.quote ?? "", reason: "has no usable quote" });
       continue;
     }
-    const pos = locateQuote(ctx.body, a.quote);
+    // In a document, look on the page the AI named first (the same words can appear on several pages).
+    const named = ctx.pages?.find((p) => p.n === a.page);
+    const onPage = named ? locateQuote(ctx.body.slice(named.start, named.end), a.quote) : null;
+    const pos = onPage ? { start: named!.start + onPage.start, end: named!.start + onPage.end } : locateQuote(ctx.body, a.quote);
     if (!pos) {
       dropped.push({ rule_code: a.rule_code, quote: a.quote, reason: "quotes text that is not in the draft" });
       continue;
@@ -76,7 +79,7 @@ export function proofCheck(ai: AIFinding[], ctx: CheckContext, codeFindings: Fin
     let fix_text: string | null = a.fix?.trim() || null;
     if (fix_text && fix_text !== quote) {
       const fixed = ctx.body.slice(0, pos.start) + fix_text + ctx.body.slice(pos.end);
-      const introduced = runCodeChecks({ ...ctx, body: fixed }).filter((f) => !before.has(`${f.rule_code}|${f.quote}`) && f.quote.length && fixed.includes(f.quote) && !ctx.body.includes(f.quote));
+      const introduced = runCodeChecks({ ...ctx, body: fixed, pages: undefined }).filter((f) => !before.has(`${f.rule_code}|${f.quote}`) && f.quote.length && fixed.includes(f.quote) && !ctx.body.includes(f.quote));
       if (introduced.length) {
         fix_text = `Rewrite this part. The AI suggestion “${fix_text}” was withheld because it would break ${[...new Set(introduced.map((f) => f.rule_code))].join(", ")}.`;
       } else fix_kind = "replace";

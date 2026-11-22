@@ -25,7 +25,7 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
   const { data: draft } = await s.supabase.from("drafts").select("id, title, current_version").eq("id", id).maybeSingle();
   if (!draft) notFound();
   const [{ data: versions }, { data: runs }, { data: approvals }] = await Promise.all([
-    s.supabase.from("draft_versions").select("id, version, body, alt_text, change_note, created_by, created_at, fingerprint").eq("draft_id", id).order("version"),
+    s.supabase.from("draft_versions").select("id, version, body, alt_text, change_note, created_by, created_at, fingerprint, file_name, file_hash, page_count").eq("draft_id", id).order("version"),
     s.supabase.from("check_runs").select("id, draft_version_id, created_at, ai_status").eq("workspace_id", s.workspace.id),
     s.supabase.from("approvals").select("draft_version_id, approver_id, valid, created_at").eq("draft_id", id),
   ]);
@@ -54,6 +54,7 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
                   <span className="text-xs text-muted">{timeAgo(v.created_at)}</span>
                 </div>
                 <p className="text-muted">{v.change_note ?? "First version"} · by {personBy.get(v.created_by) ?? "—"}</p>
+                {v.file_hash && <p className="text-xs text-muted">{v.file_name} · {v.page_count} page{v.page_count === 1 ? "" : "s"} · <span className="font-mono" title={`SHA-256 ${v.file_hash}`}>{v.file_hash.slice(0, 12)}</span></p>}
                 <p className="text-xs">{open(v.id)} open finding(s){appr ? ` · ${appr.valid ? "approved" : "approval withdrawn after edit"} by ${personBy.get(appr.approver_id)}` : ""}</p>
                 {v.version > 1 && <Link className="text-xs font-semibold text-primary hover:underline" href={`?from=${v.version - 1}&to=${v.version}`}>Compare with version {v.version - 1}</Link>}
               </div>
@@ -64,7 +65,7 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
           <h2 className="text-sm font-semibold text-primary-d">
             {from === to ? `Version ${to}` : <>Changes from version {from} to version {to}</>}
           </h2>
-          <p className="mb-3 text-xs text-muted"><ins className="bg-[#d8f0ea] no-underline">Added</ins> · <del className="bg-[#fde0dd]">removed</del></p>
+          <p className="mb-3 text-xs text-muted"><ins className="bg-[#d8f0ea] no-underline">Added</ins> · <del className="bg-[#fde0dd]">removed</del>{B.file_hash && " · For a PDF, this compares the text read from each version's file."}</p>
           <Diff a={A.body} b={B.body} />
           {(A.alt_text || B.alt_text) && (
             <div className="mt-4 border-t border-line pt-3">

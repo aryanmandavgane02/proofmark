@@ -6,7 +6,8 @@ config({ path: ".env.local", quiet: true });
 import { runCodeChecks } from "../src/lib/checks";
 import { proofCheck } from "../src/lib/checks/proof";
 import { seedContext } from "../src/lib/seed/context";
-import { SAMPLE_DRAFTS } from "../src/lib/seed/urja";
+import { SAMPLE_DOCUMENTS, SAMPLE_DRAFTS } from "../src/lib/seed/urja";
+import { readPdf } from "../src/lib/documents/read";
 import { getProvider } from "../src/lib/ai/gemini";
 import { reviewImage, reviewText, secondOpinion } from "../src/lib/ai/review";
 import { readFileSync } from "node:fs";
@@ -29,6 +30,16 @@ async function main() {
       img = ` · image: ${r.requests ? "stored" : "already stored"}, ${r.review.findings.length} visual finding(s), text read: "${r.review.text_in_image.replace(/\s+/g, " ").slice(0, 60)}"`;
     }
     console.log(`${d.key}: ${text.cached ? "already stored" : "stored"} · ${kept.length} AI finding(s) kept, ${dropped.length} dropped${img}`);
+  }
+  // Sample PDFs: one AI request per document (every page in it), then the second opinion.
+  for (const d of SAMPLE_DOCUMENTS) {
+    const doc = await readPdf(new Uint8Array(readFileSync(`public${d.file}`)));
+    const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, scanned: doc.scanned, ...(process.env.TODAY ? { today: process.env.TODAY } : {}) });
+    const text = await reviewText(provider, ctx, "warm-up");
+    const { kept, dropped } = proofCheck(text.review.findings, ctx, runCodeChecks(ctx));
+    const judgment = kept.filter((f) => f.category === "tone" || f.category === "messaging");
+    if (judgment.length) await secondOpinion(provider, ctx, judgment, "warm-up");
+    console.log(`${d.key} (PDF, ${doc.pageCount} page${doc.pageCount > 1 ? "s" : ""}): ${text.cached ? "already stored" : "stored"} · ${kept.length} AI finding(s) kept, ${dropped.length} dropped`);
   }
 }
 main().catch((e) => { console.error(e.message); process.exit(1); });
