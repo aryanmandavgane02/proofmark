@@ -228,6 +228,10 @@ describe("checking a document", () => {
     expect(fonts[0].message).toMatch(/^Pages 1 and 2 use the font Arial, which is not one of the brand's fonts \([\d,]+ letters, including this text\)\. The brand's fonts are /);
     expect(doc.body.slice(fonts[0].start!, fonts[0].end!)).toBe(fonts[0].quote);
   });
+  it("counts the pictures on each page, but not icons", async () => {
+    const doc = await readPdf(file("e2e/fixtures/with-pictures.pdf"));
+    expect(doc.pages.map((p) => p.pictures)).toEqual([1, 0]);
+  });
   it("does not check typefaces of a scan's hidden text layer", async () => {
     const doc = await readPdf(file("eval/docs/urja-store-brochure-arial.pdf"));
     const ctx = seedContext({ body: doc.body, channel: "document", pages: doc.pages, scanned: true });

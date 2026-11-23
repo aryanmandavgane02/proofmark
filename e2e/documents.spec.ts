@@ -111,6 +111,19 @@ test("document: an uploaded PDF, the same file again, then a corrected PDF as th
   await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toHaveCount(0);
 });
 
+test("document: pages with pictures say that the pictures themselves were not checked", async ({ page }) => {
+  test.setTimeout(120_000);
+  await startDemo(page);
+  await page.goto("/app/drafts/new?mode=document");
+  await page.getByLabel("PDF document").setInputFiles("e2e/fixtures/with-pictures.pdf");
+  await page.getByLabel("Title").fill("Deck with a photo");
+  await page.getByRole("button", { name: "Check this document" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  await expect(page.getByText("Page 1 has pictures. Their text, fonts and claims were checked, but not what is inside the pictures")).toBeVisible();
+  await expect(page.locator("#page-1")).toContainText("1 picture, not checked");
+  await expect(page.locator("#page-2")).not.toContainText("not checked");
+});
+
 test("document: files that cannot be checked are refused with the reason", async ({ page }) => {
   test.setTimeout(150_000);
   await startDemo(page);

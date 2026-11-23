@@ -13,7 +13,7 @@ export type LibraryItem = {
 
 export const LIBRARY_DECK = deck as {
   file: string; hash: string; size: number; pageCount: number; body: string;
-  pages: { n: number; start: number; end: number; fonts: { family: string; font: string; chars: number }[]; runs: { family: string; start: number; end: number }[] }[];
+  pages: { n: number; start: number; end: number; fonts: { family: string; font: string; chars: number }[]; runs: { family: string; start: number; end: number }[]; pictures?: number }[];
 };
 
 export const LIBRARY: LibraryItem[] = [

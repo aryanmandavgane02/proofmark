@@ -4,6 +4,7 @@ import type { DocPage, Typeface } from "@/lib/checks/types";
 import { isSymbolFont, looksLikeHiddenName, sameFamily } from "@/lib/documents/fonts";
 import { Highlighted, type Mark } from "./Highlighted";
 import { formatBytes } from "@/lib/bytes";
+import { pageList } from "@/lib/documents/pages";
 
 const RANK: Record<string, number> = { blocker: 0, major: 1, minor: 2 };
 const CHIP: Record<string, string> = {
@@ -20,6 +21,9 @@ export function DocumentView(props: {
   const { body, pages, fileUrl, marks, findingsByPage, typefaces } = props;
   const worst = (n: number) => (findingsByPage.get(n) ?? []).map((f) => f.severity).sort((a, b) => RANK[a] - RANK[b])[0];
   const textless = pages.filter((p) => !body.slice(p.start, p.end).trim()).map((p) => p.n);
+  // Pages with pictures (documents read since Block 2 count them): their text is checked, the pictures are not.
+  const pictured = pages.filter((p) => (p.pictures ?? 0) > 0 && !textless.includes(p.n)).map((p) => p.n);
+  const plural = pictured.length > 1;
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-soft p-3 text-sm">
@@ -35,6 +39,11 @@ export function DocumentView(props: {
       {textless.length > 0 && (
         <p className="rounded-lg bg-[#fff6e5] p-3 text-sm text-[#7a3d00]">
           {textless.length === pages.length ? "No page" : textless.length === 1 ? `Page ${textless[0]}` : `Pages ${textless.join(", ")}`} {textless.length === 1 ? "has" : "have"} no text (pictures only), so {textless.length === 1 ? "it was" : "they were"} not checked. Look at {textless.length === 1 ? "it" : "them"} in the PDF.
+        </p>
+      )}
+      {pictured.length > 0 && (
+        <p className="rounded-lg border border-line bg-soft p-3 text-sm text-primary-d">
+          {pageList(pictured).replace(/^p/, "P")} {plural ? "have" : "has"} pictures. Their text, fonts and claims were checked, but not what is inside the pictures (a logo, a photo, words drawn into an image): look at {plural ? "those" : "it"} in the PDF.
         </p>
       )}
       <nav aria-label="Pages" className="flex flex-wrap gap-1.5">
@@ -58,7 +67,10 @@ export function DocumentView(props: {
           <section key={p.n} id={`page-${p.n}`} aria-labelledby={`page-${p.n}-h`} className="scroll-mt-24 border-t border-line pt-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 id={`page-${p.n}-h`} className="text-sm font-bold text-primary-d">Page {p.n}</h3>
-              {fileUrl && <a href={`${fileUrl}#page=${p.n}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary hover:underline">Open page {p.n} in the PDF ↗</a>}
+              <span className="flex flex-wrap items-baseline gap-2">
+                {pictured.includes(p.n) && <span className="rounded border border-line px-1.5 py-0.5 text-xs text-muted">{p.pictures} picture{p.pictures! > 1 ? "s" : ""}, not checked</span>}
+                {fileUrl && <a href={`${fileUrl}#page=${p.n}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary hover:underline">Open page {p.n} in the PDF ↗</a>}
+              </span>
             </div>
             {fonts.length > 0 && !props.scanned && (
               <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">

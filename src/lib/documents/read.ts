@@ -39,6 +39,29 @@ type Run = { font: string; start: number; end: number };
 export type Glyphs = { letters: string; mark: number[]; spaces: number; at: number };
 
 type Ops = Record<string, number>;
+
+/** Smallest picture counted, in pixels of the image itself: smaller ones are icons, bullets and dividers. */
+const MIN_PICTURE_PIXELS = 64 * 64;
+
+/**
+ * Pictures a page draws (photos, logos, charts saved as images), from its pdf.js operator list. Proofmark checks the
+ * text, fonts and claims of every page, not what is inside a picture, so the document says which pages have them.
+ */
+export function countPictures(fnArray: number[], argsArray: unknown[][], OPS: Ops): number {
+  let n = 0;
+  for (let i = 0; i < fnArray.length; i++) {
+    const fn = fnArray[i];
+    if (fn === OPS.paintImageXObject || fn === OPS.paintImageXObjectRepeat) {
+      const [, w, h] = argsArray[i] as [unknown, number?, number?];
+      if (!w || !h || w * h >= MIN_PICTURE_PIXELS) n++;
+    } else if (fn === OPS.paintInlineImageXObject) {
+      const img = argsArray[i]?.[0] as { width?: number; height?: number } | undefined;
+      if ((img?.width ?? 0) * (img?.height ?? 0) >= MIN_PICTURE_PIXELS) n++;
+    }
+  }
+  return n;
+}
+
 /** Builds a page's Glyphs from its pdf.js operator list. */
 export function glyphStream(fnArray: number[], argsArray: unknown[][], OPS: Ops): Glyphs {
   let letters = "";
@@ -243,7 +266,7 @@ async function read(bytes: Uint8Array, open: { pdf?: Awaited<ReturnType<typeof g
     if (pageCount > MAX_PAGES) throw new DocumentError(`This PDF has ${pageCount} pages. Proofmark checks documents of up to ${MAX_PAGES} pages: split it, or upload the pages that matter.`, "too_many_pages");
 
     const { OPS } = await getResolvedPDFJS();
-    const raw: { text: string; runs: Run[] }[] = [];
+    const raw: { text: string; runs: Run[]; pictures: number }[] = [];
     for (let n = 1; n <= pageCount; n++) {
       const page = await pdf.getPage(n);
       const ops = await page.getOperatorList(); // also loads the page's fonts, so their real names are known
@@ -261,7 +284,10 @@ async function read(bytes: Uint8Array, open: { pdf?: Awaited<ReturnType<typeof g
         }
         return names.get(id)!;
       };
-      raw.push(assemblePage(content.items as Item[], fontOf, glyphStream(ops.fnArray, ops.argsArray as unknown[][], OPS as unknown as Ops)));
+      raw.push({
+        ...assemblePage(content.items as Item[], fontOf, glyphStream(ops.fnArray, ops.argsArray as unknown[][], OPS as unknown as Ops)),
+        pictures: countPictures(ops.fnArray, ops.argsArray as unknown[][], OPS as unknown as Ops),
+      });
       page.cleanup();
     }
 
@@ -280,7 +306,7 @@ async function read(bytes: Uint8Array, open: { pdf?: Awaited<ReturnType<typeof g
         f.chars += letters;
         fonts.set(k, f);
       }
-      return { n: i + 1, start, end: body.length, fonts: [...fonts.values()].sort((a, b) => b.chars - a.chars), runs: runs.map(({ family, start, end }) => ({ family, start, end })) };
+      return { n: i + 1, start, end: body.length, fonts: [...fonts.values()].sort((a, b) => b.chars - a.chars), runs: runs.map(({ family, start, end }) => ({ family, start, end })), pictures: p.pictures };
     });
 
     const letters = (body.match(/[\p{L}\p{N}]/gu) ?? []).length;

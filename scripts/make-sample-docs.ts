@@ -161,9 +161,28 @@ function letterSpacingHtml() {
   </div></body></html>`;
 }
 
+// ── Pictures in a deck ─────────────────────────────────────────────────────────────
+// Page 1 shows a photo, page 2 only a 1-pixel icon. The reader counts pictures per page (not icons), so the
+// document can say which pages have pictures that are not checked. (Block 2, Mon 23 Nov.)
+function picturesHtml() {
+  const photo = readFileSync("public/samples/diwali-ad.png").toString("base64");
+  const dot = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  return `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>
+  @page{size:1280px 720px;margin:0} body{margin:0;font-family:Inter} .s{padding:60px;height:600px;page-break-after:always}
+  h1{font-family:Poppins;font-size:44px;margin:0 0 16px} img.photo{width:420px} img.icon{width:16px;height:16px;vertical-align:middle}
+  </style></head><body>
+  <div class="s"><h1>Festive gift boxes</h1><p>Roasted cocoa and dates in every bar.</p><img class="photo" src="data:image/png;base64,${photo}"></div>
+  <div class="s"><h1>Order for your store</h1><p><img class="icon" src="data:image/png;base64,${dot}"> Order at urjabites.in/retail.</p></div>
+  </body></html>`;
+}
+
 async function main() {
   if (process.argv.includes("--letter-spacing")) {
     print(letterSpacingHtml(), path.resolve("e2e/fixtures/letter-spacing.pdf"));
+    return;
+  }
+  if (process.argv.includes("--pictures")) {
+    print(picturesHtml(), path.resolve("e2e/fixtures/with-pictures.pdf"));
     return;
   }
   const deck = path.resolve("public/samples/urja-diwali-retail-deck.pdf");

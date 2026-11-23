@@ -61,6 +61,8 @@ export type DocPage = {
   n: number; start: number; end: number;
   fonts: { family: string; font: string; chars: number }[];
   runs: { family: string; start: number; end: number }[];
+  /** Pictures on the page (not icons). Not checked inside; absent on documents read before Round 3, Block 2. */
+  pictures?: number;
 };
 
 /** A finding before it is stored. Offsets are character positions in `field`. */
