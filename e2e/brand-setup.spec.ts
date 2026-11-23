@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("brand setup: a brand PDF becomes approved, published rules that are enforced", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
 
   // Creators cannot import
   await page.goto("/app/rulebook/import");

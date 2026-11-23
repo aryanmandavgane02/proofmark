@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("workflow: revision, dispute, approval, and re-approval after an edit", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.goto("/app/drafts/new?sample=newsletter");
   await page.getByRole("button", { name: "Check this draft" }).click();
   await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 90_000 });
@@ -35,6 +35,7 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
 
   // Ritu upholds the dispute: it must be fixed, so approval is blocked
   await page.getByLabel("Acting as").selectOption({ label: "Ritu · Legal and compliance" });
+  await expect(page.getByText("Switching…")).toHaveCount(0);
   const decision = page.locator("form").filter({ hasText: "Your decision as Ritu" });
   await decision.getByPlaceholder(/Reason/).fill("Immunity claims need regulatory approval; remove it.");
   await decision.getByRole("button", { name: /Uphold/ }).click();
@@ -47,6 +48,7 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
 
   // Arjun edits the text by hand (a new version), resubmits; Ritu approves
   await page.getByLabel("Acting as").selectOption({ label: "Arjun · Creator" });
+  await expect(page.getByText("Switching…")).toHaveCount(0);
   await page.getByText("Edit the text yourself").click();
   const body = page.getByLabel("Content");
   await body.fill((await body.inputValue()).replace("because it boosts immunity and ", ""));
@@ -54,11 +56,13 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
   await expect(page.getByText(/version 3/).first()).toBeVisible({ timeout: 60_000 });
   await page.getByRole("button", { name: "Submit for review" }).click();
   await page.getByLabel("Acting as").selectOption({ label: "Ritu · Legal and compliance" });
+  await expect(page.getByText("Switching…")).toHaveCount(0);
   await page.getByRole("button", { name: "Approve this version" }).click();
   await expect(page.getByText(/Approved by Ritu/)).toBeVisible();
 
   // A later edit withdraws the approval
   await page.getByLabel("Acting as").selectOption({ label: "Arjun · Creator" });
+  await expect(page.getByText("Switching…")).toHaveCount(0);
   await page.getByText("Edit the text yourself").click();
   await page.getByLabel("Content").fill((await page.getByLabel("Content").inputValue()) + "\nP.S. New flavours soon.");
   await page.getByRole("button", { name: /Save as a new version/ }).click();

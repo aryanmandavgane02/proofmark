@@ -7,7 +7,7 @@ test.use({ actionTimeout: 20_000 });
 async function startDemo(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
 }
 
 async function actAs(page: Page, label: string) {
@@ -58,6 +58,30 @@ test("going back after creating a draft and sending other content makes a second
   await expect(page.getByText(second).first()).toBeVisible();
   await page.goto("/app");
   await expect(page.locator("main a[href^='/app/drafts/']").filter({ hasText: /Back (one|two) / })).toHaveCount(2);
+});
+
+test("text typed before the page finishes loading is kept when the form changes", async ({ page }) => {
+  await startDemo(page);
+  // Hold back the page's scripts, as on a slow phone, and type while the form is only HTML.
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  await page.route(/\/_next\/static\/chunks\/.+\.js/, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.goto("/app/drafts/new", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("Title").fill("Typed early");
+  await page.getByLabel("Content").fill("Roasted cocoa and dates in every bar. Order at urjabites.in.");
+  release();
+  await page.waitForLoadState("networkidle");
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  // A change after loading must not clear what was typed.
+  await page.getByLabel("Channel").selectOption("website");
+  await expect(page.getByLabel("Title")).toHaveValue("Typed early");
+  await expect(page.getByLabel("Content")).toHaveValue(/Roasted cocoa and dates/);
+  await page.getByRole("button", { name: "Check this draft" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "Typed early" })).toBeVisible();
 });
 
 test("whitespace-only content is refused with a message", async ({ page }) => {

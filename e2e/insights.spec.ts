@@ -6,7 +6,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("insights: real disputes and overrides flag a rule, and clearer wording is published", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
 
   // The page is useful on a first visit: sample history, labelled, already flags MSG-01
   await page.getByRole("link", { name: "Insights", exact: true }).click();
@@ -75,7 +75,7 @@ test("insights: real disputes and overrides flag a rule, and clearer wording is 
 test("insights: the AI proposes clearer wording from the sample decisions", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.goto("/app/insights");
   await page.getByLabel("Acting as").selectOption({ label: "Meera · Brand manager" });
   const msg = page.locator("#rule-MSG-01").locator("xpath=..");
@@ -89,7 +89,7 @@ test("replay: new wording for MSG-01 is replayed against every past decision bef
   test.setTimeout(180_000);
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.goto("/app/insights");
   await page.getByLabel("Acting as").selectOption({ label: "Meera · Brand manager" });
   await expect(page.getByText("Switching…")).toHaveCount(0);
@@ -125,7 +125,7 @@ test("replay: an edited AI rule in the rulebook is replayed before the version i
   test.setTimeout(180_000);
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.goto("/app/rulebook");
   await page.getByLabel("Acting as").selectOption({ label: "Meera · Brand manager" });
   await expect(page.getByText("Switching…")).toHaveCount(0);

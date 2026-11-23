@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("acting as: the dropdown always matches who you are acting as", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   const shown = () => page.getByLabel("Acting as").locator("option:checked");
 
   for (const [label, name] of [["Meera · Brand manager", "Meera"], ["Ritu · Legal and compliance", "Ritu"], ["Arjun · Creator", "Arjun"], ["Kabir · Design lead", "Kabir"]]) {

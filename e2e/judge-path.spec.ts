@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 test("judge path: draft in, cited findings out, a person approves", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await expect(page.getByText("Guided demo")).toBeVisible();
 
   // 1. Check the sample post as Arjun

@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createDraft, type FormState } from "@/app/actions";
 import { CHANNEL_LABEL, TEXT_CHANNELS, type Channel } from "@/lib/checks/types";
@@ -21,6 +21,20 @@ export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedD
   const [preview, setPreview] = useState<string | null>(initial?.image ?? null);
   const [sampleImage, setSampleImage] = useState<boolean>(!!initial?.image);
   const [imgNote, setImgNote] = useState<string>("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // On a slow phone people can type before the page has finished loading. That text is only in the fields, not in
+  // the state, so the next change (picking a channel) would clear it. Adopt it once the page has loaded.
+  useEffect(() => {
+    const f = formRef.current;
+    if (!f) return;
+    const typed = (n: string) => (f.elements.namedItem(n) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value;
+    setV((v) => {
+      const next = { ...v, title: typed("title") ?? v.title, channel: (typed("channel") ?? v.channel) as Channel, body: typed("body") ?? v.body, alt_text: typed("alt_text") ?? v.alt_text };
+      if (next.title === v.title && next.channel === v.channel && next.body === v.body && next.alt_text === v.alt_text) return v;
+      return { ...next, sample_key: next.body === v.body ? v.sample_key : "" };
+    });
+  }, []);
 
   // Large photos are shrunk in the browser (longest side 2000 px, JPEG) so uploads stay under 4 MB.
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -54,7 +68,7 @@ export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedD
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
       <Card className="p-5">
-        <form action={action} className="space-y-4">
+        <form ref={formRef} action={action} className="space-y-4">
           <input type="hidden" name="sample_key" value={v.sample_key} />
           {/* One token per form, made on the server: the same form submitted twice creates one draft. */}
           <input type="hidden" name="client_token" value={clientToken} />

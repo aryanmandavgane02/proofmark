@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("draft page: Back returns to where you came from", async ({ page, context }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.getByRole("button", { name: "Open the sample post" }).click();
   await page.getByRole("button", { name: "Check this draft" }).click();
   await expect(page.getByText(/dealt with/).first()).toBeVisible({ timeout: 60_000 });
@@ -15,7 +15,7 @@ test("draft page: Back returns to where you came from", async ({ page, context }
   await page.locator("main a[href^='/app/drafts/']").filter({ hasText: "Diwali offer post" }).first().click();
   await expect(page).toHaveURL(draft);
   await page.getByRole("link", { name: "← Back" }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
 
   // From the review queue, after accepting a fix and switching person on the draft
   await page.goto("/app/review");

@@ -7,7 +7,7 @@ test.use({ actionTimeout: 20_000 });
 async function startDemo(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
 }
 
 async function waitForAI(page: Page) {

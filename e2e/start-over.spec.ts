@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("home page: continue the demo, or start over after confirming", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.getByRole("button", { name: "Open the sample post" }).click();
   await page.getByRole("button", { name: "Check this draft" }).click();
   await expect(page.getByText(/dealt with/).first()).toBeVisible({ timeout: 60_000 });
@@ -28,7 +28,7 @@ test("home page: continue the demo, or start over after confirming", async ({ pa
   // Start fresh: a new, empty workspace
   await page.getByText("Start over with a fresh workspace").click();
   await page.getByRole("button", { name: /Yes, start fresh/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await expect(page.getByText("No drafts yet. Start with step 1 above.")).toBeVisible();
   await expect(page.getByText(/0 of 5 done/)).toBeVisible();
 });

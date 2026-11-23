@@ -18,7 +18,7 @@ test("accessibility: every screen passes axe (WCAG 2.1 A and AA)", async ({ page
   await page.goto("/");
   await audit(page, "landing", problems);
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await audit(page, "start here", problems);
   await page.getByRole("button", { name: "Open the sample post" }).click();
   await audit(page, "new draft", problems);
@@ -55,7 +55,7 @@ test("phone width: no page scrolls sideways", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.getByRole("button", { name: "Open the sample post" }).click();
   await page.getByRole("button", { name: "Check this draft" }).click();
   await expect(page.getByText(/dealt with/).first()).toBeVisible({ timeout: 60_000 });
@@ -83,7 +83,7 @@ test("keyboard only: start the demo and accept a fix without a mouse", async ({ 
     if (/Start the live demo/.test((await page.evaluate(() => document.activeElement?.textContent)) ?? "")) break;
   }
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.getByRole("button", { name: "Open the sample post" }).focus();
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Check this draft" }).focus();

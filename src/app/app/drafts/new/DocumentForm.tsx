@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createDocumentDraft } from "@/app/actions";
 import type { SeedDocument } from "@/lib/seed/urja";
 import { btn, input, Card } from "@/components/ui";
@@ -14,7 +14,14 @@ export function DocumentForm({ samples, initial, clientToken }: { samples: SeedD
   const [file, setFile] = useState<File | null>(null);
   const [fileNote, setFileNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const ready = useReady();
+
+  // A title typed before the page finished loading is only in the field; adopt it so a later change keeps it.
+  useEffect(() => {
+    const typed = titleRef.current?.value;
+    if (typed) setTitle((t) => (typed !== t ? typed : t));
+  }, []);
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -59,7 +66,7 @@ export function DocumentForm({ samples, initial, clientToken }: { samples: SeedD
           <input type="hidden" name="sample_key" value={sample?.key ?? ""} />
           <div>
             <label htmlFor="title" className="mb-1 block text-sm font-semibold">Title</label>
-            <input id="title" name="title" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} className={input} placeholder="e.g. Diwali retail deck" />
+            <input id="title" ref={titleRef} name="title" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} className={input} placeholder="e.g. Diwali retail deck" />
           </div>
           <div>
             <label htmlFor="file" className="mb-1 block text-sm font-semibold">PDF document</label>

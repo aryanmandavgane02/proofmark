@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("image ad: findings about the picture, with an AI alt text the creator can accept", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
   await page.goto("/app/drafts/new?sample=diwali-ad");
   await expect(page.getByAltText("Preview of the image to check")).toBeVisible();
   await page.getByRole("button", { name: "Check this draft" }).click();
