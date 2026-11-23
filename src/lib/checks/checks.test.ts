@@ -176,6 +176,13 @@ describe("claims", () => {
     expect(f.severity).toBe("blocker");
     expect(f.fix_text).toBe("The protein bar 35,000+ customers trust");
   });
+  it("CLAIM-03 reads \"prevents\" as a health claim only when it is about health", () => {
+    for (const t of ["The resealable pack prevents spills.", "Prevents steps from being too long.", "Prevent inconsistency because multiple steps may be involved."]) {
+      expect(healthClaimsCheck(ctx(t), rule("CLAIM-03")), t).toHaveLength(0);
+    }
+    expect(healthClaimsCheck(ctx("Our bars help prevent colds this winter."), rule("CLAIM-03")).map((f) => f.quote)).toEqual(["prevent colds"]);
+    expect(healthClaimsCheck(ctx("Dates that prevent heart disease."), rule("CLAIM-03")).map((f) => f.quote)).toEqual(["prevent heart disease"]);
+  });
   it("DISC-01 finds offer words as words: not inside \"ideal\", \"dealing\" or \"wholesale\"", () => {
     expect(disclaimerCheck(ctx("The ideal snack for dealing with hunger. Wholesale packs on request."), rule("DISC-01"))).toHaveLength(0);
     expect(disclaimerCheck(ctx("How to deal with a 4 pm slump."), rule("DISC-01"))).toHaveLength(0);

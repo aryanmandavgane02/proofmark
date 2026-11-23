@@ -197,7 +197,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 - [ ] Main journeys on Chrome, Safari's engine (WebKit) and Firefox, desktop and phone sizes
 - [ ] Full crawl of every page as every person on desktop and phone: no errors, broken links, odd text or overflow; accessibility audit at zero violations; keyboard-only path
 - [ ] User tests, round 2: three to five people who have not used Proofmark try the main journey and the three improvements with no help; results in docs/USER_TESTING.md; top issues fixed
-- [ ] Real-world PDFs: decks exported from Google Slides, Canva and PowerPoint checked, and what we learn fixed or declared
+- [x] Real-world PDFs: decks exported from Google Slides, Canva and PowerPoint checked, and what we learn fixed or declared
   - Sun 22 Nov: two real decks checked, a 45-page university lecture deck exported from Keynote and a 9-page project deck printed from Chrome. Both read without an error (45 pages in about 0.2 s), but the findings were unusable and some text was garbled. Fixed:
     - Findings flooded (369 and 253): a font used throughout is now one finding that names its pages, and in documents words in capitals are grouped into phrases, with a document full of them as one finding
     - Letter-spaced labels read as "P R O G R A M" and split numbers ("1 9.6%"): the reader restores the words from the glyphs each page draws
@@ -206,7 +206,8 @@ These are graded against our Round 2 wording. Each box must be true in the live 
     - The 45-page deck was refused: the limit is now 100 pages
     - Mon 23 Nov: a 58-page lecture deck exported from PowerPoint read cleanly in 0.3 s (15 findings, each a real rule hit). Fixed: offer words were found inside other words ("Dealing", "ideal", "wholesale" read as offers, in posts too) and "deal with" read as an offer; diagram labels drawn right to left were glued together ("byte512 entries")
     - Result: 7 and 8 findings, each a real rule hit; scored test set unchanged (code + AI 97% / 98%, PDFs 100% / 100%); regression file `e2e/fixtures/letter-spacing.pdf`
-    - Still to try: exports from Google Slides and Canva. Known and left: superscripts ("2³⁶") read as separate lines
+    - Mon 23 Nov: a 19-page Canva export (7.4 MB) and a 67-page Google Slides export read without an error (0.7 s and 1.4 s). Fixed: "prevents" counted as a health claim in any sense ("prevents steps from being too long", and "the pack prevents spills" in a post); it now needs a health word after it ("prevents colds"), with the AI covering subtler wording. A label set in capitals is no longer joined to the sentence under it. Result: 8 and 11 findings, each a real rule hit
+    - Known and left: superscripts ("2³⁶") read as separate lines; "guaranteed" is flagged as an absolute claim even in a maths text, as the rule asks
 - [ ] AI capacity for the judging period: daily caps sensible; stored answers for every sample, for today's facts and for after the Diwali offer expires on 30 Nov
 - [ ] Every finding fixed or declared
 

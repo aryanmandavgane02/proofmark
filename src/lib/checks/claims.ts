@@ -177,9 +177,14 @@ export function superlativesCheck(ctx: CheckContext, rule: Rule): FindingDraft[]
   return out;
 }
 
+// "Prevents" is a health claim when it is about health ("prevents colds", "helps prevent heart disease"), not in "the
+// pack prevents spills" or "prevents steps from being too long". Subtler wording is left to the AI (CLAIM-03 is both).
+const AILMENTS = "diseases?|illness(?:es)?|infections?|cancers?|diabetes|heart|cholesterol|blood|hypertension|obesity|weight|colds?|flu|coughs?|fevers?|fatigue|tiredness|cramps?|ageing|aging|wrinkles|inflammation|deficienc(?:y|ies)|ana?emia|osteoporosis|hair|acne|strokes?|allerg(?:y|ies)|constipation|bloating|acidity|indigestion|ulcers?|kidney|cavities|tooth|teeth|muscle|bone|dementia|alzheimer['’]?s|arthritis|asthma|depression|anxiety|insomnia|migraines?|headaches?|injur(?:y|ies)|sickness|immunity";
+const PREVENTS = new RegExp(`\\bprevent(?:s|ing)?\\b(?:[ \\t]+[\\p{L}'’-]+){0,3}?[ \\t]+(?:${AILMENTS})\\b(?:[ \\t]+(?:disease|attack|pressure|sugar|stones?|decay|fall|loss|gain))?`, "giu");
+
 const HEALTH: { re: RegExp; fix: string | null }[] = [
   { re: /\bcures?\b|\bcured\b/gi, fix: "is made for" },
-  { re: /\bprevents?\b/gi, fix: null },
+  { re: PREVENTS, fix: null },
   { re: /\bboosts?\s+(?:your\s+)?immunity\b|\bimmunity[- ]boost(?:er|ing)?\b/gi, fix: null },
   { re: /\bdetox(?:es|ify)?\b/gi, fix: null },
   { re: /\bburns?\s+fat\b|\bfat[- ]burning\b/gi, fix: null },

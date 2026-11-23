@@ -55,6 +55,13 @@ describe("page text", () => {
     ], (id) => fonts[id]);
     expect(text).toBe("A big heading\nRoasted cocoa and dates in a bar that keeps up with your day.\nOrder at urjabites.in.");
   });
+  it("ends a line set in capitals: a label is not the start of the sentence below it", () => {
+    const { text } = assemblePage([
+      item("WOLFE'S CONDITIONS (SLIDE 29)", 50, 650, 12, "f1", true),
+      item("Armijo's rule only bounds the step from above.", 50, 635, 12, "f1"),
+    ], (id) => fonts[id]);
+    expect(text).toBe("WOLFE'S CONDITIONS (SLIDE 29)\nArmijo's rule only bounds the step from above.");
+  });
   it("joins a word split at a hyphen across lines without a space", () => {
     const { text } = assemblePage([item("Order the 6-", 50, 650, 12, "f1", true), item("bar box today.", 50, 635, 12)], (id) => fonts[id]);
     expect(text).toBe("Order the 6-bar box today.");

@@ -169,8 +169,11 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string, glyp
           // A wrapped line of the same paragraph joins with a space; a new paragraph, a heading or a bullet starts a new line.
           const similar = Math.abs(size - last.size) <= Math.max(last.size, size) * 0.15;
           const close = Math.abs(last.y - y) <= Math.max(last.size, size) * 1.75;
-          // Lines of code or program output (in a fixed-width font) stay separate lines.
-          const soft = similar && close && y < last.y && !BULLET.test(str) && !isMonospace(font) && !isMonospace(last.font);
+          // Lines of code or program output (in a fixed-width font) stay separate lines, and so does a label or heading
+          // set in capitals: it is not the first half of the sentence below it.
+          const line = text.slice(text.lastIndexOf("\n") + 1);
+          const capsLine = (line.match(/\p{L}/gu) ?? []).length >= 4 && line === line.toUpperCase();
+          const soft = similar && close && y < last.y && !BULLET.test(str) && !isMonospace(font) && !isMonospace(last.font) && !capsLine;
           text = text.replace(/[ \t]+$/, "");
           // A word split at a hyphen ("6-" / "bar box") joins back without a space: "6-bar box".
           text += soft ? (/[\p{L}\p{N}]-$/u.test(text) ? "" : " ") : "\n";
