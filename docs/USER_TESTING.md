@@ -11,7 +11,7 @@ Five people who had not used Proofmark did four tasks:
 3. Get clearer wording for rule MSG-01 ("taste first"), see what it would have changed in past decisions, and decide whether to publish it.
 4. Get the sample post to "Approved".
 
-They sent their answers back as text. The answers are summarised below in their own terms. The page numbers and counts they found were not filled in on the replies, so they are not shown.
+They sent their answers back as text. The answers are summarised below in their own terms. Asked afterwards for the counts they saw, all five reported 5 approved drafts affected by the F-12 change (the correct number) and 3 past decisions on MSG-01 that the new wording would change. The deck pages they named were not recorded.
 
 | Tester | Device | Deck | Number change | Rule wording | Reached "Approved"? | Where they got stuck | One thing they'd change |
 |---|---|---|---|---|---|---|---|
@@ -22,6 +22,8 @@ They sent their answers back as text. The answers are summarised below in their 
 | 5. Developer | MacBook, Chrome | Done; clear | Done; clear | Done; clear: the impact summary helped | Yes, 11 min | Whether a re-checked draft has to be submitted again | A visible history of changes to facts and rules, with the drafts affected |
 
 **Result:** all five checked the deck and corrected the number; four of five finished the rule-wording task; three of five reached "Approved", in 11 to 16 minutes for all four tasks. The improvements were understood as follows: the deck findings by four (one partly), the outdated-content alerts by four (one partly), and the rule-change replay by two (two partly, one not).
+
+**Limits of this testing:** five people are enough to find the main points of confusion, not to measure them. Nobody watched them, so "where they got stuck" is what they remembered, and times are their own estimates. The testers were people we know, who may be kind. The changes below have not yet been tried by new testers.
 
 ### Changes made from this feedback
 
