@@ -185,6 +185,39 @@ test("matrix: an action still running after 10 seconds says so, with a way out, 
   await expect(note).toHaveCount(0);
 });
 
+test("matrix: a corrected PDF sent twice makes one version, and its file stays", async ({ page }) => {
+  test.setTimeout(180_000);
+  await startDemo(page);
+  await page.goto("/app/drafts/new?mode=document");
+  await page.getByLabel("PDF document").setInputFiles("eval/docs/urja-store-brochure-arial.pdf");
+  await page.getByLabel("Title").fill("Brochure sent twice");
+  await page.getByRole("button", { name: "Check this document" }).click();
+  await expect(page).toHaveURL(DRAFT, { timeout: 60_000 });
+  const draftUrl = page.url();
+  // Keep the corrected upload's submission, to send it again exactly as a retry or a second tab would.
+  let sent: import("@playwright/test").Request | null = null;
+  page.on("request", (r) => {
+    if (r.method() === "POST" && r.headers()["next-action"] && (r.postData() ?? "").includes("upload_path")) sent = r;
+  });
+  await page.getByText("Upload a corrected PDF").click();
+  await page.getByLabel("Corrected PDF").setInputFiles("public/samples/urja-cocoa-crunch-one-pager.pdf");
+  await page.getByRole("button", { name: "Upload and check again" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Version 2 uploaded" })).toBeVisible({ timeout: 60_000 });
+  expect(sent, "the corrected upload was submitted").not.toBeNull();
+  const again = sent as unknown as import("@playwright/test").Request;
+  const res = await page.request.fetch(again.url(), { method: "POST", headers: again.headers(), data: again.postDataBuffer() ?? undefined });
+  expect(res.status()).toBeLessThan(500);
+  await page.goto(draftUrl);
+  await expect(page.getByText(/· version 2 ·/)).toBeVisible();
+  await expect(page.getByText(/· version 3 ·/)).toHaveCount(0);
+  // Version 2's file is still in storage: its link opens the PDF.
+  const link = await page.request.get(`${draftUrl}/file?v=2`, { maxRedirects: 0 });
+  expect(link.status()).toBe(303);
+  const pdf = await page.request.get(link.headers()["location"]);
+  expect(pdf.status()).toBe(200);
+  expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+});
+
 test("matrix: a fix accepted in another tab is explained, not silently repeated", async ({ page, context }) => {
   test.setTimeout(150_000);
   await startDemo(page);

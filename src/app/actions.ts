@@ -228,17 +228,30 @@ export async function prepareDocumentUpload(input: { size: number }): Promise<{ 
   }
 }
 
+/** The version that already uses a stored file. A repeated submission (a retry, a second tab) sends the same upload again. */
+async function versionUsing(s: Session, path: string) {
+  const { data } = await s.supabase.from("draft_versions").select("draft_id, version").eq("workspace_id", s.workspace.id).eq("file_path", path).limit(1).maybeSingle();
+  return data as { draft_id: string; version: number } | null;
+}
+
+/** Deletes a refused upload, but never a file that a version uses: that would take an approved PDF away. */
+async function discardUpload(s: Session, path: string) {
+  if (!(await versionUsing(s, path))) await removeDocument(path);
+}
+
 /** Step 2: reads the uploaded PDF (or a sample) and refuses anything that cannot be checked, saying exactly why. */
-async function receiveDocument(s: Session, d: { upload_path: string; sample_key: string }): Promise<{ path: string; doc: ReadDocument } | { error: string }> {
+async function receiveDocument(s: Session, d: { upload_path: string; sample_key: string }): Promise<{ path: string; doc: ReadDocument } | { error: string; usedBy?: { draft_id: string; version: number } }> {
   const sample = SAMPLE_DOCUMENTS.find((x) => x.key === d.sample_key);
   if (d.upload_path) {
     if (!isWorkspaceDocumentPath(s.workspace.id, d.upload_path)) return { error: "That upload does not belong to this workspace. Choose the file again." };
+    const usedBy = await versionUsing(s, d.upload_path);
+    if (usedBy) return { error: "This upload was already received. Choose the file again to upload it once more.", usedBy };
     const bytes = await loadDocument(d.upload_path);
     if (!bytes) return { error: "The upload did not arrive. Check your connection and choose the file again." };
     try {
       return { path: d.upload_path, doc: await readPdf(bytes) };
     } catch (e) {
-      await removeDocument(d.upload_path);
+      await discardUpload(s, d.upload_path);
       return { error: e instanceof DocumentError ? e.message : "This PDF could not be read. Export it again and upload the new file." };
     }
   }
@@ -266,7 +279,11 @@ export async function createDocumentDraft(_prev: FormState, formData: FormData):
     if (existing) redirect(draftPath(existing));
   }
   const got = await receiveDocument(s, d);
-  if ("error" in got) return { error: got.error };
+  if ("error" in got) {
+    // The same upload was submitted again: show the draft the first submission made.
+    if (got.usedBy) redirect(draftPath(got.usedBy.draft_id));
+    return { error: got.error };
+  }
   const name = d.upload_path ? cleanFileName(d.file_name) : sample!.file.split("/").pop()!;
   const file = documentFile(got.path, name, got.doc);
 
@@ -279,7 +296,7 @@ export async function createDocumentDraft(_prev: FormState, formData: FormData):
     // The same submission arrived twice at once: the first one made the draft (and uses this same file).
     const existing = error.code === "23505" && token ? await draftForToken(s, token) : undefined;
     if (existing) redirect(draftPath(existing));
-    await removeDocument(got.path);
+    await discardUpload(s, got.path);
     return { error: `Could not save the document (${error.message}). Please try again.` };
   }
   const { data: version, error: ve } = await s.supabase
@@ -292,7 +309,7 @@ export async function createDocumentDraft(_prev: FormState, formData: FormData):
     .single();
   if (ve) {
     await createAdminClient().from("drafts").delete().eq("id", draft.id).eq("workspace_id", s.workspace.id);
-    await removeDocument(got.path);
+    await discardUpload(s, got.path);
     return { error: `Could not save the document (${ve.message}). Please try again.` };
   }
   schedule(await runChecks(s.supabase, { workspaceId: s.workspace.id, rulebookVersion: s.workspace.rulebook_version, channel: "document", version, codeChecksOnly: s.workspace.code_checks_only }));
@@ -309,9 +326,13 @@ export async function uploadCorrectedDocument(_prev: FormState, formData: FormDa
   const upload_path = String(formData.get("upload_path") ?? "");
   if (!upload_path) return { error: "Choose the corrected PDF first." };
   const got = await receiveDocument(s, { upload_path, sample_key: "" });
-  if ("error" in got) return { error: got.error };
+  if ("error" in got) {
+    // The same upload was submitted again (a retry, a second tab): it already made a version, which keeps its file.
+    if (got.usedBy?.draft_id === draftId) notice(draftPath(draftId), `Version ${got.usedBy.version} was already made from this upload, so nothing changed.`, "info");
+    return { error: got.error };
+  }
   if (got.doc.hash === version.file_hash) {
-    await removeDocument(got.path);
+    await discardUpload(s, got.path);
     return { error: `This is the same file as version ${version.version}, so nothing changed. Upload the corrected PDF.` };
   }
   const name = cleanFileName(String(formData.get("file_name") ?? ""));
