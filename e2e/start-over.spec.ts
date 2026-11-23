@@ -32,3 +32,16 @@ test("home page: continue the demo, or start over after confirming", async ({ pa
   await expect(page.getByText("No drafts yet. Start with step 1 above.")).toBeVisible();
   await expect(page.getByText(/0 of 5 done/)).toBeVisible();
 });
+
+test("home page: a demo that could not be started says why, instead of an error page", async ({ page }) => {
+  // The start actions send the visitor here when the sign-in service refuses a new session (many visitors on one
+  // network within an hour) or setting up the workspace fails.
+  const problem = (text: string | RegExp) => page.getByRole("alert").filter({ hasText: text });
+  await page.goto("/?demo=busy");
+  await expect(problem("Too many new demos were started from this network in the last hour")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Start the live demo/ })).toBeVisible();
+  await page.goto("/?demo=failed");
+  await expect(problem("The demo could not be set up just now. Please try again in a moment.")).toBeVisible();
+  await page.goto("/?demo=anything-else");
+  await expect(problem(/Too many new demos|could not be set up/)).toHaveCount(0);
+});

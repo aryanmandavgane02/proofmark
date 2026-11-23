@@ -66,18 +66,33 @@ function schedule(result: RunResult) {
 
 // ── Demo workspace ───────────────────────────────────────────────────────────
 
-/** The visitor's demo workspace: signs in anonymously and makes a fresh copy of Urja Bites the first time. */
+/**
+ * The visitor's demo workspace: signs in anonymously and makes a fresh copy of Urja Bites the first time. When that
+ * cannot be done, the home page says why (?demo=busy or ?demo=failed) instead of an error page: many visitors on one
+ * network (a judging room, say) can reach the sign-in service's hourly limit for new anonymous sessions.
+ */
 async function ensureDemo() {
   const supabase = await createClient();
   let { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
     const { data, error } = await supabase.auth.signInAnonymously();
-    if (error || !data.user) throw new Error(`Could not start a demo session: ${error?.message ?? "unknown error"}`);
+    if (error || !data.user) {
+      console.error("demo sign-in failed:", error?.status, error?.message);
+      redirect(`/?demo=${error?.status === 429 || /rate limit/i.test(error?.message ?? "") ? "busy" : "failed"}`);
+    }
     auth = { user: data.user };
   }
   const userId = auth.user!.id;
   const { data: member } = await supabase.from("members").select("workspace_id").eq("user_id", userId).limit(1).maybeSingle();
-  const workspaceId = member?.workspace_id ?? (await seedDemoWorkspace(userId));
+  let workspaceId: string | undefined = member?.workspace_id;
+  if (!workspaceId) {
+    try {
+      workspaceId = await seedDemoWorkspace(userId);
+    } catch (e) {
+      console.error("demo seeding failed:", e instanceof Error ? e.message : e);
+    }
+    if (!workspaceId) redirect("/?demo=failed");
+  }
   return { supabase, userId, workspaceId };
 }
 

@@ -104,7 +104,15 @@ function Preview() {
 // Starting the demo creates a private workspace.
 export const maxDuration = 60;
 
-export default async function Home() {
+// Why a demo could not be started (set by the start actions, see ensureDemo in actions.ts).
+const DEMO_PROBLEM: Record<string, string> = {
+  busy: "Too many new demos were started from this network in the last hour, so the sign-in service asked us to wait. Please try again in a few minutes. A demo you already started in this browser is still here.",
+  failed: "The demo could not be set up just now. Please try again in a moment.",
+};
+
+export default async function Home(props: PageProps<"/">) {
+  const sp = await props.searchParams;
+  const problem = DEMO_PROBLEM[String(sp.demo ?? "")];
   const s = await getSession();
   const hasDemo = !!s?.workspace;
   return (
@@ -135,6 +143,9 @@ export default async function Home() {
             Every draft is checked against approved rules, facts and assets before it is published. Every issue comes with its
             reason, its source and a suggested fix. A person always makes the final call.
           </p>
+          {problem && (
+            <p role="alert" className="mt-6 max-w-xl rounded-xl border border-amber/50 bg-[#fff6e5] p-3 text-sm font-medium text-[#6b4500]">{problem}</p>
+          )}
           <div className="mt-8 flex flex-wrap items-center gap-3">
             {hasDemo ? (
               <>

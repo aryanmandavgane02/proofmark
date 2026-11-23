@@ -28,27 +28,25 @@ export async function seedDemoWorkspace(userId: string): Promise<string> {
   ) as { id: string; name: string }[];
   const byName = Object.fromEntries(people.map((p) => [p.name, p.id]));
 
-  must(await db.from("members").insert({ workspace_id: ws.id, user_id: userId, active_person_id: byName["Arjun"] }), "membership");
-
+  // These do not depend on each other, so they are written at the same time (a first visit waits for all of them).
   const rules = seedRules();
-  must(await db.from("rules").insert(rules.map((r) => ({ ...r, workspace_id: ws.id }))), "rules");
-  must(
-    await db.from("rulebook_versions").insert({
+  const written = await Promise.all([
+    db.from("members").insert({ workspace_id: ws.id, user_id: userId, active_person_id: byName["Arjun"] }),
+    db.from("rules").insert(rules.map((r) => ({ ...r, workspace_id: ws.id }))),
+    db.from("rulebook_versions").insert({
       workspace_id: ws.id, version: 1, note: `Imported from ${BRAND_GUIDE} and approved`, published_by: byName["Meera"], snapshot: rules,
     }),
-    "rulebook version",
-  );
-  must(await db.from("facts").insert(seedFacts().map((f) => ({ ...f, workspace_id: ws.id }))), "facts");
-  must(await db.from("terms").insert(seedTerms().map((t) => ({ ...t, workspace_id: ws.id }))), "terms");
-  must(
-    await db.from("assets").insert([
+    db.from("facts").insert(seedFacts().map((f) => ({ ...f, workspace_id: ws.id }))),
+    db.from("terms").insert(seedTerms().map((t) => ({ ...t, workspace_id: ws.id }))),
+    db.from("assets").insert([
       ...seedPalette().map((c) => ({ workspace_id: ws.id, kind: "color", name: c.name, hex: c.hex })),
       ...seedTypefaces().map((t) => ({ workspace_id: ws.id, kind: "font", name: t.name, note: t.note })),
       { workspace_id: ws.id, kind: "logo", name: "Urja Bites logo", file_path: "/demo/urja-logo.svg", note: "Primary logo. Cream or Cocoa backgrounds only." },
     ]),
-    "assets",
-  );
-  must(await db.from("events").insert({ workspace_id: ws.id, type: "workspace.created", detail: { demo: true } }), "event");
+    // The first entry of the audit trail, before the sample library's own events below.
+    db.from("events").insert({ workspace_id: ws.id, type: "workspace.created", detail: { demo: true } }),
+  ]);
+  ["membership", "rules", "rulebook version", "facts", "terms", "assets", "event"].forEach((what, i) => must(written[i], what));
   await seedLibrary(ws.id, byName);
   // Facts that have already ended (the Dussehra offer) raise their alerts straight away.
   await syncExpiredFacts(ws.id, todayIST());
