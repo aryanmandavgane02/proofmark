@@ -159,6 +159,32 @@ test("matrix: accepting a fix twice, or refreshing after it, makes one new versi
   await expect(page.getByText(/version 3/)).toHaveCount(0);
 });
 
+test("matrix: an action still running after 10 seconds says so, with a way out, and recovers", async ({ page }) => {
+  test.setTimeout(150_000);
+  await startDemo(page);
+  await page.goto("/app/drafts/new?sample=newsletter");
+  await page.getByRole("button", { name: "Check this draft" }).click();
+  await expect(page).toHaveURL(DRAFT, { timeout: 90_000 });
+  await expect(page.getByText(/AI checks are running/)).toHaveCount(0, { timeout: 90_000 });
+  // Hold every server action for 13 seconds, as a stalled connection would.
+  await page.route("**/*", async (route) => {
+    const r = route.request();
+    if (r.method() === "POST" && r.headers()["next-action"]) await new Promise((done) => setTimeout(done, 13_000));
+    await route.continue();
+  });
+  const c = card(page, "“15 g of protein”");
+  await c.getByText("Comment on this finding").click();
+  await c.getByPlaceholder(/Comment as Arjun/).fill("Posted over a slow connection.");
+  await c.getByRole("button", { name: "Post" }).click();
+  await expect(c.getByRole("button", { name: "Posting…" })).toBeVisible();
+  const note = page.getByRole("status").filter({ hasText: "taking longer than usual" });
+  await expect(note).toBeVisible({ timeout: 15_000 });
+  await expect(note.getByRole("button", { name: "reload the page" })).toBeVisible();
+  // When the answer arrives, the note goes and the comment is there.
+  await expect(c.getByText("Posted over a slow connection.")).toBeVisible({ timeout: 30_000 });
+  await expect(note).toHaveCount(0);
+});
+
 test("matrix: a fix accepted in another tab is explained, not silently repeated", async ({ page, context }) => {
   test.setTimeout(150_000);
   await startDemo(page);

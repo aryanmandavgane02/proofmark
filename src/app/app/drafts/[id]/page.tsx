@@ -394,7 +394,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                       <input type="hidden" name="draft_id" value={id} />
                       <input type="hidden" name="finding_id" value={f.id} />
                       <input name="body" required maxLength={2000} className={input} placeholder={`Comment as ${s.person.name}`} aria-label="Comment on this finding" />
-                      <button className={btn.secondary}>Post</button>
+                      <PendingButton className={btn.secondary} pendingText="Posting…">Post</PendingButton>
                     </form>
                   </details>
                   {(f.status === "open" || f.status === "upheld") && (
