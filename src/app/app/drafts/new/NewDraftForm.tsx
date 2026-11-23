@@ -22,6 +22,9 @@ export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedD
   const [sampleImage, setSampleImage] = useState<boolean>(!!initial?.image);
   const [imgNote, setImgNote] = useState<string>("");
   const formRef = useRef<HTMLFormElement>(null);
+  // Each change builds on the latest state, never on the state this render saw: on a slow phone a change can arrive
+  // after the typed text below was adopted but before the page re-rendered, and would otherwise undo it.
+  const change = (patch: Partial<typeof v>) => setV((prev) => ({ ...prev, ...patch }));
 
   // On a slow phone people can type before the page has finished loading. That text is only in the fields, not in
   // the state, so the next change (picking a channel) would clear it. Adopt it once the page has loaded.
@@ -76,18 +79,18 @@ export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedD
           <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
             <div>
               <label htmlFor="title" className="mb-1 block text-sm font-semibold">Title</label>
-              <input id="title" name="title" required maxLength={120} value={v.title} onChange={(e) => setV({ ...v, title: e.target.value })} className={input} placeholder="e.g. Diwali offer post" />
+              <input id="title" name="title" required maxLength={120} value={v.title} onChange={(e) => change({ title: e.target.value })} className={input} placeholder="e.g. Diwali offer post" />
             </div>
             <div>
               <label htmlFor="channel" className="mb-1 block text-sm font-semibold">Channel</label>
-              <select id="channel" name="channel" value={v.channel} onChange={(e) => setV({ ...v, channel: e.target.value as Channel })} className={input}>
+              <select id="channel" name="channel" value={v.channel} onChange={(e) => change({ channel: e.target.value as Channel })} className={input}>
                 {TEXT_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_LABEL[c]}</option>)}
               </select>
             </div>
           </div>
           <div>
             <label htmlFor="body" className="mb-1 block text-sm font-semibold">Content</label>
-            <textarea id="body" name="body" required maxLength={5000} rows={9} value={v.body} onChange={(e) => setV({ ...v, body: e.target.value, sample_key: "" })} className={`${input} font-mono text-[13px] leading-relaxed`} placeholder="Paste the caption, email or copy here" />
+            <textarea id="body" name="body" required maxLength={5000} rows={9} value={v.body} onChange={(e) => change({ body: e.target.value, sample_key: "" })} className={`${input} font-mono text-[13px] leading-relaxed`} placeholder="Paste the caption, email or copy here" />
             <p className="mt-1 text-xs text-muted">{v.body.length} / 5,000 characters</p>
           </div>
           {visual && (
@@ -109,7 +112,7 @@ export function NewDraftForm({ samples, initial, clientToken }: { samples: SeedD
           {visual && (
             <div>
               <label htmlFor="alt_text" className="mb-1 block text-sm font-semibold">Image alt text <span className="font-normal text-muted">(the description screen readers use)</span></label>
-              <input id="alt_text" name="alt_text" maxLength={400} value={v.alt_text} onChange={(e) => setV({ ...v, alt_text: e.target.value })} className={input} placeholder="Describe the image in one sentence" />
+              <input id="alt_text" name="alt_text" maxLength={400} value={v.alt_text} onChange={(e) => change({ alt_text: e.target.value })} className={input} placeholder="Describe the image in one sentence" />
             </div>
           )}
           {state?.error && <p role="alert" className="rounded-lg bg-red/10 p-3 text-sm text-red">{state.error}</p>}
