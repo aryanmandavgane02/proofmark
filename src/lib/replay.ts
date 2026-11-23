@@ -59,3 +59,25 @@ export function summarize(rows: ReplayRow[]): ReplaySummary {
 export function agreement(n: number, of: number): string {
   return of ? `${n} of ${of} (${Math.round((n / of) * 100)}%)` : "no decided cases";
 }
+
+/**
+ * In plain words: does the new wording match people's past decisions better, as well, or worse than the current one?
+ * Added after user tests in Round 3, where people could not tell from the numbers whether to publish.
+ */
+export function replayVerdict(sm: ReplaySummary): { tone: "better" | "same" | "worse" | "none"; text: string } {
+  if (!sm.decided) return { tone: "none", text: "No one has decided these findings yet, so there is nothing to compare the wording with." };
+  const of = (n: number) => `${n} of ${sm.decided}`;
+  if (sm.agreeAfter > sm.agreeBefore) return { tone: "better", text: `The new wording matches people's past decisions better: it agrees with ${of(sm.agreeAfter)}, the current wording with ${of(sm.agreeBefore)}.` };
+  if (sm.agreeAfter < sm.agreeBefore) return { tone: "worse", text: `Careful, the new wording matches people's past decisions less well: it agrees with ${of(sm.agreeAfter)}, the current wording with ${of(sm.agreeBefore)}.` };
+  return { tone: "same", text: `The new wording matches people's past decisions as well as the current one: ${of(sm.agreeAfter)} either way.` };
+}
+
+/** One past finding as a sentence: what people decided, and what each wording does with it. */
+export function replayExample(r: ReplayRow): string {
+  const who = r.decidedBy ?? "A reviewer";
+  const quote = r.quote.length > 80 ? `${r.quote.slice(0, 80)}…` : r.quote;
+  const people = r.human === "pass" ? `${who} overrode it, so it should pass` : r.human === "flag" ? `${who} agreed it was a problem` : "no one has decided it yet";
+  const does = (v: Verdict) => (v === "flag" ? "flags" : "passes");
+  const agrees = !r.human ? "" : r.after === r.human ? `, as ${who} decided` : `, although ${who} decided otherwise`;
+  return `“${quote}” (${r.title}): ${people}. The current wording ${does(r.before)} it; the new wording ${does(r.after)} it${agrees}.`;
+}

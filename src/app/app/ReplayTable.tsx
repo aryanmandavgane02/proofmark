@@ -1,7 +1,7 @@
 // A rule-change replay: every past decision on the rule, judged under the current and the new wording, next to what
 // people decided. Shown before publishing (Insights, Rulebook) and kept with the published version.
 import type { StoredReplay } from "@/lib/replay-server";
-import { agreement } from "@/lib/replay";
+import { agreement, replayExample, replayVerdict } from "@/lib/replay";
 
 const VERDICT: Record<string, [string, string]> = {
   flag: ["Flagged", "bg-[#fde0dd] text-[#8a1c12]"],
@@ -29,10 +29,44 @@ export function ReplaySummary({ replay }: { replay: StoredReplay }) {
   );
 }
 
+/**
+ * The replay in plain words, before the numbers: whether the new wording fits people's past decisions better, and what
+ * would change, one sentence per case. Added after user tests in Round 3 (two of five testers understood the table alone).
+ */
+function ReplayExplained({ replay }: { replay: StoredReplay }) {
+  const verdict = replayVerdict(replay.summary);
+  const changed = replay.rows.filter((r) => r.change !== "same");
+  const tone =
+    verdict.tone === "better" ? "border-accent/40 bg-[#e8f4ec] text-[#0a5c4f]"
+    : verdict.tone === "worse" ? "border-red/40 bg-[#fdecea] text-[#8a1c12]"
+    : "border-line bg-soft text-primary-d";
+  return (
+    <div className={`rounded-lg border p-3 text-sm ${tone}`}>
+      <p className="font-semibold">{verdict.text}</p>
+      {changed.length > 0 ? (
+        <>
+          <p className="mt-2">What publishing would change:</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5 [overflow-wrap:anywhere]">
+            {changed.slice(0, 3).map((r) => <li key={r.key}>{replayExample(r)}</li>)}
+          </ul>
+          {changed.length > 3 && <p className="mt-1 text-xs">And {changed.length - 3} more in the table below.</p>}
+        </>
+      ) : (
+        <p className="mt-2">No past decision would come out differently.</p>
+      )}
+    </div>
+  );
+}
+
 export function ReplayTable({ replay }: { replay: StoredReplay }) {
   return (
     <div className="space-y-2">
+      <ReplayExplained replay={replay} />
       <ReplaySummary replay={replay} />
+      <p className="text-xs text-muted">
+        How to read the table: each row is a past finding on {replay.rule_code} that someone acted on. &ldquo;People decided&rdquo; is what they did with it;
+        the next two columns are what the checker says with each wording; &ldquo;If published&rdquo; is the difference.
+      </p>
       <div className="overflow-x-auto rounded-lg border border-line bg-surface">
         <table className="w-full text-sm">
           <caption className="sr-only">Past decisions on {replay.rule_code} under the current and the new wording</caption>
