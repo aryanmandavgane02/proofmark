@@ -1,11 +1,22 @@
 import Link from "next/link";
 import { CODE_CHECK_COUNT } from "@/lib/checks";
 import { LogoMark } from "@/components/Logo";
-import { IconArrow, IconBolt, IconBook, IconCheck, IconPen, IconReset, IconShield, IconTrail, IconUser } from "@/components/icons";
+import { IconArrow, IconBell, IconBolt, IconBook, IconCheck, IconPages, IconPen, IconReset, IconShield, IconSpark, IconTrail, IconUser } from "@/components/icons";
 import { getSession } from "@/lib/session";
-import { resetDemo, startDemo } from "./actions";
+import { resetDemo, startDemo, tryImprovement } from "./actions";
 import { CloseDetails } from "./app/CloseDetails";
 import { StartButton } from "./StartButton";
+import { TryButton } from "./TryButton";
+
+// The three Round 3 improvements, each one click from the first page a visitor sees, as the person who would use it.
+const improvements = [
+  { key: "documents", t: "PDF documents and decks", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet", cta: "Check the sample deck, as Arjun",
+    d: "Upload a deck exported from PowerPoint, Google Slides, Canva or Keynote. Every page is checked, each finding names its page, fonts outside the brand typefaces are flagged, and the reviewer approves the exact file." },
+  { key: "alerts", t: "Out-of-date alerts", Icon: IconBell, tint: "from-[#fde0dd] to-[#fff4ea] text-[#8a1c12]", cta: "Change fact F-12, as Meera",
+    d: "Change an approved fact, such as the customer count, and every approved draft that quoted the old figure is listed, its owner is told, and one click re-checks it." },
+  { key: "replay", t: "Rule-change replay", Icon: IconSpark, tint: "from-[#e2e6f6] to-[#eef8f5] text-primary-d", cta: "Reword rule MSG-01, as Meera",
+    d: "Reword an unclear rule, and before it is published, Proofmark replays it against every past decision: what would change, and whether it fits what people decided better." },
+];
 
 const steps = [
   { t: "Submit a draft", d: "A post, an ad, an email, web copy or a PDF deck, before it is published.", Icon: IconPen },
@@ -157,10 +168,33 @@ export default async function Home() {
             No sign-up. You get a private copy of a fictional snack brand, <b className="text-ink">Urja Bites</b>, with its brand rules, approved facts and
             sample drafts, and you can act as the creator, the brand manager or the reviewers.
           </p>
+          <a href="#new" className="mt-3 inline-block text-sm font-semibold text-primary underline underline-offset-4 hover:text-primary-d">
+            New since Round 2: try each of the three improvements in one click ↓
+          </a>
           <DemoAccess />
         </section>
         <Preview />
       </main>
+
+      <section aria-labelledby="new" className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
+        <h2 id="new" className="text-center text-2xl font-extrabold tracking-tight text-primary-d">New since Round 2</h2>
+        <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">Three improvements, each one click from here. Each opens in your private demo, as the person who would use it.</p>
+        <ul className="stagger mt-6 grid gap-4 md:grid-cols-3">
+          {improvements.map((x) => (
+            <li key={x.key} className="glow-card flex flex-col rounded-2xl border border-violet/30 bg-surface p-5 shadow-card">
+              <div className="flex items-center gap-3">
+                <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br ${x.tint}`}><x.Icon className="h-5 w-5" /></span>
+                <h3 className="font-semibold text-primary-d">{x.t}</h3>
+              </div>
+              <p className="mt-3 flex-1 text-sm text-muted">{x.d}</p>
+              <form action={tryImprovement} className="mt-4">
+                <input type="hidden" name="try" value={x.key} />
+                <TryButton label={x.cta} />
+              </form>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section aria-label="In numbers" className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <ul className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">

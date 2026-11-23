@@ -66,7 +66,8 @@ function schedule(result: RunResult) {
 
 // ── Demo workspace ───────────────────────────────────────────────────────────
 
-export async function startDemo() {
+/** The visitor's demo workspace: signs in anonymously and makes a fresh copy of Urja Bites the first time. */
+async function ensureDemo() {
   const supabase = await createClient();
   let { data: auth } = await supabase.auth.getUser();
   if (!auth.user) {
@@ -74,9 +75,33 @@ export async function startDemo() {
     if (error || !data.user) throw new Error(`Could not start a demo session: ${error?.message ?? "unknown error"}`);
     auth = { user: data.user };
   }
-  const { data: member } = await supabase.from("members").select("workspace_id").eq("user_id", auth.user!.id).limit(1).maybeSingle();
-  if (!member) await seedDemoWorkspace(auth.user!.id);
+  const userId = auth.user!.id;
+  const { data: member } = await supabase.from("members").select("workspace_id").eq("user_id", userId).limit(1).maybeSingle();
+  const workspaceId = member?.workspace_id ?? (await seedDemoWorkspace(userId));
+  return { supabase, userId, workspaceId };
+}
+
+export async function startDemo() {
+  await ensureDemo();
   redirect("/app");
+}
+
+// Each Round 3 improvement, one click from the home page, as the person who would use it. A fixed list: the form
+// names a key, never a path, so it cannot be used to send anyone elsewhere.
+const TRY: Record<string, { role: "creator" | "manager"; path: string }> = {
+  documents: { role: "creator", path: "/app/drafts/new?mode=document&sample=diwali-deck" },
+  alerts: { role: "manager", path: "/app/facts#fact-F-12" },
+  replay: { role: "manager", path: "/app/insights#rule-MSG-01" },
+};
+
+export async function tryImprovement(formData: FormData) {
+  const target = TRY[String(formData.get("try"))];
+  const { supabase, userId, workspaceId } = await ensureDemo();
+  if (!target) redirect("/app");
+  const { data: person } = await supabase.from("people").select("id").eq("workspace_id", workspaceId).eq("role", target.role).order("sort").limit(1).maybeSingle();
+  if (person) await supabase.from("members").update({ active_person_id: person.id }).eq("workspace_id", workspaceId).eq("user_id", userId);
+  revalidatePath("/app", "layout");
+  redirect(target.path);
 }
 
 /** Throws away the visitor's demo workspace and creates a fresh one. */

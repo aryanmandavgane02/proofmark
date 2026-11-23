@@ -27,6 +27,27 @@ test("start here: each Round 3 improvement is one click away, as the right perso
   await expect(page.getByLabel("Acting as").locator("option:checked")).toHaveText("Arjun · Creator");
 });
 
+test("home page: each Round 3 improvement opens in one click, also on a first visit, as the right person", async ({ page }) => {
+  test.setTimeout(120_000);
+  const section = () => page.locator("section").filter({ has: page.getByRole("heading", { name: "New since Round 2" }) });
+  // A first visit: the click also sets up the demo workspace.
+  await page.goto("/");
+  await expect(section().getByRole("button")).toHaveCount(3);
+  await section().getByRole("button", { name: /Change fact F-12, as Meera/ }).click();
+  await expect(page).toHaveURL(/\/app\/facts#fact-F-12$/, { timeout: 60_000 });
+  await expect(page.getByLabel("Acting as").locator("option:checked")).toHaveText("Meera · Brand manager");
+  // Back on the home page with a demo already running: the same workspace, another person.
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /Continue your demo/ })).toBeVisible();
+  await section().getByRole("button", { name: /Check the sample deck, as Arjun/ }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/new\?mode=document&sample=diwali-deck$/);
+  await expect(page.getByLabel("Acting as").locator("option:checked")).toHaveText("Arjun · Creator");
+  await page.goto("/");
+  await section().getByRole("button", { name: /Reword rule MSG-01, as Meera/ }).click();
+  await expect(page).toHaveURL(/\/app\/insights#rule-MSG-01$/);
+  await expect(page.getByLabel("Acting as").locator("option:checked")).toHaveText("Meera · Brand manager");
+});
+
 test("image ad: a logo finding shows the approved logo beside it", async ({ page }) => {
   test.setTimeout(120_000);
   await startDemo(page);
