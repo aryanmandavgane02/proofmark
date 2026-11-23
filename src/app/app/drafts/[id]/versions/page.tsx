@@ -8,7 +8,7 @@ function Diff({ a, b }: { a: string; b: string }) {
   // Compare whole words (split on spaces) so a changed number reads "50,000+ → 35,000+", not digit by digit.
   const parts = diffArrays(a.split(/(\s+)/), b.split(/(\s+)/)).map((p) => ({ ...p, value: p.value.join("") }));
   return (
-    <p className="whitespace-pre-wrap break-words text-[15px] leading-7">
+    <p className="whitespace-pre-wrap [overflow-wrap:anywhere] text-[15px] leading-7">
       {parts.map((p, i) =>
         p.added ? <ins key={i} className="rounded-sm bg-[#d8f0ea] text-[#0a5c4f] no-underline">{p.value}</ins>
         : p.removed ? <del key={i} className="rounded-sm bg-[#fde0dd] text-red">{p.value}</del>

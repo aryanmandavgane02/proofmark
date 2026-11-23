@@ -51,7 +51,7 @@ export default async function ApprovalRecord(props: PageProps<"/app/drafts/[id]/
       {!approval.file_hash && (
         <section>
           <h2 className="mb-1 text-sm font-semibold text-primary-d">Approved text</h2>
-          <p className="whitespace-pre-wrap rounded-lg border border-line bg-surface p-3 text-sm">{version?.body}</p>
+          <p className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-lg border border-line bg-surface p-3 text-sm">{version?.body}</p>
           {version?.alt_text && <p className="mt-1 text-sm"><span className="text-muted">Image alt text:</span> {version.alt_text}</p>}
         </section>
       )}

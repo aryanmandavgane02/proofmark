@@ -29,5 +29,5 @@ export function Highlighted({ text, marks }: { text: string; marks: Mark[] }) {
         </a>,
       );
   }
-  return <p className="whitespace-pre-wrap break-words text-[15px] leading-7 text-ink">{parts}</p>;
+  return <p className="whitespace-pre-wrap [overflow-wrap:anywhere] text-[15px] leading-7 text-ink">{parts}</p>;
 }

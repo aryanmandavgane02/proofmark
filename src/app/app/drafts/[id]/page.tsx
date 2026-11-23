@@ -91,7 +91,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-primary-d">{draft.title}</h1>
+          <h1 className="text-2xl font-bold text-primary-d [overflow-wrap:anywhere]">{draft.title}</h1>
           <p className="mt-1 text-sm text-muted">
             {CHANNEL_LABEL[draft.channel as Channel]}{isDocument && version!.page_count ? ` · ${version!.page_count} page${version!.page_count > 1 ? "s" : ""}` : ""} · version {draft.current_version} · checked against rulebook v{run?.rulebook_version ?? s.workspace.rulebook_version}
             {run && run.ms > 0 && <> · {run.ms} ms</>}
@@ -344,7 +344,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                     {f.page != null && <a href={`#page-${f.page}`} className="rounded-md border border-primary/30 bg-soft px-1.5 py-0.5 text-xs font-bold text-primary-d hover:bg-[#e3e7f3]">Page {f.page}</a>}
                     {f.status !== "open" && <span className="ml-auto text-xs font-semibold uppercase text-muted">{f.status}</span>}
                   </div>
-                  <p className="mt-2 font-semibold text-ink">&ldquo;{f.quote}&rdquo;</p>
+                  <p className="mt-2 font-semibold text-ink [overflow-wrap:anywhere]">&ldquo;{f.quote}&rdquo;</p>
                   <p className="mt-1 text-sm text-ink"><b>Why:</b> {f.message}</p>
                   {f.field === "image" && f.label === "code" && (f.message.match(/#[0-9A-F]{6}\b/gi)?.length ?? 0) > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted" aria-hidden>

@@ -2,6 +2,7 @@
 import { expect, test } from "@playwright/test";
 
 test("workflow: revision, dispute, approval, and re-approval after an edit", async ({ page }) => {
+  test.setTimeout(240_000); // the longest journey: two revisions, a dispute, a comment and two approvals
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
   await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });

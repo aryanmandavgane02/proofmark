@@ -1,11 +1,29 @@
 "use client";
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { useActionState, useEffect, useRef, useTransition } from "react";
 import { addColor, addTerm, addTypeface, saveFact, type BrandFormState } from "@/app/brand-actions";
 import { btn, input } from "@/components/ui";
 
-function Save({ label }: { label: string }) {
-  const { pending } = useFormStatus();
+/**
+ * Sends the form to its server action, but what was typed stays when the server says what to fix: React clears a
+ * <form action> once the action finishes, which would wipe every field over one mistake. Add forms are cleared only
+ * after a success.
+ */
+function useBrandForm(fn: (prev: BrandFormState, fd: FormData) => Promise<BrandFormState>, clearOnSuccess: boolean) {
+  const [state, action, pending] = useActionState<BrandFormState, FormData>(fn, undefined);
+  const ref = useRef<HTMLFormElement>(null);
+  const [, startTransition] = useTransition();
+  useEffect(() => {
+    if (clearOnSuccess && state?.ok) ref.current?.reset();
+  }, [state, clearOnSuccess]);
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => action(fd));
+  };
+  return { state, pending, form: { ref, onSubmit } };
+}
+
+function Save({ label, pending }: { label: string; pending: boolean }) {
   return <button className={btn.primary} disabled={pending}>{pending ? "Saving…" : label}</button>;
 }
 function Result({ state }: { state: BrandFormState }) {
@@ -17,9 +35,9 @@ function Result({ state }: { state: BrandFormState }) {
 export type FactRow = { code: string; statement: string; value: number | null; unit: string | null; keywords: string[]; source: string; owner: string; expires_on: string | null; restricted: boolean };
 
 export function FactForm({ fact, nextCode, prefill }: { fact?: FactRow; nextCode?: string; prefill?: { statement: string; value: string; unit: string } }) {
-  const [state, action] = useActionState<BrandFormState, FormData>(saveFact, undefined);
+  const { state, pending, form } = useBrandForm(saveFact, !fact);
   return (
-    <form action={action} className="grid gap-2 rounded-lg border border-line bg-soft p-3 text-sm sm:grid-cols-2">
+    <form {...form} className="grid gap-2 rounded-lg border border-line bg-soft p-3 text-sm sm:grid-cols-2">
       <input type="hidden" name="mode" value={fact ? "edit" : "add"} />
       <label className="text-xs font-semibold text-muted">Code<input name="code" defaultValue={fact?.code ?? nextCode} readOnly={!!fact} className={input} /></label>
       <label className="text-xs font-semibold text-muted sm:col-span-2">Approved fact (as it may be published)<input name="statement" required defaultValue={fact?.statement ?? prefill?.statement} className={input} placeholder="e.g. 40,000+ customers, as of Dec 2026." /></label>
@@ -32,42 +50,42 @@ export function FactForm({ fact, nextCode, prefill }: { fact?: FactRow; nextCode
       <label className="text-xs font-semibold text-muted">Owner<input name="owner" required defaultValue={fact?.owner} className={input} placeholder="Sales" /></label>
       <label className="text-xs font-semibold text-muted">Valid until (optional)<input name="expires_on" type="date" defaultValue={fact?.expires_on ?? ""} className={input} /></label>
       <label className="flex items-center gap-2 self-end text-xs font-semibold text-muted"><input type="checkbox" name="restricted" defaultChecked={fact?.restricted} /> Confidential (hidden from creators and never sent to AI)</label>
-      <div className="flex items-center gap-3 sm:col-span-2"><Save label={fact ? "Save fact" : "Add fact"} /><Result state={state} /></div>
+      <div className="flex items-center gap-3 sm:col-span-2"><Save label={fact ? "Save fact" : "Add fact"} pending={pending} /><Result state={state} /></div>
     </form>
   );
 }
 
 export function TermForm() {
-  const [state, action] = useActionState<BrandFormState, FormData>(addTerm, undefined);
+  const { state, pending, form } = useBrandForm(addTerm, true);
   return (
-    <form action={action} className="grid gap-2 rounded-lg border border-line bg-soft p-3 text-sm sm:grid-cols-3">
+    <form {...form} className="grid gap-2 rounded-lg border border-line bg-soft p-3 text-sm sm:grid-cols-3">
       <label className="text-xs font-semibold text-muted">Use<input name="preferred" required className={input} placeholder="protein bar" /></label>
       <label className="text-xs font-semibold text-muted">Instead of (comma-separated)<input name="avoid" required className={input} placeholder="energy bar, candy bar" /></label>
       <label className="text-xs font-semibold text-muted">Why<input name="reason" className={input} placeholder="Describes the product accurately." /></label>
       <label className="flex items-center gap-2 text-xs font-semibold text-muted"><input type="checkbox" name="case_sensitive" /> Exact capitals matter (names)</label>
-      <div className="flex items-center gap-3 sm:col-span-2"><Save label="Add term" /><Result state={state} /></div>
+      <div className="flex items-center gap-3 sm:col-span-2"><Save label="Add term" pending={pending} /><Result state={state} /></div>
     </form>
   );
 }
 
 export function ColorForm() {
-  const [state, action] = useActionState<BrandFormState, FormData>(addColor, undefined);
+  const { state, pending, form } = useBrandForm(addColor, true);
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-soft p-3 text-sm">
+    <form {...form} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-soft p-3 text-sm">
       <label className="text-xs font-semibold text-muted">Name<input name="name" required className={input} placeholder="Festive Gold" /></label>
       <label className="text-xs font-semibold text-muted">Hex colour<input name="hex" required pattern="#[0-9A-Fa-f]{6}" className={input} placeholder="#E0B040" /></label>
-      <Save label="Add colour" /><Result state={state} />
+      <Save label="Add colour" pending={pending} /><Result state={state} />
     </form>
   );
 }
 
 export function TypefaceForm() {
-  const [state, action] = useActionState<BrandFormState, FormData>(addTypeface, undefined);
+  const { state, pending, form } = useBrandForm(addTypeface, true);
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-soft p-3 text-sm">
+    <form {...form} className="flex flex-wrap items-end gap-2 rounded-lg border border-line bg-soft p-3 text-sm">
       <label className="text-xs font-semibold text-muted">Family name<input name="name" required maxLength={60} className={input} placeholder="Noto Sans Devanagari" /></label>
       <label className="text-xs font-semibold text-muted">Used for<input name="note" maxLength={60} className={input} placeholder="Hindi text" /></label>
-      <Save label="Add typeface" /><Result state={state} />
+      <Save label="Add typeface" pending={pending} /><Result state={state} />
     </form>
   );
 }

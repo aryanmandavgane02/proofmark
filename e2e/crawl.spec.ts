@@ -74,7 +74,7 @@ for (const person of PEOPLE) {
     expect(links.size, "links were found to check").toBeGreaterThan(15);
     console.log(`${person}: ${PAGES.length + Math.min(10, [...links].filter((l) => DRAFT_PAGE.test(l)).length)} pages at two widths, ${links.size} links`);
     for (const href of [...links].filter((l) => l && !l.startsWith("/_next"))) {
-      const r = await page.request.get(href, { maxRedirects: 3 });
+      const r = await page.request.get(href, { maxRedirects: 3, timeout: 60_000 });
       if (r.status() >= 400) problems.push(`link ${href}: status ${r.status()}`);
     }
 

@@ -14,6 +14,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   reporter: [["list"]],
+  // The local dev server builds pages on demand and slows down under many parallel journeys; the live site does not.
+  workers: process.env.BASE_URL ? undefined : 3,
   projects: [
     { name: "chrome", use: chrome },
     ...(process.env.ALL_BROWSERS
