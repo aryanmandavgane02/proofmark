@@ -52,7 +52,7 @@ export async function importGuide(_prev: BrandFormState, formData: FormData): Pr
     if (file.size > MAX_PDF_BYTES) return { error: "The PDF must be 4 MB or smaller. Brand books are usually large because of their pictures: export it again with compressed images, or save just the pages with the rules, and upload that." };
     bytes = Buffer.from(await file.arrayBuffer());
     fileName = file.name.slice(0, 120);
-  } else if (SAMPLE_GUIDES[sample]) {
+  } else if (Object.hasOwn(SAMPLE_GUIDES, sample)) {
     const res = await fetch(new URL(SAMPLE_GUIDES[sample], await selfOrigin()));
     if (!res.ok) return { error: "Could not load the sample document." };
     bytes = Buffer.from(await res.arrayBuffer());

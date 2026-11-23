@@ -112,7 +112,9 @@ const DEMO_PROBLEM: Record<string, string> = {
 
 export default async function Home(props: PageProps<"/">) {
   const sp = await props.searchParams;
-  const problem = DEMO_PROBLEM[String(sp.demo ?? "")];
+  // Only the listed reasons: a plain lookup would also answer to built-in names such as "constructor".
+  const key = String(sp.demo ?? "");
+  const problem = Object.hasOwn(DEMO_PROBLEM, key) ? DEMO_PROBLEM[key] : null;
   const s = await getSession();
   const hasDemo = !!s?.workspace;
   return (

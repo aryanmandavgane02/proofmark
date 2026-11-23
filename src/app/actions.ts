@@ -110,7 +110,8 @@ const TRY: Record<string, { role: "creator" | "manager"; path: string }> = {
 };
 
 export async function tryImprovement(formData: FormData) {
-  const target = TRY[String(formData.get("try"))];
+  const key = String(formData.get("try"));
+  const target = Object.hasOwn(TRY, key) ? TRY[key] : undefined; // never a built-in name such as "toString"
   const { supabase, userId, workspaceId } = await ensureDemo();
   if (!target) redirect("/app");
   const { data: person } = await supabase.from("people").select("id").eq("workspace_id", workspaceId).eq("role", target.role).order("sort").limit(1).maybeSingle();

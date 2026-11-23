@@ -45,3 +45,11 @@ test("home page: a demo that could not be started says why, instead of an error 
   await page.goto("/?demo=anything-else");
   await expect(problem(/Too many new demos|could not be set up/)).toHaveCount(0);
 });
+
+test("home page: an unknown or built-in name in the address is ignored, never an error page", async ({ page }) => {
+  for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    const res = await page.goto(`/?demo=${name}`);
+    expect(res?.status(), name).toBe(200);
+    await expect(page.getByRole("button", { name: /Start the live demo|Continue your demo/ }).first(), name).toBeVisible();
+  }
+});
