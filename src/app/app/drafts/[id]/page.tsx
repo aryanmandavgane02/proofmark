@@ -120,6 +120,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               body={version!.body} pages={(version!.pages ?? []) as DocPage[]} scanned={!!version!.scanned} fileUrl={fileUrl}
               fileName={version!.file_name ?? "document.pdf"} fileSize={version!.file_size ?? 0} fileHash={version!.file_hash ?? ""}
               marks={marks} findingsByPage={findingsByPage} typefaces={(typefaces ?? []).map((t) => ({ name: t.name, note: t.note ?? "" }))}
+              picturesRead={run?.ai_status === "running" ? "running" : run?.ai_status === "ok" || run?.ai_status === "cached" || run?.ai_status === "reused" ? "read" : "not_read"}
             />
             <details className="mt-4 border-t border-line pt-3">
               <summary className="cursor-pointer text-sm font-semibold text-primary">Upload a corrected PDF</summary>

@@ -10,7 +10,9 @@ import { AIUnavailableError, friendlyAIError } from "@/lib/ai/provider";
 import { reviewImage, reviewText, secondOpinion } from "@/lib/ai/review";
 import { analyseImage, loadImage } from "@/lib/images";
 import { paletteCheck } from "@/lib/checks/visual";
-import { attachAltSuggestion, imageAIFindings, imageTextFindings } from "@/lib/checks/image-findings";
+import { attachAltSuggestion, imageAIFindings, imageTextFindings, pictureTextFindings } from "@/lib/checks/image-findings";
+import { deckPictures } from "@/lib/documents/pictures";
+import { loadDocument } from "@/lib/documents/store";
 import { ruleApplies } from "@/lib/checks/types";
 import { withPages } from "@/lib/documents/read";
 import { URJA_LOGO_PNG_BASE64 } from "@/lib/seed/logo-png";
@@ -57,10 +59,10 @@ export async function loadBrand(db: SupabaseClient, workspaceId: string) {
 type VersionRow = {
   id: string; draft_id: string; version: number; body: string; alt_text: string; image_path: string | null;
   /** Documents only. */
-  file_hash?: string | null; pages?: DocPage[] | null; scanned?: boolean | null;
+  file_hash?: string | null; file_path?: string | null; pages?: DocPage[] | null; scanned?: boolean | null;
 };
 /** The version columns runChecks needs. */
-export const VERSION_COLUMNS = "id, draft_id, version, body, alt_text, image_path, file_hash, pages, scanned";
+export const VERSION_COLUMNS = "id, draft_id, version, body, alt_text, image_path, file_hash, file_path, pages, scanned";
 type RunInput = {
   workspaceId: string; rulebookVersion: number; channel: Channel; version: VersionRow; codeChecksOnly?: boolean; reuseFrom?: { runId: string; version: number };
   /** Run code checks only, for this reason (shown under "How this was checked"), e.g. a re-check after a fact changed. */
@@ -211,14 +213,16 @@ export async function runChecks(db: SupabaseClient, input: RunInput): Promise<Ru
   const first = sortFindings([...codeFindings, ...reusedFindings]);
   await insertFindings(first, at);
   const result: RunResult = { runId: run.id as string, count: first.length, fingerprint: fp };
-  if (needsAI) result.ai = () => runAIStage({ provider: provider!, ctx, codeFindings, image, imageError, at, started });
+  // A document with pictures: the AI also reads the words in its largest pictures (the file is loaded in the background).
+  const picturesFile = input.channel === "document" && input.version.file_path && ctx.pages?.some((pg) => (pg.pictures ?? 0) > 0) ? input.version.file_path : null;
+  if (needsAI) result.ai = () => runAIStage({ provider: provider!, ctx, codeFindings, image, imageError, picturesFile, at, started });
   return result;
 }
 
 /** The AI half of a check: text review, proof check, second opinion and image review, within one time budget. */
 async function runAIStage(p: {
   provider: NonNullable<ReturnType<typeof getProvider>>; ctx: CheckContext; codeFindings: FindingDraft[];
-  image: Awaited<ReturnType<typeof analyseImage>> | null; imageError: string | null; at: FindingRowInput; started: number;
+  image: Awaited<ReturnType<typeof analyseImage>> | null; imageError: string | null; picturesFile?: string | null; at: FindingRowInput; started: number;
 }) {
   const { provider, ctx, codeFindings, at } = p;
   const deadline = Date.now() + AI_BUDGET_MS;
@@ -267,6 +271,23 @@ async function runAIStage(p: {
         altSuggestion = altNeeded.find((f) => f.fix_kind === "set_alt") ?? null;
       } catch (e) {
         imageError = e instanceof AIUnavailableError ? e.message : "The AI could not review the image.";
+      }
+    }
+    if (p.picturesFile && ctx.pages) {
+      // Words inside the document's largest pictures, read by the AI and checked against the claims and terms rules.
+      try {
+        const bytes = await loadDocument(p.picturesFile);
+        const { pictures } = bytes ? await deckPictures(bytes, ctx.pages) : { pictures: [] };
+        const read = await Promise.allSettled(pictures.map((pic) => reviewImage(provider, ctx, { mimeType: pic.mimeType, data: pic.data, hash: pic.hash }, null, at.workspaceId, deadline)));
+        read.forEach((r, i) => {
+          if (r.status !== "fulfilled") return;
+          ai_requests += r.value.requests;
+          aiFindings.push(...pictureTextFindings(r.value.review.text_in_image, ctx, pictures[i].pages));
+        });
+        const failed = read.filter((r) => r.status === "rejected").length;
+        if (failed) imageError = `${failed} of the document's pictures could not be read by the AI.`;
+      } catch {
+        imageError = "The pictures in this document could not be read, so the words inside them were not checked.";
       }
     }
     ai_status = text.cached && ai_requests === 0 ? "cached" : "ok";

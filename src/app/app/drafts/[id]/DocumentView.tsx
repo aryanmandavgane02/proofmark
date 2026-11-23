@@ -4,7 +4,7 @@ import type { DocPage, Typeface } from "@/lib/checks/types";
 import { isSymbolFont, looksLikeHiddenName, sameFamily } from "@/lib/documents/fonts";
 import { Highlighted, type Mark } from "./Highlighted";
 import { formatBytes } from "@/lib/bytes";
-import { pageList } from "@/lib/documents/pages";
+import { MAX_PICTURES, pageList } from "@/lib/documents/pages";
 
 const RANK: Record<string, number> = { blocker: 0, major: 1, minor: 2 };
 const CHIP: Record<string, string> = {
@@ -17,6 +17,8 @@ const CHIP: Record<string, string> = {
 export function DocumentView(props: {
   body: string; pages: DocPage[]; scanned: boolean; fileUrl: string | null; fileName: string; fileSize: number; fileHash: string;
   marks: Mark[]; findingsByPage: Map<number, { severity: string }[]>; typefaces: Typeface[];
+  /** Whether the AI read the words in the largest pictures: "read", "running", or "not_read" (AI off or unavailable). */
+  picturesRead?: "read" | "running" | "not_read";
 }) {
   const { body, pages, fileUrl, marks, findingsByPage, typefaces } = props;
   const worst = (n: number) => (findingsByPage.get(n) ?? []).map((f) => f.severity).sort((a, b) => RANK[a] - RANK[b])[0];
@@ -43,7 +45,12 @@ export function DocumentView(props: {
       )}
       {pictured.length > 0 && (
         <p className="rounded-lg border border-line bg-soft p-3 text-sm text-primary-d">
-          {pageList(pictured).replace(/^p/, "P")} {plural ? "have" : "has"} pictures. Their text, fonts and claims were checked, but not what is inside the pictures (a logo, a photo, words drawn into an image): look at {plural ? "those" : "it"} in the PDF.
+          {pageList(pictured).replace(/^p/, "P")} {plural ? "have" : "has"} pictures.{" "}
+          {props.picturesRead === "read"
+            ? `The AI read the words in the pictures (the ${MAX_PICTURES} largest, if there are more) and they were checked for claims and terms (shown as “In the picture on page …”). Logos, colours and photos themselves are not checked: look at ${plural ? "those" : "it"} in the PDF.`
+            : props.picturesRead === "running"
+              ? "The AI is reading the words in the largest pictures; any claims in them appear with the AI findings."
+              : `The page text was checked, but not what is inside the pictures (the AI did not run): look at ${plural ? "those" : "it"} in the PDF.`}
         </p>
       )}
       <nav aria-label="Pages" className="flex flex-wrap gap-1.5">
@@ -68,7 +75,7 @@ export function DocumentView(props: {
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 id={`page-${p.n}-h`} className="text-sm font-bold text-primary-d">Page {p.n}</h3>
               <span className="flex flex-wrap items-baseline gap-2">
-                {pictured.includes(p.n) && <span className="rounded border border-line px-1.5 py-0.5 text-xs text-muted">{p.pictures} picture{p.pictures! > 1 ? "s" : ""}, not checked</span>}
+                {pictured.includes(p.n) && <span className="rounded border border-line px-1.5 py-0.5 text-xs text-muted">{p.pictures} picture{p.pictures! > 1 ? "s" : ""}</span>}
                 {fileUrl && <a href={`${fileUrl}#page=${p.n}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary hover:underline">Open page {p.n} in the PDF ↗</a>}
               </span>
             </div>

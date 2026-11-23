@@ -31,3 +31,6 @@ export function withPages(findings: FindingDraft[], pages: DocPage[] | undefined
   for (const f of findings) if (f.page == null) f.page = pageAt(pages, f.start);
   return findings;
 }
+
+/** At most this many distinct pictures per document have their words read by the AI, the largest first. */
+export const MAX_PICTURES = 4;

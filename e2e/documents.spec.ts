@@ -111,17 +111,23 @@ test("document: an uploaded PDF, the same file again, then a corrected PDF as th
   await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toHaveCount(0);
 });
 
-test("document: pages with pictures say that the pictures themselves were not checked", async ({ page }) => {
-  test.setTimeout(120_000);
+test("document: the words in a deck's pictures are read and checked for claims, on their page", async ({ page }) => {
+  test.setTimeout(150_000);
   await startDemo(page);
   await page.goto("/app/drafts/new?mode=document");
+  // Page 1 shows a promotional picture with "INDIA'S #1" and "50% OFF" in it; page 2 only a 1-pixel icon.
   await page.getByLabel("PDF document").setInputFiles("e2e/fixtures/with-pictures.pdf");
   await page.getByLabel("Title").fill("Deck with a photo");
   await page.getByRole("button", { name: "Check this document" }).click();
   await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
-  await expect(page.getByText("Page 1 has pictures. Their text, fonts and claims were checked, but not what is inside the pictures")).toBeVisible();
-  await expect(page.locator("#page-1")).toContainText("1 picture, not checked");
-  await expect(page.locator("#page-2")).not.toContainText("not checked");
+  await expect(page.locator("#page-1")).toContainText("1 picture");
+  await expect(page.locator("#page-2")).not.toContainText("picture");
+  await waitForAI(page);
+  await expect(page.getByText(/^Page 1 has pictures\. The AI read the words in the pictures/)).toBeVisible();
+  const inPicture = page.locator("[id^='f-']").filter({ hasText: "In the picture on page 1" });
+  await expect(inPicture.filter({ hasText: "CLAIM-02" })).toHaveCount(1);
+  await expect(inPicture.filter({ hasText: "CLAIM-02" })).toContainText("NEEDS HUMAN JUDGMENT", { ignoreCase: true });
+  await expect(inPicture.filter({ hasText: "TONE-0" })).toHaveCount(0);
 });
 
 test("document: files that cannot be checked are refused with the reason", async ({ page }) => {

@@ -7,6 +7,35 @@ import { runCodeChecks } from "./index";
 import type { CheckContext, FindingDraft } from "./types";
 import { ruleApplies } from "./types";
 import type { Dropped } from "./proof";
+import { pageList } from "../documents/pages";
+
+/**
+ * Words the AI read in a picture inside a document, checked against the claims and terminology rules only (Round 3,
+ * Block 2). Deck pictures are often product photos or whole slides: their capitals, exclamation marks and colours
+ * are not marketing copy, but "50% OFF" or "#1" in a picture is a claim like any other. T&C may sit elsewhere in the
+ * deck, so offers are not flagged for lacking them here. The AI read the words, so a person confirms each finding.
+ */
+export function pictureTextFindings(text: string, ctx: CheckContext, pages: number[]): FindingDraft[] {
+  const t = text.trim();
+  if (!t) return [];
+  const rules = ctx.rules.filter((r) => (r.category === "claims" || r.category === "terminology") && r.check_type !== "disclaimer");
+  // The picture's words on their own: no page map, so no typeface check runs on them.
+  const found = runCodeChecks({ ...ctx, body: t, rules, pages: undefined, scanned: false, hasImage: false });
+  const where = pageList(pages);
+  return found.map((f) => ({
+    ...f,
+    field: "document" as const,
+    page: pages[0],
+    ...(pages.length > 1 ? { pages } : {}),
+    start: null,
+    end: null,
+    quote: `In the picture on ${where}: “${f.quote}”`,
+    message: `${f.message} (The words were read from a picture by AI, so please confirm them in the PDF.)`,
+    fix_kind: "none" as const,
+    fix_text: f.fix_kind === "replace" && f.fix_text ? `Change the words in the picture to “${f.fix_text}”, export the PDF again and upload it as a new version.` : f.fix_text,
+    label: "needs_judgment" as const,
+  }));
+}
 
 export type ImageReview = {
   text_in_image: string;
