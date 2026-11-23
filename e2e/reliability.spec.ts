@@ -211,7 +211,7 @@ test("publishing twice (two tabs) creates one rulebook version", async ({ page, 
   await page.getByRole("button", { name: "Publish as v2" }).click();
   await expect(page.getByRole("heading", { name: "Rulebook v2" })).toBeVisible();
   await second.getByRole("button", { name: "Publish as v2" }).click();
-  await expect(second.getByRole("status")).toContainText(/Nothing to publish|Already published/);
+  await expect(second.getByRole("status").filter({ hasText: /Nothing to publish|Already published/ })).toBeVisible();
   await expect(second.getByRole("heading", { name: "Rulebook v2" })).toBeVisible();
   await expect(second.getByRole("heading", { name: "Rulebook v3" })).toHaveCount(0);
 });

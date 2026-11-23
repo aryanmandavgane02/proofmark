@@ -51,13 +51,13 @@ test("insights: real disputes and overrides flag a rule, and clearer wording is 
   await flagged.getByText("Or write it yourself").click();
   await flagged.getByLabel("New wording for TONE-04").fill("No pressure language such as 'Hurry' or 'Last chance' to rush people. Plain stock or date facts are fine. At most one exclamation mark.");
   await flagged.getByRole("button", { name: "Replay, then publish" }).click();
-  await expect(page.getByRole("status")).toContainText("Before publishing", { timeout: 90_000 });
+  await expect(page.getByRole("status").filter({ hasText: "Before publishing" })).toBeVisible({ timeout: 90_000 });
   const replay = page.locator("#replay-TONE-04");
   await expect(replay.getByText("Effect on past decisions, if published")).toBeVisible();
   await expect(replay.locator("tbody tr").filter({ hasText: "Should pass" })).toHaveCount(2); // the two overrides
   await page.locator("#rule-TONE-04").locator("xpath=..").getByRole("button", { name: "Accept and publish as v2" }).click();
-  await expect(page.getByRole("status")).toContainText("Published rulebook v2 with the clearer wording for TONE-04");
-  await expect(page.getByRole("status")).toContainText("Replay kept with v2");
+  await expect(page.getByRole("status").filter({ hasText: "Published rulebook v2 with the clearer wording for TONE-04" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Replay kept with v2" })).toBeVisible();
   await expect(page.getByText("Recently clarified")).toBeVisible();
   await expect(page.locator("#rule-TONE-04")).toHaveCount(0);
 
@@ -115,7 +115,7 @@ test("replay: new wording for MSG-01 is replayed against every past decision bef
 
   // Published with the replay kept, and shown in the version history.
   await msg.getByRole("button", { name: "Accept and publish as v2" }).click();
-  await expect(page.getByRole("status")).toContainText("Replay kept with v2");
+  await expect(page.getByRole("status").filter({ hasText: "Replay kept with v2" })).toBeVisible();
   await page.goto("/app/rulebook");
   await page.getByText("Replay of MSG-01 kept with v2").click();
   await expect(page.locator("details").filter({ hasText: "Replay of MSG-01 kept with v2" }).locator("tbody tr")).toHaveCount(5);
@@ -136,7 +136,7 @@ test("replay: an edited AI rule in the rulebook is replayed before the version i
   await expect(page.getByRole("button", { name: "Publish as v2" })).toBeVisible();
   // Publishing first shows the replay, then publishes on the second click.
   await page.getByRole("button", { name: "Publish as v2" }).click();
-  await expect(page.getByRole("status")).toContainText("Before publishing", { timeout: 90_000 });
+  await expect(page.getByRole("status").filter({ hasText: "Before publishing" })).toBeVisible({ timeout: 90_000 });
   await expect(page.locator("#replay-MSG-02").getByText(/past decision.* would change/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Rulebook v1" })).toBeVisible();
   await page.getByRole("button", { name: "Publish as v2" }).click();
