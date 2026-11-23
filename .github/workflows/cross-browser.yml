@@ -1,0 +1,34 @@
+# The main journeys in Firefox, Safari's engine (WebKit) and on phones, against the live site. Started by hand:
+#   gh workflow run cross-browser.yml            (all four)
+#   gh workflow run cross-browser.yml -f projects=firefox
+# The journeys are listed in playwright.config.ts. They only use the public site, so no keys are needed.
+name: Cross-browser
+on:
+  workflow_dispatch:
+    inputs:
+      projects:
+        description: "Playwright projects to run"
+        default: "firefox safari iphone android"
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Run the journeys against the live site
+        env:
+          BASE_URL: https://proofmark-flame.vercel.app
+          ALL_BROWSERS: "1"
+          PROJECTS: ${{ inputs.projects }}
+        run: npx playwright test $(for p in $PROJECTS; do printf -- "--project=%s " "$p"; done) --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results
