@@ -24,7 +24,7 @@ export function describeEvent(type: string, detail: Record<string, unknown>): st
     case "rule.clarified": return `reworded ${detail.code} and published rulebook v${detail.version}.`;
     case "rule.wording_kept": return `kept the wording of ${detail.code} after reviewing the pushback.`;
     case "fact.added": return `added fact ${detail.code}.`;
-    case "fact.edited": return `edited fact ${detail.code}.`;
+    case "fact.edited": return factEdit(detail);
     case "term.added": return `added the glossary term \u201c${detail.preferred}\u201d.`;
     case "color.added": return `added the brand colour ${detail.name} ${detail.hex}.`;
     case "typeface.added": return `added the brand typeface ${detail.name}.`;
@@ -35,4 +35,16 @@ export function describeEvent(type: string, detail: Record<string, unknown>): st
     case "typeface.removed": return `removed the brand typeface ${detail.name}.`;
     default: return type.replace(".", " ") + ".";
   }
+}
+
+type FactSnapshot = { statement?: string; expires_on?: string | null };
+const longDay = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
+/** A fact edit with its old and new wording, when the event recorded them (edits since Round 3's user tests). */
+function factEdit(detail: Record<string, unknown>): string {
+  const from = detail.from as FactSnapshot | undefined;
+  const to = detail.to as FactSnapshot | undefined;
+  if (from?.statement && to?.statement && from.statement !== to.statement) return `changed fact ${detail.code} from “${from.statement}” to “${to.statement}”.`;
+  if (from && to && (from.expires_on ?? null) !== (to.expires_on ?? null)) return to.expires_on ? `set fact ${detail.code} to end after ${longDay(to.expires_on)}.` : `removed the end date of fact ${detail.code}.`;
+  return `edited fact ${detail.code}.`;
 }

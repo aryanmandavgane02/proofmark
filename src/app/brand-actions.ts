@@ -226,7 +226,11 @@ export async function saveFact(_prev: BrandFormState, formData: FormData): Promi
     ? await s.supabase.from("facts").update(row).eq("workspace_id", s.workspace.id).eq("code", f.code)
     : await s.supabase.from("facts").insert(row);
   if (error) return { error: error.message.includes("duplicate") ? `${f.code} already exists` : error.message };
-  await logEvent(s, isEdit ? "fact.edited" : "fact.added", { code: f.code });
+  // The old and new wording are kept with the event, for the fact's history and the audit trail.
+  const snapshot = (x: { statement: string; value: unknown; unit: string | null; expires_on: string | null }) => ({ statement: x.statement, value: x.value == null ? null : Number(x.value), unit: x.unit, expires_on: x.expires_on });
+  // Never for a confidential fact: the audit trail is shown to creators, who must not read its wording.
+  const secret = row.restricted || !!old?.restricted;
+  await logEvent(s, isEdit ? "fact.edited" : "fact.added", secret ? { code: f.code } : isEdit && old ? { code: f.code, from: snapshot(old), to: snapshot(row) } : { code: f.code, to: snapshot(row) });
 
   // Outdated-content alerts: approved drafts that relied on the old value or wording, or that mention an ending fact.
   const said: string[] = [];

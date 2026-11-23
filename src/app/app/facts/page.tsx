@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/session";
-import { Card, PageTitle } from "@/components/ui";
+import { Card, PageTitle, timeAgo } from "@/components/ui";
 import { todayIST } from "@/lib/pipeline";
 import { ColorForm, FactForm, TermForm, TypefaceForm, type FactRow } from "./BrandForms";
 import { removeTypeface } from "@/app/brand-actions";
@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { approvedContent, syncExpiredFacts, usage, type FactRow as FactShapeRow } from "@/lib/alerts-server";
 import { AlertList, FactChange, type AlertView } from "../AlertList";
+import { alertOutcome, factHistory, type FactEvent, type HistoryAlert } from "@/lib/fact-history";
 
 // Saving facts may re-check approved content.
 export const maxDuration = 60;
@@ -23,9 +24,13 @@ export default async function Facts(props: PageProps<"/app/facts">) {
     s.supabase.from("facts").select("*").eq("workspace_id", s.workspace.id).order("code"),
     s.supabase.from("terms").select("*").eq("workspace_id", s.workspace.id),
     s.supabase.from("assets").select("*").eq("workspace_id", s.workspace.id),
-    s.supabase.from("fact_alerts").select("*, draft:drafts(title, is_sample, status)").eq("workspace_id", s.workspace.id).eq("status", "open").order("created_at", { ascending: false }),
+    // Every alert, open or settled: the open ones are listed under their fact, all of them in its history.
+    s.supabase.from("fact_alerts").select("*, draft:drafts(title, is_sample, status)").eq("workspace_id", s.workspace.id).order("created_at", { ascending: false }),
     approvedContent(s.workspace.id),
   ]);
+  const { data: factEvents } = await s.supabase.from("events").select("type, person_id, detail, created_at").eq("workspace_id", s.workspace.id)
+    .in("type", ["fact.added", "fact.edited"]).order("created_at", { ascending: false }).limit(300);
+  const nameOf = (id: string | null) => s.people.find((p) => p.id === id)?.name ?? null;
   // Where approved content relies on each fact (the visitor sees only the facts their role may see).
   const usedIn = usage((facts ?? []) as FactShapeRow[], content);
   const canDecide = s.person.role !== "creator";
@@ -55,7 +60,8 @@ export default async function Facts(props: PageProps<"/app/facts">) {
             {(facts ?? []).map((f) => {
               const expired = f.status === "expired" || (f.expires_on && f.expires_on < today);
               const used = usedIn.get(f.code) ?? [];
-              const open = ((alerts ?? []) as AlertView[]).filter((a) => a.fact_code === f.code);
+              const open = ((alerts ?? []) as AlertView[]).filter((a) => a.fact_code === f.code && a.status === "open");
+              const history = factHistory(f.code, (factEvents ?? []) as FactEvent[], (alerts ?? []) as HistoryAlert[], nameOf);
               const recheckable = open.filter((a) => a.kind !== "expiring").length;
               // The old and new wording, once for the fact when every alert is about the same change.
               const changes = [...new Map(open.filter((a) => a.kind === "changed" && a.before && a.after).map((a) => [`${a.before!.statement}\n${a.after!.statement}`, a])).values()];
@@ -80,11 +86,32 @@ export default async function Facts(props: PageProps<"/app/facts">) {
                     ) : (
                       <p className="mt-1 text-xs text-muted">{open.length ? "No approved draft matches it as it is now; drafts that relied on it before are listed below." : "Not used in approved content."}</p>
                     )}
+                    {history.length > 0 && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs font-semibold text-primary">History ({history.length} change{history.length === 1 ? "" : "s"})</summary>
+                        <ol className="mt-1 space-y-2 border-l-2 border-line pl-3 text-xs">
+                          {history.map((h, i) => (
+                            <li key={`${h.at}-${i}`}>
+                              <p><b>{h.who ?? "Proofmark"}</b> <span className="text-muted">{timeAgo(h.at)}</span>: {h.text}</p>
+                              {h.alerts.length > 0 && (
+                                <ul className="mt-0.5 space-y-0.5 text-muted">
+                                  {h.alerts.map((a) => (
+                                    <li key={a.id}>
+                                      <Link href={`/app/drafts/${a.draft_id}`} className="font-semibold text-primary hover:underline">{a.draft?.title ?? "A draft"}</Link>: {alertOutcome(a)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
                     {manager && <details className="mt-1"><summary className="cursor-pointer text-xs font-semibold text-primary">Edit</summary><div className="mt-2"><FactForm fact={{ ...f, value: f.value == null ? null : Number(f.value) } as FactRow} /></div></details>}
                   </td>
                   <td className="p-2.5">{f.source}</td>
                   <td className="p-2.5">{f.owner}</td>
-                  <td className="p-2.5">{f.expires_on ?? "—"}</td>
+                  <td className="whitespace-nowrap p-2.5">{f.expires_on ? new Date(`${f.expires_on}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—"}</td>
                   <td className="p-2.5">{expired ? "Expired" : "Current"}</td>
                 </tr>
                 {open.length > 0 && (

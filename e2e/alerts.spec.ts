@@ -47,7 +47,17 @@ test("alerts: editing F-12 lists every approved draft that quoted it, and one cl
   await items.filter({ hasText: "About us page" }).getByRole("button", { name: "Re-check" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Sent “About us page” back for changes" })).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("tr").filter({ hasText: "because F-12 changed" }).locator("li")).toHaveCount(4);
+  // The fact's history: the change, who made it, and each affected draft with what happened to it.
+  await f12.getByText(/^History \(1 change\)$/).click();
+  const history = f12.locator("details").filter({ hasText: /^History/ });
+  await expect(history).toContainText("Meera");
+  await expect(history).toContainText("Changed fact F-12 from “35,000+ customers, as of Oct 2026.” to “30,000+ customers, as of Nov 2026.”");
+  await expect(history.locator("li li")).toHaveCount(5);
+  await expect(history.locator("li li").filter({ hasText: "About us page" })).toContainText("sent back for changes");
+  await expect(history.locator("li li").filter({ hasText: "Welcome email" })).toContainText("open: waiting for a re-check");
+  // The audit trail shows the old and new wording too.
   await page.goto("/app/activity");
+  await expect(page.getByText(/changed fact F-12 from “35,000\+ customers, as of Oct 2026\.” to “30,000\+ customers, as of Nov 2026\.”/)).toBeVisible();
   await expect(page.locator("tbody tr").filter({ hasText: "About us page" }).first()).toContainText("Withdrawn: fact F-12 changed");
 
   // The same list is on Insights.
