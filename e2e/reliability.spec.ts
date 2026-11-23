@@ -1,6 +1,6 @@
 // Reliability under normal use: bad input, the same action twice, stale tabs, refresh, slow AI.
 // Every case must end in one clear result: never a duplicate, a silent no-op or an endless spinner.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 
 test.use({ actionTimeout: 20_000 });
 
@@ -93,6 +93,41 @@ test("whitespace-only content is refused with a message", async ({ page }) => {
   // (Next.js keeps its own hidden route announcer with role="alert", so match the message itself.)
   await expect(page.getByRole("alert").filter({ hasText: "Write or paste the content" })).toBeVisible();
   await expect(page).toHaveURL(/\/app\/drafts\/new$/);
+});
+
+test("while the AI runs, the page refreshes one request at a time, even when the server is slow", async ({ page }) => {
+  test.setTimeout(150_000);
+  await startDemo(page);
+  await page.goto("/app/drafts/new");
+  await page.getByLabel("Title").fill("Slow refreshes");
+  await page.getByLabel("Channel").selectOption("email");
+  // Unique text, so the AI really runs instead of answering from stored results.
+  await page.getByLabel("Content").fill(`Stop eating junk, you know better. ${Date.now()} reasons to love Cocoa Crunch. Order now, follow us and share this email.`);
+  await page.getByRole("button", { name: "Check this draft" }).click();
+  await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+  const draftPath = new URL(page.url()).pathname;
+  // Every refresh of this page answers 3 seconds late. Refreshes and actions share one queue in the browser,
+  // so refreshes on a fixed timer would pile up here and hold up the next click.
+  const isRefresh = (r: Request) =>
+    r.method() === "GET" && r.headers()["rsc"] === "1" && !r.headers()["next-router-prefetch"] && new URL(r.url()).pathname === draftPath;
+  const open = new Set<Request>();
+  let most = 0;
+  let refreshes = 0;
+  page.on("request", (r) => {
+    if (!isRefresh(r)) return;
+    open.add(r);
+    refreshes++;
+    most = Math.max(most, open.size);
+  });
+  page.on("requestfinished", (r) => open.delete(r));
+  page.on("requestfailed", (r) => open.delete(r));
+  await page.route((url) => url.pathname === draftPath, async (route) => {
+    if (isRefresh(route.request())) await new Promise((done) => setTimeout(done, 3000));
+    await route.continue();
+  });
+  await waitForAI(page);
+  expect(refreshes, "the page refreshed while the AI ran").toBeGreaterThan(0);
+  expect(most, "refreshes in flight at once").toBe(1);
 });
 
 test("AI findings arrive on their own, also after a refresh", async ({ page }) => {
