@@ -60,7 +60,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 **We committed to:** a user uploads a PDF of up to 20 pages (a brochure, a one-pager or a slide deck exported as PDF), and Proofmark checks every page against the rulebook with the same code checks, AI checks and proof check as posts, plus a check that fonts are the brand typefaces. Each finding points to its page and quotes the text, and the document goes through the same review and approval as any other draft; a reviewer approves the exact file.
 
-- [x] Upload a PDF of up to 20 pages from New draft (and a one-click sample deck). Raised to 50 pages in Phase 6, after a real 45-page lecture deck was refused
+- [x] Upload a PDF of up to 20 pages from New draft (and a one-click sample deck). Raised to 100 pages in Phase 6, after real 45- and 58-page lecture decks were refused
 - [x] Every page is checked: the same code checks, AI checks and proof check as posts
 - [x] Fonts are compared with the brand typefaces; any other font is flagged with its page
 - [x] Every finding shows its page number and quotes the text
@@ -137,7 +137,7 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 - [x] Migration: a "Document (PDF)" channel; version fields for the file (path, name, SHA-256, page count, pages with their text ranges and fonts); a page number on findings; a private `documents` storage bucket (PDF only, 15 MB); typefaces as brand assets
 - [x] Brand typefaces: the Urja guide's "Type" page names Poppins (headlines) and Inter (body); new code rule VIS-03 "Brand typefaces" for documents; typefaces listed and editable on the Facts page like colours. The guide PDF is regenerated and its quotes re-verified
-- [x] Upload: New draft offers "Text or image" and "Document (PDF)". The browser uploads straight to storage; the server checks it is a real PDF, at most 50 pages (20 until Phase 6) and 15 MB, not password-protected and not a scan without text, and says exactly what is wrong otherwise
+- [x] Upload: New draft offers "Text or image" and "Document (PDF)". The browser uploads straight to storage; the server checks it is a real PDF, at most 100 pages (20 until Phase 6) and 15 MB, not password-protected and not a scan without text, and says exactly what is wrong otherwise
 - [x] Reading: text per page, fonts per page, file fingerprint
 - [x] Checking: pages joined with a page map so every existing code check runs unchanged (offers and "T&C apply" work across pages); one AI request for the whole document with page markers, then the proof check and the second opinion; every finding gets its page; font check per page, with names normalised ("AAAAAA+Poppins-Bold" is Poppins) and symbol and emoji fonts ignored
 - [x] Draft page for documents: page-by-page view with highlights; findings show "Page 3" and jump to the page; a page index with findings per page; "Open page 3 in the PDF". No "Accept fix" (a PDF cannot be edited here); instead "Upload a corrected PDF" creates a new version. The approval shows the file fingerprint and opens the exact approved file
@@ -203,9 +203,10 @@ These are graded against our Round 2 wording. Each box must be true in the live 
     - Letter-spaced labels read as "P R O G R A M" and split numbers ("1 9.6%"): the reader restores the words from the glyphs each page draws
     - Lines of code were joined into one 68-word "sentence": lines in a fixed-width font stay separate
     - "#1" in "Order #1, #2" and in code read as a ranking claim
-    - The 45-page deck was refused: the limit is now 50 pages
+    - The 45-page deck was refused: the limit is now 100 pages
+    - Mon 23 Nov: a 58-page lecture deck exported from PowerPoint read cleanly in 0.3 s (15 findings, each a real rule hit). Fixed: offer words were found inside other words ("Dealing", "ideal", "wholesale" read as offers, in posts too) and "deal with" read as an offer; diagram labels drawn right to left were glued together ("byte512 entries")
     - Result: 7 and 8 findings, each a real rule hit; scored test set unchanged (code + AI 97% / 98%, PDFs 100% / 100%); regression file `e2e/fixtures/letter-spacing.pdf`
-    - Still to try: exports from Google Slides, Canva and PowerPoint
+    - Still to try: exports from Google Slides and Canva. Known and left: superscripts ("2³⁶") read as separate lines
 - [ ] AI capacity for the judging period: daily caps sensible; stored answers for every sample, for today's facts and for after the Diwali offer expires on 30 Nov
 - [ ] Every finding fixed or declared
 
@@ -241,7 +242,7 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Bad input | Empty or whitespace-only content; over the length limit | Told plainly; nothing created |
 | Bad input | Hindi or Hinglish text, emoji only, HTML or script tags, one very long word | Checked without errors; shown as plain text |
 | Bad input | Image that is not an image, a GIF, a huge photo, an empty file | Refused or resized, with a message |
-| Bad input | PDF that is not a PDF, over 50 pages (20 until Phase 6), over 15 MB, password-protected, scanned (no text), corrupted, empty | Refused with the exact reason |
+| Bad input | PDF that is not a PDF, over 100 pages (20 until Phase 6), over 15 MB, password-protected, scanned (no text), corrupted, empty | Refused with the exact reason |
 | Bad input | Fact with a non-number value, a duplicate code, no source or owner; colour with a bad hex code; empty term | Told what to fix |
 | Bad input | A dispute or override reason that is too short | Told why, not silently ignored |
 | Bad input | An unknown or another visitor's draft address | Friendly "does not exist" page |
@@ -305,7 +306,7 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Sun 22 Nov | Alerts measured on a held-out set written by an independent labeller, committed before the first run; both runs published | A 100% on sentences written while building the detector proved little; the honest first score (60%) showed real gaps that were then fixed |
 | Sun 22 Nov | Publishing new wording for an AI rule is two-step: replay first, then publish | The promise is that the effect is shown before publishing; a single button that published without showing it would not keep that promise |
 | Sun 22 Nov | The replay never sends the people's decisions or reasons to the AI | Otherwise the AI could copy them and the agreement numbers would mean nothing |
-| Sun 22 Nov | The page limit is 50 pages, not 20 | A real 45-page lecture deck was refused; it reads in about 0.2 s and its text is well inside the 60,000-character limit, so 20 was stricter than needed. The Round 2 promise (up to 20 pages) is still met |
+| Mon 23 Nov | The page limit is 100 pages, not 20 | Real 45- and 58-page lecture decks were refused, yet read in 0.2 to 0.3 s. What costs time is the text, and that is still capped at 60,000 characters, with the AI's own time limits behind it. Verified with a 100-page deck on the live site. The Round 2 promise (up to 20 pages) is still met |
 | Sun 22 Nov | In documents, one finding per font that is not a brand typeface, naming its pages; capitals grouped into phrases, and more than three phrases become one finding naming its pages | Real decks use the same fonts and style on every page: one finding per page and per word gave 253 and 369 findings for two real decks, while the reviewer decides once for the deck. Posts keep one finding per word |
 | Sun 22 Nov | Letter-spaced text is restored from the glyphs each page draws, only where it looks letter-spaced and the page draws real space glyphs | pdf.js splits letter-spaced words into letters. Restoring every gap from the glyphs could join table cells, or words in PDFs that place words without space glyphs (such as LaTeX output) |
 | Sun 22 Nov | Lines in a fixed-width font are never joined into a paragraph | Code and program output in decks are separate lines; joined, they read as one 68-word sentence |

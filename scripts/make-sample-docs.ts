@@ -178,7 +178,7 @@ async function main() {
   // Files the upload must refuse.
   const fx = path.resolve("e2e/fixtures");
   mkdirSync(fx, { recursive: true });
-  print(deckHtml(Array.from({ length: 51 }, (_, i) => ({ title: `Page ${i + 1}`, lines: ["Roasted cocoa and dates."] }))), path.join(fx, "too-many-pages.pdf"));
+  print(deckHtml(Array.from({ length: 101 }, (_, i) => ({ title: `Page ${i + 1}`, lines: ["Roasted cocoa and dates."] }))), path.join(fx, "too-many-pages.pdf"));
   print(`<!doctype html><html><head><style>@page{size:A4;margin:0}body{margin:0}</style></head><body><img style="width:100%" src="data:image/png;base64,${readFileSync("public/samples/diwali-ad.png").toString("base64")}"></body></html>`, path.join(fx, "scanned.pdf"));
   writeFileSync(path.join(fx, "not-a-pdf.pdf"), "This is a plain text file with a .pdf name.\n");
   writeFileSync(path.join(fx, "empty.pdf"), "");

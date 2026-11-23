@@ -117,7 +117,7 @@ test("document: files that cannot be checked are refused with the reason", async
   const cases: [string, RegExp][] = [
     ["empty", /The file is empty/],
     ["not-a-pdf", /not a PDF/],
-    ["too-many-pages", /51 pages\. Proofmark checks documents of up to 50 pages/],
+    ["too-many-pages", /101 pages\. Proofmark checks documents of up to 100 pages/],
     ["scanned", /no text that can be selected/],
     ["password", /protected with a password/],
     ["damaged", /could not be read; it may be damaged/],

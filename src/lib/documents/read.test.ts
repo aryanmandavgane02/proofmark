@@ -63,6 +63,10 @@ describe("page text", () => {
     const { text } = assemblePage([item("Price", 50, 500, 12, "f1", false, 30), item("₹540", 200, 500, 12)], (id) => fonts[id]);
     expect(text).toBe("Price ₹540");
   });
+  it("keeps a space between labels on one line drawn right to left", () => {
+    const { text } = assemblePage([item("4096 byte", 500, 300, 12, "f1", false, 60), item("512 entries", 380, 300, 12, "f1", false, 70), item("512 entries", 260, 300, 12, "f1", false, 70)], (id) => fonts[id]);
+    expect(text).toBe("4096 byte 512 entries 512 entries");
+  });
   it("keeps every run of text with its font, aligned with the text", () => {
     const { text, runs } = assemblePage([item("Gift boxes", 50, 700, 30, "f2", true), item("A box of six costs ₹540.", 50, 650, 12, "f3")], (id) => fonts[id]);
     expect(runs.map((r) => [r.font, text.slice(r.start, r.end)])).toEqual([

@@ -176,6 +176,13 @@ describe("claims", () => {
     expect(f.severity).toBe("blocker");
     expect(f.fix_text).toBe("The protein bar 35,000+ customers trust");
   });
+  it("DISC-01 finds offer words as words: not inside \"ideal\", \"dealing\" or \"wholesale\"", () => {
+    expect(disclaimerCheck(ctx("The ideal snack for dealing with hunger. Wholesale packs on request."), rule("DISC-01"))).toHaveLength(0);
+    expect(disclaimerCheck(ctx("How to deal with a 4 pm slump."), rule("DISC-01"))).toHaveLength(0);
+    expect(disclaimerCheck(ctx("Best deals this week on the gift box."), rule("DISC-01"))[0].message).toContain("“deals”");
+    expect(disclaimerCheck(ctx("Get 20% off the 6-bar box."), rule("DISC-01"))[0].message).toContain("“% off”");
+    expect(disclaimerCheck(ctx("Discounted boxes for Diwali."), rule("DISC-01"))).toHaveLength(1);
+  });
   it("CLAIM-02 ignores numbering and code, and keeps the quote on its line", () => {
     for (const t of ["Order #1, #2, #3, … all kept.", "Step #1: open the box.", "1: invokespecial #1 // Method java/lang/Object", "Entry #13 is the name."]) {
       expect(superlativesCheck(ctx(t), rule("CLAIM-02")), t).toHaveLength(0);

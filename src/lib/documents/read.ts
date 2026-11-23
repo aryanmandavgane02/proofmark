@@ -9,7 +9,7 @@ import { PAGE_GAP } from "./pages";
 
 export { pageAt, withPages } from "./pages";
 
-export const MAX_PAGES = 50;
+export const MAX_PAGES = 100;
 export const MAX_BYTES = 15 * 1024 * 1024;
 export const MAX_CHARS = 60_000;
 /** Reading stops after this long, so a damaged or hostile file cannot hold the server. */
@@ -151,7 +151,7 @@ export function stripBullets(text: string, runs: Run[]): { text: string; runs: R
 export function assemblePage(items: Item[], fontOf: (id: string) => string, glyphs?: Glyphs): { text: string; runs: Run[] } {
   let text = "";
   let runs: Run[] = [];
-  let last: { y: number; size: number; xEnd: number; font: string } | null = null;
+  let last: { x: number; y: number; size: number; xEnd: number; font: string } | null = null;
   let pendingBreak = false;
   // Letter spacing is repaired only on pages that draw real space glyphs (not, for example, LaTeX output).
   const itemSpaces = items.reduce((n, it) => n + (typeof it.str === "string" ? it.str.split(" ").length - 1 : 0), 0);
@@ -174,8 +174,8 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string, glyp
           text = text.replace(/[ \t]+$/, "");
           // A word split at a hyphen ("6-" / "bar box") joins back without a space: "6-bar box".
           text += soft ? (/[\p{L}\p{N}]-$/u.test(text) ? "" : " ") : "\n";
-        } else if (!/\s$/.test(text) && !/^\s/.test(str) && x - last.xEnd > size * 0.25) {
-          text += " "; // a visible gap on the same line (for example table cells)
+        } else if (!/\s$/.test(text) && !/^\s/.test(str) && (x - last.xEnd > size * 0.25 || x < last.x - size * 0.25)) {
+          text += " "; // a visible gap on the same line (table cells), or a label drawn to the left of the last one
         }
       }
       const start = text.length;
@@ -183,7 +183,7 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string, glyp
       const prev = runs.at(-1);
       if (prev && prev.font === font && /^\s*$/.test(text.slice(prev.end, start))) prev.end = text.length;
       else runs.push({ font, start, end: text.length });
-      last = { y, size, xEnd: x + (it.width || 0), font };
+      last = { x, y, size, xEnd: x + (it.width || 0), font };
       pendingBreak = false;
     }
     if (it.hasEOL) pendingBreak = true;

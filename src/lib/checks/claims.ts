@@ -218,6 +218,16 @@ export function absolutesCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
 }
 
 /** DISC-01: offers and discounts need "T&C apply". */
+/** An offer word as a word: "deal" and "deals", not "ideal", "dealing" or "deal with"; "sale", not "wholesale"; "20% off". */
+function offerWord(trigger: string): RegExp {
+  const t = trigger.trim();
+  const esc = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const before = /^[\p{L}\p{N}]/u.test(t) ? "(?<![\\p{L}\\p{N}])" : "";
+  const after = /[\p{L}\p{N}]$/u.test(t) ? "(?:s|es|ed)?(?![\\p{L}\\p{N}])" : "";
+  const verb = /^deal$/i.test(t) ? "(?![ \\t]+with\\b)" : ""; // "how to deal with" is not an offer
+  return new RegExp(`${before}${esc}${after}${verb}`, "iu");
+}
+
 export function disclaimerCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   const required = String(rule.params.required ?? "T&C apply");
   if (ctx.body.toLowerCase().includes(required.toLowerCase())) return [];
@@ -225,9 +235,9 @@ export function disclaimerCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
   // Triggers are listed strongest first ("% off" before "offer"), so the finding lands on the actual promotion.
   let first: { index: number; text: string } | null = null;
   for (const t of triggers) {
-    const i = ctx.body.toLowerCase().indexOf(t.toLowerCase());
-    if (i >= 0) {
-      first = { index: i, text: ctx.body.slice(i, i + t.length) };
+    const m = offerWord(t).exec(ctx.body);
+    if (m) {
+      first = { index: m.index, text: m[0] };
       break;
     }
   }
