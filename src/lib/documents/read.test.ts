@@ -62,6 +62,18 @@ describe("page text", () => {
     ], (id) => fonts[id]);
     expect(text).toBe("WOLFE'S CONDITIONS (SLIDE 29)\nArmijo's rule only bounds the step from above.");
   });
+  it("keeps superscripts on their line (2³⁶, a footnote mark), but not a page number placed elsewhere", () => {
+    // Positions as a PowerPoint export draws "2³⁶×2³ bytes …" (real deck, Block 2), raised space included.
+    const { text } = assemblePage([
+      item("2", 127.3, 320.3, 22.3, "f1", false, 12.4), item("36", 139.4, 328.4, 15.9, "f1", false, 18.5),
+      item("×2", 158.8, 320.3, 22.3, "f1", false, 28.1), item("3", 186.7, 328.4, 15.9, "f1", false, 9.2),
+      item(" ", 195.9, 328.4, 15.9, "f1", false, 5.9), item("bytes assuming 8-byte entries", 201.8, 320.3, 22.3, "f1", true, 300),
+      item("45", 900, 40, 12),
+    ], (id) => fonts[id]);
+    expect(text).toBe("2³⁶×2³ bytes assuming 8-byte entries\n45");
+    const footnote = assemblePage([item("Loved by 35,000+ customers", 50, 650, 14, "f1", false, 190), item("1", 240.5, 656, 9, "f1", true, 5)], (id) => fonts[id]);
+    expect(footnote.text).toBe("Loved by 35,000+ customers¹");
+  });
   it("joins a word split at a hyphen across lines without a space", () => {
     const { text } = assemblePage([item("Order the 6-", 50, 650, 12, "f1", true), item("bar box today.", 50, 635, 12)], (id) => fonts[id]);
     expect(text).toBe("Order the 6-bar box today.");
@@ -146,6 +158,11 @@ describe("letter-spaced text", () => {
     const g = glyphStream([OPS.showText], [[[glyph("A"), glyph("M", true), glyph("P"), glyph(" "), glyph("U"), glyph("P")]]], OPS);
     expect(g.letters).toBe("AMPUP");
     expect(respace("A M P U P", g)).toBe("AMP UP");
+  });
+  it("joins a hyphenated heading pdf.js split (\"REAL -WORLD\") only when the page draws no space there", () => {
+    expect(respace("REAL -WORLD IMPLICATIONS", perLetter("REAL-WORLD IMPLICATIONS"))).toBe("REAL-WORLD IMPLICATIONS");
+    expect(respace("USE -XMX FLAG", perLetter("USE -XMX FLAG"))).toBe("USE -XMX FLAG");
+    expect(respace("java -verbose App", perLetter("java -verbose App"))).toBe("java -verbose App");
   });
   it("keeps the space between two labels that are separate pieces of text", () => {
     const g = glyphStream([OPS.setTextMatrix, OPS.showText, OPS.setTextMatrix, OPS.showText], [[[1, 0, 0, 1, 0, 0]], [[glyph("A"), glyph("B")]], [[1, 0, 0, 1, 90, 0]], [[glyph("C"), glyph("D")]]], OPS);

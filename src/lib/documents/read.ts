@@ -143,6 +143,12 @@ export function respace(str: string, g: Glyphs | undefined): string {
       }
       out.push(fixed ?? piece.join(" "));
       i = j;
+    } else if (/\p{Lu}{2,}$/u.test(tokens[i]) && /^-\p{Lu}{2,}/u.test(tokens[i + 1] ?? "")) {
+      // A letter-spaced heading with a hyphen: pdf.js reads "REAL -WORLD". Joined only when the page draws no real
+      // space there, so command-line flags and minus signs ("java -verbose", "or -1") keep theirs.
+      const joined = fromGlyphs([tokens[i], tokens[i + 1]], g);
+      out.push(joined ?? `${tokens[i]} ${tokens[i + 1]}`);
+      i += 2;
     } else {
       out.push(tokens[i]);
       i++;
@@ -170,25 +176,48 @@ export function stripBullets(text: string, runs: Run[]): { text: string; runs: R
   return { text: out, runs: runs.map((r) => ({ ...r, start: map(r.start), end: map(r.end) })).filter((r) => r.end > r.start) };
 }
 
+const SUPERSCRIPT: Record<string, string> = {
+  "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "+": "⁺", "-": "⁻", "−": "⁻", "(": "⁽", ")": "⁾",
+};
+
+/**
+ * A superscript: one to four digits or signs, in a smaller font, raised above the text just before it, and starting
+ * where that text ends ("2" then "36" is 2³⁶; "customers" then "1" is a footnote mark). Page numbers and diagram labels
+ * sit elsewhere on the page, so they stay separate lines. (Real decks, Round 3, Block 2.)
+ */
+export function isSuperscript(str: string, at: { x: number; y: number; size: number }, last: { y: number; size: number; xEnd: number }): boolean {
+  const raised = at.y - last.y;
+  return /^[0-9+\-−()]{1,4}$/.test(str) && at.size <= last.size * 0.8 && raised > last.size * 0.15 && raised < last.size * 0.8 && Math.abs(at.x - last.xEnd) < last.size * 0.6;
+}
+
 /** The page's text with line breaks where a reader would see them, and the font of each run. */
 export function assemblePage(items: Item[], fontOf: (id: string) => string, glyphs?: Glyphs): { text: string; runs: Run[] } {
   let text = "";
   let runs: Run[] = [];
   let last: { x: number; y: number; size: number; xEnd: number; font: string } | null = null;
   let pendingBreak = false;
+  let afterSup = false;
   // Letter spacing is repaired only on pages that draw real space glyphs (not, for example, LaTeX output).
   const itemSpaces = items.reduce((n, it) => n + (typeof it.str === "string" ? it.str.split(" ").length - 1 : 0), 0);
   const g = glyphs && glyphs.spaces >= Math.max(1, itemSpaces * 0.1) ? glyphs : undefined;
   for (const it of items) {
     if (typeof it.str !== "string" || it.dir === "ttb") continue;
     const str = respace(clean(it.str), g);
-    if (str.length) {
+    if (str.length && afterSup && last && !str.trim()) {
+      // A space drawn at the superscript's height is the gap before the next word, not a new line.
+      if (!/\s$/.test(text)) text += " ";
+      last = { x: last.x, y: last.y, size: last.size, font: last.font, xEnd: it.transform[4] + (it.width || 0) };
+    } else if (str.length) {
       const [, , c, d, x, y] = it.transform;
       const size = Math.hypot(c, d) || 1;
       const font = fontOf(it.fontName);
-      if (last && text.length) {
+      // A small number raised right after the text before it is a superscript ("2³⁶", "customers¹"): it stays on that line.
+      const sup: boolean = !!last && text.length > 0 && isSuperscript(str, { x, y, size }, last);
+      // The text after a superscript, back on the main line, continues it (pdf.js marks a line end at the raised part).
+      const backOnLine = !!last && afterSup && Math.abs(y - last.y) < last.size * 0.15 && Math.abs(x - last.xEnd) < last.size * 0.6;
+      if (last && text.length && !sup) {
         const sameLine = Math.abs(y - last.y) < size * 0.5;
-        if (pendingBreak || !sameLine) {
+        if ((pendingBreak && !backOnLine) || !sameLine) {
           // A wrapped line of the same paragraph joins with a space; a new paragraph, a heading or a bullet starts a new line.
           const similar = Math.abs(size - last.size) <= Math.max(last.size, size) * 0.15;
           const close = Math.abs(last.y - y) <= Math.max(last.size, size) * 1.75;
@@ -205,11 +234,13 @@ export function assemblePage(items: Item[], fontOf: (id: string) => string, glyp
         }
       }
       const start = text.length;
-      text += str;
+      text += sup ? [...str].map((ch) => SUPERSCRIPT[ch] ?? ch).join("") : str;
       const prev = runs.at(-1);
       if (prev && prev.font === font && /^\s*$/.test(text.slice(prev.end, start))) prev.end = text.length;
       else runs.push({ font, start, end: text.length });
-      last = { x, y, size, xEnd: x + (it.width || 0), font };
+      // After a superscript the main line is still the reference for what follows.
+      last = sup ? { ...last!, xEnd: x + (it.width || 0) } : { x, y, size, xEnd: x + (it.width || 0), font };
+      afterSup = sup;
       pendingBreak = false;
     }
     if (it.hasEOL) pendingBreak = true;
