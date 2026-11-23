@@ -127,6 +127,10 @@ describe("SOC checks", () => {
   it("SOC-01 passes a compliant set", () => {
     expect(hashtagCheck(ctx("Hi #UrjaBites #MadeInIndia", "instagram"), rule("SOC-01"))).toHaveLength(0);
   });
+  it("SOC-01 names what is missing instead of quoting the end of the post", () => {
+    const [f] = hashtagCheck(ctx("Roasted cocoa in every bar. Order at urjabites.in.", "instagram"), rule("SOC-01"));
+    expect(f).toMatchObject({ quote: "(no hashtags)", start: null, fix_kind: "append" });
+  });
   it("SOC-02 flags more than two emoji", () => {
     expect(emojiCheck(ctx("Yum 🍫🔥💪", "instagram"), rule("SOC-02"))).toHaveLength(1);
     expect(emojiCheck(ctx("Yum 🍫🔥", "instagram"), rule("SOC-02"))).toHaveLength(0);

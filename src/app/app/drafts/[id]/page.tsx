@@ -349,9 +349,17 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                     <CategoryChip category={f.category} />
                     <LabelChip label={f.label} />
                     {f.page != null && <a href={`#page-${f.page}`} className="rounded-md border border-primary/30 bg-soft px-1.5 py-0.5 text-xs font-bold text-primary-d hover:bg-[#e3e7f3]">Page {f.page}</a>}
+                    {/* User tests: findings with no place in the text read as vague. Say they are about the whole piece. */}
+                    {f.start_at == null && f.page == null && f.field !== "image" && (
+                      <span className="rounded-md border border-line bg-soft px-1.5 py-0.5 text-xs font-semibold text-primary-d">About the whole {isDocument ? "document" : draft.channel === "email" ? "email" : draft.channel === "website" ? "page" : draft.channel === "ad" ? "ad" : "post"}</span>
+                    )}
                     {f.status !== "open" && <span className="ml-auto text-xs font-semibold uppercase text-muted">{f.status}</span>}
                   </div>
-                  <p className="mt-2 font-semibold text-ink [overflow-wrap:anywhere]">&ldquo;{f.quote}&rdquo;</p>
+                  {/^\(no [^)]+\)$/.test(f.quote) && f.start_at == null ? (
+                    <p className="mt-2 font-semibold text-ink">Missing: {f.quote.slice(4, -1)}</p>
+                  ) : (
+                    <p className="mt-2 font-semibold text-ink [overflow-wrap:anywhere]">&ldquo;{f.quote}&rdquo;</p>
+                  )}
                   <p className="mt-1 text-sm text-ink"><b>Why:</b> {f.message}</p>
                   {f.field === "image" && f.label === "code" && (f.message.match(/#[0-9A-F]{6}\b/gi)?.length ?? 0) > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted" aria-hidden>

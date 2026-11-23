@@ -199,7 +199,7 @@ export function hashtagCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
 
   if (!tags.length) {
     return [{
-      ...base(rule), quote: ctx.body.slice(-Math.min(ctx.body.length, 30)), start: null, end: null,
+      ...base(rule), quote: "(no hashtags)", start: null, end: null,
       message: `This post has no hashtags; ${required} is required.`, fix_kind: "append", fix_text: ` ${required}`,
     }];
   }

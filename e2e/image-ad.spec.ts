@@ -13,7 +13,7 @@ test("image ad: findings about the picture, with an AI alt text the creator can 
   await expect(page.getByText(/Colour #F26A1B covers/)).toBeVisible();
   await expect(page.getByText(/In the image: .*#1/).first()).toBeVisible();
   for (const cat of ["claims", "visual", "accessibility", "tone"]) await expect(page.getByText(cat, { exact: true }).first()).toBeVisible();
-  const alt = page.locator("div[id^=f-]").filter({ hasText: "(no alt text)" });
+  const alt = page.locator("div[id^=f-]").filter({ hasText: "Missing: alt text" });
   await alt.getByRole("button", { name: "Accept fix" }).click();
   await expect(page.getByText(/version 2/).first()).toBeVisible();
   await expect(page.getByText("(none)")).toHaveCount(0);
