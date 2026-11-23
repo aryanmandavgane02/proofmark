@@ -6,7 +6,7 @@ test("judge path: draft in, cited findings out, a person approves", async ({ pag
   await page.goto("/");
   await page.getByRole("button", { name: /Start the live demo/ }).click();
   await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
-  await expect(page.getByText("Guided demo")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Guided demo" })).toBeVisible();
 
   // 1. Check the sample post as Arjun
   await page.getByRole("button", { name: "Open the sample post" }).click();
