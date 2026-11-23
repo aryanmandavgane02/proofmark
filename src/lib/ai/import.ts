@@ -12,7 +12,7 @@ const IMPORT_PROMPT_VERSION = "import-v1";
 export async function pdfPages(bytes: Buffer): Promise<string[]> {
   const pdf = await getDocumentProxy(new Uint8Array(bytes)).catch(() => null);
   if (!pdf) throw new Error("That file is not a readable PDF.");
-  if (pdf.numPages > MAX_PDF_PAGES) throw new Error(`The PDF has ${pdf.numPages} pages; the limit is ${MAX_PDF_PAGES}.`);
+  if (pdf.numPages > MAX_PDF_PAGES) throw new Error(`The PDF has ${pdf.numPages} pages; the limit is ${MAX_PDF_PAGES}. Save just the pages with the brand rules (voice, words, claims, logo, colours, fonts) as a new PDF and upload that.`);
   const { text } = await extractText(pdf, { mergePages: false });
   const pages = (text as string[]).map((t) => t.replace(/\s+\n/g, "\n"));
   if (!pages.some((t) => t.trim().length > 40)) throw new Error("No text could be read from this PDF. Scanned pages need text, not just images.");

@@ -49,7 +49,7 @@ export async function importGuide(_prev: BrandFormState, formData: FormData): Pr
   const sample = String(formData.get("sample") ?? "");
   if (file instanceof File && file.size > 0) {
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) return { error: "Upload a PDF file." };
-    if (file.size > MAX_PDF_BYTES) return { error: "The PDF must be 4 MB or smaller." };
+    if (file.size > MAX_PDF_BYTES) return { error: "The PDF must be 4 MB or smaller. Brand books are usually large because of their pictures: export it again with compressed images, or save just the pages with the rules, and upload that." };
     bytes = Buffer.from(await file.arrayBuffer());
     fileName = file.name.slice(0, 120);
   } else if (SAMPLE_GUIDES[sample]) {
