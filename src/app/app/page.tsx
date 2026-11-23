@@ -46,8 +46,39 @@ export default async function StartHere() {
     <>
       <PageTitle
         title={`Welcome, ${s.person.name}`}
-        subtitle="Follow these five steps to see the whole workflow: a draft goes in, comes back with cited findings and fixes, and a person approves it. Each button switches you to the right person automatically."
+        subtitle="Try each of the three Round 3 improvements in one click, or follow the five steps of the guided demo to see the whole workflow: a draft goes in, comes back with cited findings and fixes, and a person approves it. Each button switches you to the right person automatically."
       />
+      <section aria-labelledby="new" className="mb-6">
+        <h2 id="new" className="flex flex-wrap items-center gap-2 font-semibold text-primary-d">
+          New since Round 2 <span className="rounded-full bg-violet/10 px-2 py-0.5 text-xs font-semibold text-violet">3 improvements, one click each</span>
+        </h2>
+        <ul className="mt-3 grid gap-3 md:grid-cols-3">
+          {[
+            { person: arjun, href: "/app/drafts/new?mode=document&sample=diwali-deck", t: "PDF documents and decks", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet",
+              d: "A 10-page deck checked page by page: every finding with its page, fonts outside the brand typefaces flagged, and the reviewer approves the exact file." },
+            { person: meera, href: "/app/facts#fact-F-12", t: "Out-of-date alerts", Icon: IconBell, tint: "from-[#fde0dd] to-[#fff4ea] text-[#8a1c12]",
+              d: `Edit F-12, the customer count: every approved draft that quoted it is listed, its owner is told, and one click re-checks it.${openAlerts ? ` ${openAlerts} approved draft${openAlerts === 1 ? " is" : "s are"} already out of date.` : ""}` },
+            { person: meera, href: "/app/insights#rule-MSG-01", t: "Rule-change replay", Icon: IconSpark, tint: "from-[#e2e6f6] to-[#eef8f5] text-primary-d",
+              d: "Reword the unclear \u201ctaste first\u201d rule: before it is published, every past decision is replayed, with what would change and agreement with people." },
+          ].filter((c) => c.person).map((c) => (
+            <li key={c.t}>
+              <form action={switchPerson} className="h-full">
+                <input type="hidden" name="person_id" value={c.person!.id} />
+                <input type="hidden" name="back" value={c.href} />
+                <button className="glow-card group flex h-full w-full gap-3 rounded-2xl border border-violet/30 bg-surface p-4 text-left shadow-card transition hover:-translate-y-1 hover:border-violet/60 hover:shadow-lift">
+                  <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br ${c.tint} transition group-hover:scale-110`}><c.Icon className="h-5 w-5" /></span>
+                  <span>
+                    <span className="block font-semibold text-primary group-hover:underline">{c.t}</span>
+                    <span className="block text-sm text-muted">{c.d}</span>
+                    <span className="mt-1 block text-xs font-semibold text-violet">As {c.person!.name}{c.person!.id === s.person.id ? "" : " (switches for you)"}</span>
+                  </span>
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 font-semibold text-primary-d"><span aria-hidden className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet opacity-50" /><span className="relative inline-flex h-2 w-2 rounded-full bg-violet" /></span>Guided demo</h2>
@@ -88,37 +119,6 @@ export default async function StartHere() {
         </ol>
         {!next && <p className="mt-4 rounded-lg bg-[#d8f0ea] p-3 text-sm text-[#0a5c4f]">You have run the whole workflow. Try your own content in <Link className="underline" href="/app/drafts/new">New draft</Link>, or look at the rulebook and facts behind each finding.</p>}
       </Card>
-
-      <section aria-labelledby="new" className="mt-6">
-        <h2 id="new" className="flex flex-wrap items-center gap-2 font-semibold text-primary-d">
-          New since Round 2 <span className="rounded-full bg-violet/10 px-2 py-0.5 text-xs font-semibold text-violet">3 improvements, one click each</span>
-        </h2>
-        <ul className="mt-3 grid gap-3 md:grid-cols-3">
-          {[
-            { person: arjun, href: "/app/drafts/new?mode=document&sample=diwali-deck", t: "PDF documents and decks", Icon: IconPages, tint: "from-[#f1effd] to-[#fbf7ef] text-violet",
-              d: "A 10-page deck checked page by page: every finding with its page, fonts outside the brand typefaces flagged, and the reviewer approves the exact file." },
-            { person: meera, href: "/app/facts#fact-F-12", t: "Out-of-date alerts", Icon: IconBell, tint: "from-[#fde0dd] to-[#fff4ea] text-[#8a1c12]",
-              d: `Edit F-12, the customer count: every approved draft that quoted it is listed, its owner is told, and one click re-checks it.${openAlerts ? ` ${openAlerts} approved draft${openAlerts === 1 ? " is" : "s are"} already out of date.` : ""}` },
-            { person: meera, href: "/app/insights#rule-MSG-01", t: "Rule-change replay", Icon: IconSpark, tint: "from-[#e2e6f6] to-[#eef8f5] text-primary-d",
-              d: "Reword the unclear \u201ctaste first\u201d rule: before it is published, every past decision is replayed, with what would change and agreement with people." },
-          ].filter((c) => c.person).map((c) => (
-            <li key={c.t}>
-              <form action={switchPerson} className="h-full">
-                <input type="hidden" name="person_id" value={c.person!.id} />
-                <input type="hidden" name="back" value={c.href} />
-                <button className="glow-card group flex h-full w-full gap-3 rounded-2xl border border-violet/30 bg-surface p-4 text-left shadow-card transition hover:-translate-y-1 hover:border-violet/60 hover:shadow-lift">
-                  <span aria-hidden className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br ${c.tint} transition group-hover:scale-110`}><c.Icon className="h-5 w-5" /></span>
-                  <span>
-                    <span className="block font-semibold text-primary group-hover:underline">{c.t}</span>
-                    <span className="block text-sm text-muted">{c.d}</span>
-                    <span className="mt-1 block text-xs font-semibold text-violet">As {c.person!.name}{c.person!.id === s.person.id ? "" : " (switches for you)"}</span>
-                  </span>
-                </button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       <section aria-labelledby="more" className="mt-6">
         <h2 id="more" className="font-semibold text-primary-d">More to try</h2>

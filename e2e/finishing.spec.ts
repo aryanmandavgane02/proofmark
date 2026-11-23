@@ -118,3 +118,14 @@ test("rulebook: a code rule's check settings are edited on screen and used once 
   await expect(page).toHaveURL(/\/app\/drafts\/[0-9a-f-]{36}$/, { timeout: 60_000 });
   await expect(page.locator("[id^='f-']").filter({ hasText: "TONE-02" })).toContainText("at most 12 words");
 });
+
+test("an address with a # opens at that part of the page, also on a refresh or a pasted link", async ({ page }) => {
+  test.setTimeout(120_000);
+  await startDemo(page);
+  for (const [path, target] of [["/app/insights#rule-MSG-01", "#rule-MSG-01"], ["/app/facts#fact-F-12", "#fact-F-12"]] as const) {
+    await page.goto(path);
+    await expect(page.locator(target)).toBeInViewport({ ratio: 0.3 });
+    // Not hidden under the sticky header (about 145 px on a desktop screen).
+    expect(await page.locator(target).evaluate((e) => e.getBoundingClientRect().top), path).toBeGreaterThan(140);
+  }
+});

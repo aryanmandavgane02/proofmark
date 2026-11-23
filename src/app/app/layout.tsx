@@ -6,6 +6,7 @@ import { NavLinks } from "./NavLinks";
 import { Notices } from "./Notices";
 import { Suspense } from "react";
 import { BackLink } from "./BackLink";
+import { HashScroll } from "./HashScroll";
 import { IconBell, IconHome } from "@/components/icons";
 import { syncExpiredFacts } from "@/lib/alerts-server";
 import { todayIST } from "@/lib/pipeline";
@@ -59,13 +60,14 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         </div>
         {s.workspace.is_demo && (
           <div className="border-t border-line/70 bg-gradient-to-r from-[#eef0fb] via-[#f3eefc] to-[#e9f5f1] px-4 py-1.5 text-center text-xs text-muted">
-            Demo workspace for the fictional brand <b>{s.workspace.brand_name}</b>. Everything here is private to you and uses made-up data.{" "}
+            Demo workspace for the fictional brand <b>{s.workspace.brand_name}</b>.<span className="hidden sm:inline"> Everything here is private to you and uses made-up data.</span>{" "}
             <span id="acting-as-help">&ldquo;Acting as&rdquo; switches person in this same workspace; nothing restarts. {who}.</span>
           </div>
         )}
       </header>
       <main className="stagger mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <BackLink />
+        <HashScroll />
         {children}
       </main>
     </div>

@@ -71,7 +71,7 @@ export function DocumentView(props: {
           .map((m) => ({ ...m, start: Math.max(0, m.start - p.start), end: Math.min(text.length, m.end - p.start) }));
         const fonts = p.fonts.filter((f) => f.chars > 0 && !isSymbolFont(f.family));
         return (
-          <section key={p.n} id={`page-${p.n}`} aria-labelledby={`page-${p.n}-h`} className="scroll-mt-24 border-t border-line pt-3">
+          <section key={p.n} id={`page-${p.n}`} aria-labelledby={`page-${p.n}-h`} className="scroll-mt-4 sm:scroll-mt-44 border-t border-line pt-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 id={`page-${p.n}-h`} className="text-sm font-bold text-primary-d">Page {p.n}</h3>
               <span className="flex flex-wrap items-baseline gap-2">

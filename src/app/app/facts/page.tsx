@@ -67,7 +67,7 @@ export default async function Facts(props: PageProps<"/app/facts">) {
               const changes = [...new Map(open.filter((a) => a.kind === "changed" && a.before && a.after).map((a) => [`${a.before!.statement}\n${a.after!.statement}`, a])).values()];
               return (
                 <Fragment key={f.code}>
-                <tr id={`fact-${f.code}`} className={`scroll-mt-24 ${expired ? "text-muted" : ""}`}>
+                <tr id={`fact-${f.code}`} className={`scroll-mt-4 sm:scroll-mt-44 ${expired ? "text-muted" : ""}`}>
                   <td className="p-2.5 font-mono font-bold">{f.code}</td>
                   <td className="p-2.5">
                     {f.statement} {f.restricted && <span className="ml-1 rounded bg-[#ffecc7] px-1.5 text-xs text-[#7a3d00]">Confidential</span>}

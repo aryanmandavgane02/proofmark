@@ -76,7 +76,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
         <p className="mb-6 rounded-lg bg-soft p-3 text-sm text-muted">No findings in your workspace yet. <Link className="font-semibold text-primary" href="/app/drafts/new">Check a draft</Link>, or switch to <b>Sample + yours</b>.</p>
       ) : null}
 
-      <section id="outdated" aria-labelledby="outdated-h" className="mb-8 scroll-mt-24">
+      <section id="outdated" aria-labelledby="outdated-h" className="mb-8 scroll-mt-4 sm:scroll-mt-44">
         <Card className={`p-5 ${openAlerts.length ? "border-l-4 border-l-red" : ""}`}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="outdated-h" className="font-semibold text-primary-d">Out-of-date approved content</h2>
@@ -125,7 +125,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
             const why = `${u.disputed} disputed and ${u.overridden} overridden findings`;
             return (
               <Card key={u.rule.code} className="border-amber/60 p-5">
-                <div id={`rule-${u.rule.code}`} className="scroll-mt-24 flex flex-wrap items-center gap-2">
+                <div id={`rule-${u.rule.code}`} className="scroll-mt-4 sm:scroll-mt-44 flex flex-wrap items-center gap-2">
                   <span className="rounded bg-[#fff1d6] px-2 py-0.5 text-xs font-bold uppercase text-[#7a3d00]">May be unclear</span>
                   <span className="font-mono font-bold text-primary-d">{u.rule.code}</span><CategoryChip category={u.rule.category} />
                   <span className="font-semibold">{u.rule.title}</span>
@@ -171,7 +171,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                         {u.rule.check_kind === "code" ? (
                           <p className="mt-2 text-xs text-muted">Not replayed: {u.rule.code} is checked only by code, so its wording does not change what is flagged.</p>
                         ) : replay ? (
-                          <div id={`replay-${u.rule.code}`} className="mt-4 scroll-mt-24">
+                          <div id={`replay-${u.rule.code}`} className="mt-4 scroll-mt-4 sm:scroll-mt-44">
                             <h4 className="mb-1 text-sm font-semibold text-primary-d">Effect on past decisions, if published</h4>
                             <ReplayTable replay={replay} />
                           </div>

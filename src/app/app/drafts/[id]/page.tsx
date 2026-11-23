@@ -344,7 +344,7 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
             const closed = !LIVE.includes(f.status);
             return (
               <Card key={f.id} className={`border-l-4 p-4 transition hover:shadow-lift ${f.severity === "blocker" ? "border-l-red" : f.severity === "major" ? "border-l-amber" : "border-l-[#8a93a8]"} ${closed ? "opacity-70" : ""}`}>
-                <div id={`f-${f.id}`} className="scroll-mt-24">
+                <div id={`f-${f.id}`} className="scroll-mt-4 sm:scroll-mt-44">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <SeverityChip severity={f.severity} />
                     <CategoryChip category={f.category} />

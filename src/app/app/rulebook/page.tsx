@@ -142,7 +142,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
       )}
 
       {manager && pendingChanges > 0 && (
-        <div id="pending" className="scroll-mt-24"><Card className="mb-6 border-amber/50 bg-[#fff6e5] p-5">
+        <div id="pending" className="scroll-mt-4 sm:scroll-mt-44"><Card className="mb-6 border-amber/50 bg-[#fff6e5] p-5">
           <h2 className="font-semibold text-[#7a3d00]">{pendingChanges} change{pendingChanges > 1 ? "s" : ""} not live yet</h2>
           <p className="mt-1 text-sm text-[#7a3d00]">
             {added.length > 0 && <>New: {added.join(", ")}. </>}{changed.length > 0 && <>Edited: {changed.join(", ")}. </>}{removed.length > 0 && <>Retired: {removed.join(", ")}. </>}
@@ -151,7 +151,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
           {reworded.map((r) => {
             const replay = replays.find((x) => x.rule_code === r.code && x.old_statement === norm(live.get(r.code)!.statement) && x.new_statement === norm(r.statement));
             return (
-              <div key={r.code} id={`replay-${r.code}`} className="mt-3 scroll-mt-24 rounded-lg border border-amber/40 bg-surface p-3">
+              <div key={r.code} id={`replay-${r.code}`} className="mt-3 scroll-mt-4 sm:scroll-mt-44 rounded-lg border border-amber/40 bg-surface p-3">
                 <p className="text-sm"><b className="font-mono">{r.code}</b> new wording: &ldquo;{r.statement}&rdquo;</p>
                 {r.check_kind === "code" ? (
                   <p className="mt-1 text-xs text-muted">Not replayed: {r.code} is checked only by code, so its wording does not change what is flagged.</p>
