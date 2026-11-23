@@ -86,16 +86,18 @@ export function typefaceCheck(ctx: CheckContext, rule: Rule): FindingDraft[] {
     const pages = [...use.pages].sort((a, b) => a - b);
     const q = excerpt(ctx.body, use.longest.start, use.longest.end);
     const quoted = (ctx.body.slice(q.start, q.end).match(/[\p{L}\p{N}]/gu) ?? []).length;
-    const what = use.letters > quoted ? `${use.letters.toLocaleString("en-IN")} letters, including this text, are` : "this text is";
-    const where = `On ${pageList(pages)}`;
+    // Plain words (user tests, Round 3): "Page 4 uses the font Georgia" rather than "On page 4, 136 letters are set in".
+    const amount = use.letters > quoted ? `${use.letters.toLocaleString("en-IN")} letters, including this text` : "only this text";
+    const list = pageList(pages);
+    const where = `${list.charAt(0).toUpperCase()}${list.slice(1)} ${pages.length > 1 ? "use" : "uses"}`;
     const hidden = looksLikeHiddenName(family);
     out.push({
       category: rule.category, severity: rule.severity, rule_code: rule.code, field: "document", page: use.longest.page,
       ...(pages.length > 1 ? { pages } : {}),
       quote: ctx.body.slice(q.start, q.end), start: q.start, end: q.end,
       message: hidden
-        ? `${where}, ${what} set in a font the PDF names “${family}”. That is a code, not a typeface name (some design tools hide font names), so check the font in the source file. The brand uses ${typefaceList(ctx.typefaces)}.`
-        : `${where}, ${what} set in ${family}, which is not a brand typeface. The brand uses ${typefaceList(ctx.typefaces)}.`,
+        ? `${where} a font the PDF names “${family}” (${amount}). That is a code, not a font name (some design tools hide font names), so check the font in the source file. The brand's fonts are ${typefaceList(ctx.typefaces)}.`
+        : `${where} the font ${family}, which is not one of the brand's fonts (${amount}). The brand's fonts are ${typefaceList(ctx.typefaces)}.`,
       fix_kind: "none",
       fix_text: `Change the font to ${typefaceList(ctx.typefaces)} in the source file, export the PDF again and upload it as a new version.`,
       label: hidden ? "needs_judgment" : "code",

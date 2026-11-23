@@ -95,7 +95,7 @@ test("document: an uploaded PDF, the same file again, then a corrected PDF as th
   await waitForAI(page);
   // Arial on both pages: one finding for the font, naming both pages.
   await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toHaveCount(1);
-  await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toContainText("On pages 1 and 2");
+  await expect(page.locator("[id^='f-']").filter({ hasText: "VIS-03" })).toContainText("Pages 1 and 2 use the font Arial");
   await expect(card(page, "“energy bar”").getByRole("link", { name: "Page 1", exact: true })).toBeVisible();
 
   await page.getByText("Upload a corrected PDF").click();

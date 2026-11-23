@@ -169,7 +169,8 @@ export function superlativesCheck(ctx: CheckContext, rule: Rule): FindingDraft[]
       : null;
     out.push({
       ...base(rule), quote: m[0], start: m.index!, end: m.index! + m[0].length,
-      message: `“${m[0]}” is a superlative claim and no approved fact supports it. It needs a cited source, such as an independent ranking.`,
+      // Plain words (user tests, Round 3): "superlative" is a term people did not know.
+      message: `“${m[0]}” claims to be better than every other product, and no approved fact backs that up. A claim like this needs a cited source, such as an independent ranking.`,
       fix_kind: fix ? "replace" : "none",
       fix_text: fix ?? "Remove the superlative, or attach the source that proves it.",
     });

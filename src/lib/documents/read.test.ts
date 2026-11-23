@@ -225,7 +225,7 @@ describe("checking a document", () => {
     const fonts = runCodeChecks(ctx).filter((f) => f.rule_code === "VIS-03");
     expect(fonts).toHaveLength(1);
     expect(fonts[0].pages).toEqual([1, 2]);
-    expect(fonts[0].message).toMatch(/^On pages 1 and 2, [\d,]+ letters, including this text, are set in Arial, which is not a brand typeface/);
+    expect(fonts[0].message).toMatch(/^Pages 1 and 2 use the font Arial, which is not one of the brand's fonts \([\d,]+ letters, including this text\)\. The brand's fonts are /);
     expect(doc.body.slice(fonts[0].start!, fonts[0].end!)).toBe(fonts[0].quote);
   });
   it("does not check typefaces of a scan's hidden text layer", async () => {
