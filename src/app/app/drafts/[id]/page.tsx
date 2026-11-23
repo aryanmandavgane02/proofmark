@@ -7,6 +7,7 @@ import { acceptFix, addComment, approveDraft, confirmIntent, disputeFinding, req
 import { Highlighted, type Mark } from "./Highlighted";
 import { signedImageUrl } from "@/lib/images";
 import { PendingButton } from "./PendingButton";
+import { ReviewSteps } from "./ReviewSteps";
 import { describeEvent } from "@/lib/events";
 import { settleStaleRun } from "@/lib/pipeline";
 import { AIRunning } from "./AIRunning";
@@ -157,6 +158,12 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
           {/* Workflow */}
           <Card className="p-5">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted">Review and approval</h2>
+            <ReviewSteps
+              status={draft.status}
+              writer={personBy.get(draft.created_by)?.name ?? "The writer"}
+              reviewer={reviewer?.name ?? null}
+              approver={draft.status === "approved" && approval ? personBy.get(approval.approver_id)?.name ?? null : null}
+            />
             {(draft.status === "draft" || draft.status === "changes_requested") && (
               <form action={submitForReview} className="space-y-2">
                 <input type="hidden" name="draft_id" value={id} />

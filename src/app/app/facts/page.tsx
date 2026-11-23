@@ -8,7 +8,7 @@ import { PendingButton } from "../drafts/[id]/PendingButton";
 import Link from "next/link";
 import { Fragment } from "react";
 import { approvedContent, syncExpiredFacts, usage, type FactRow as FactShapeRow } from "@/lib/alerts-server";
-import { AlertList, type AlertView } from "../AlertList";
+import { AlertList, FactChange, type AlertView } from "../AlertList";
 
 // Saving facts may re-check approved content.
 export const maxDuration = 60;
@@ -57,6 +57,8 @@ export default async function Facts(props: PageProps<"/app/facts">) {
               const used = usedIn.get(f.code) ?? [];
               const open = ((alerts ?? []) as AlertView[]).filter((a) => a.fact_code === f.code);
               const recheckable = open.filter((a) => a.kind !== "expiring").length;
+              // The old and new wording, once for the fact when every alert is about the same change.
+              const changes = [...new Map(open.filter((a) => a.kind === "changed" && a.before && a.after).map((a) => [`${a.before!.statement}\n${a.after!.statement}`, a])).values()];
               return (
                 <Fragment key={f.code}>
                 <tr id={`fact-${f.code}`} className={`scroll-mt-24 ${expired ? "text-muted" : ""}`}>
@@ -100,7 +102,8 @@ export default async function Facts(props: PageProps<"/app/facts">) {
                           </form>
                         )}
                       </div>
-                      <AlertList alerts={open} canDecide={canDecide} back={`/app/facts#fact-${f.code}`} showFact={false} />
+                      {changes.length === 1 && <FactChange before={changes[0].before!} after={changes[0].after!} />}
+                      <AlertList alerts={open} canDecide={canDecide} back={`/app/facts#fact-${f.code}`} showFact={false} showChange={changes.length !== 1} />
                     </td>
                   </tr>
                 )}

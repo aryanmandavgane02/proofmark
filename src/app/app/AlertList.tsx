@@ -28,7 +28,17 @@ const STATUS: Record<string, [string, string]> = {
   superseded: ["Replaced", "text-muted"],
 };
 
-export function AlertList({ alerts, canDecide, back, showFact = true }: { alerts: AlertView[]; canDecide: boolean; back: string; showFact?: boolean }) {
+/** The fact's old and new wording side by side (asked for in user tests). */
+export function FactChange({ before, after }: { before: { statement: string }; after: { statement: string } }) {
+  return (
+    <p className="mt-1.5 grid gap-1 text-sm sm:grid-cols-2">
+      <span className="rounded-md border border-line bg-soft px-2 py-1"><span className="block text-xs font-semibold text-muted">Was</span>&ldquo;{before.statement}&rdquo;</span>
+      <span className="rounded-md border border-accent/40 bg-[#e8f4ec] px-2 py-1 text-[#0a5c4f]"><span className="block text-xs font-semibold">Now</span>&ldquo;{after.statement}&rdquo;</span>
+    </p>
+  );
+}
+
+export function AlertList({ alerts, canDecide, back, showFact = true, showChange = true }: { alerts: AlertView[]; canDecide: boolean; back: string; showFact?: boolean; showChange?: boolean }) {
   return (
     <ul className="divide-y divide-line">
       {alerts.map((a) => {
@@ -49,9 +59,7 @@ export function AlertList({ alerts, canDecide, back, showFact = true }: { alerts
               ))}
               {a.evidence.length > 3 && <span className="text-muted"> and {a.evidence.length - 3} more</span>}
             </p>
-            {a.kind === "changed" && a.before && a.after && (
-              <p className="mt-1 text-xs text-muted">Was &ldquo;{a.before.statement}&rdquo; → now &ldquo;{a.after.statement}&rdquo;</p>
-            )}
+            {showChange && a.kind === "changed" && a.before && a.after && <FactChange before={a.before} after={a.after} />}
             {a.outcome && <p className={`mt-1 text-xs ${open ? "text-[#7a3d00]" : "text-muted"}`}>{a.outcome}</p>}
             {open && (
               <div className="mt-2 flex flex-wrap items-center gap-2">

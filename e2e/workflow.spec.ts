@@ -30,9 +30,13 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
   await card("“15 g of protein”").getByRole("button", { name: "Post" }).click();
   await expect(card("“15 g of protein”").getByText("Checking with Product before I change it.")).toBeVisible();
 
-  // Submit: claims go to legal
+  // Submit: claims go to legal. The steps show whose turn it is, and the banner what switching person does.
+  const steps = page.getByRole("list", { name: "Review steps" });
+  await expect(steps.locator("[aria-current=step]")).toContainText("Now: Arjun");
   await page.getByRole("button", { name: "Submit for review" }).click();
   await expect(page.getByText(/Assigned to/)).toContainText("Ritu");
+  await expect(steps.locator("[aria-current=step]")).toContainText("Now: Ritu");
+  await expect(page.locator("#acting-as-help")).toContainText("switches person in this same workspace; nothing restarts. Arjun writes, Ritu (legal) and Kabir (design) review, Meera manages the brand.");
 
   // Ritu upholds the dispute: it must be fixed, so approval is blocked
   await page.getByLabel("Acting as").selectOption({ label: "Ritu · Legal and compliance" });
@@ -60,6 +64,8 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
   await expect(page.getByText("Switching…")).toHaveCount(0);
   await page.getByRole("button", { name: "Approve this version" }).click();
   await expect(page.getByText(/Approved by Ritu/)).toBeVisible();
+  await expect(steps).toContainText("✓ Approved");
+  await expect(steps.locator("[aria-current=step]")).toHaveCount(0);
 
   // A later edit withdraws the approval
   await page.getByLabel("Acting as").selectOption({ label: "Arjun · Creator" });

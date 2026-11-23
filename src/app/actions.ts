@@ -675,10 +675,10 @@ async function recheck(s: Session, alert: AlertRow): Promise<{ outcome: "sent_ba
     const reason = `${where} ${what}. ${f.message}`.slice(0, 450);
     const ok = await sendBackForFact(s, alert, draft.title, reason);
     const owner = s.people.find((p) => p.id === alert.owner_id)?.name ?? "its owner";
-    return ok ? { outcome: "sent_back", text: `Sent “${draft.title}” back for changes: ${where} ${what}. The approval was withdrawn and ${owner} was told.` } : { outcome: "done", text: ALREADY_DONE };
+    return ok ? { outcome: "sent_back", text: `Sent “${draft.title}” back for changes: ${where} ${what}. The approval was withdrawn and ${owner} was told. Once it is fixed, it goes through review again.` } : { outcome: "done", text: ALREADY_DONE };
   }
   if (alert.evidence.some((e) => e.how === "quotes")) {
-    const text = `Still correct: “${alert.evidence.find((e) => e.how === "quotes")!.quote}” in “${draft.title}” is still backed by the facts, so the approval stands.`;
+    const text = `Still correct: “${alert.evidence.find((e) => e.how === "quotes")!.quote}” in “${draft.title}” is still backed by the facts, so the approval stands and nothing needs to be submitted again.`;
     const ok = await closeAlert(s.workspace.id, alert.id, "still_correct", text, s.person.id);
     if (ok) await logEvent(s, "alert.still_correct", draft.id, { fact: alert.fact_code });
     return ok ? { outcome: "still_correct", text } : { outcome: "done", text: ALREADY_DONE };
@@ -718,7 +718,12 @@ export async function recheckFactAlerts(formData: FormData) {
     tally.person && `${tally.person} left for a reviewer to decide`,
     tally.other && `${tally.other} already changed or done`,
   ].filter(Boolean);
-  notice(back, `Re-checked ${alerts.length} approved draft${alerts.length === 1 ? "" : "s"} for ${code}: ${parts.join(", ")}.`, "success");
+  // User tests: people were unsure whether a re-checked draft has to be submitted again. Say what happens next.
+  const next = [
+    tally.sent_back && "A draft sent back goes to its writer to fix, then through review again.",
+    tally.still_correct && "A draft still correct keeps its approval; nothing needs to be submitted again.",
+  ].filter(Boolean).join(" ");
+  notice(back, `Re-checked ${alerts.length} approved draft${alerts.length === 1 ? "" : "s"} for ${code}: ${parts.join(", ")}.${next ? ` ${next}` : ""}`, "success");
 }
 
 /** A reviewer's decision on an alert code cannot settle (wording, or an offer that has not ended yet). */

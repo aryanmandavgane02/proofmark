@@ -209,8 +209,9 @@ These are graded against our Round 2 wording. Each box must be true in the live 
     - Result: 48 of 48 passed on the live site (Safari's engine, Firefox, iPhone 14, Pixel 7) in 11.4 minutes
 - [x] Full crawl of every page as every person on desktop and phone: no errors, broken links, odd text or overflow; accessibility audit at zero violations; keyboard-only path
   - Mon 23 Nov: `e2e/crawl.spec.ts` opens 22 pages per person (12 pages, plus draft pages with their version histories and approval records) at 1280 and 375 px wide, as each of the four people. It also requests every internal link it finds (38 to 43 per person). Result: no console errors, no "undefined", "NaN" or "[object Object]", nothing wider than the phone, no failing link. Accessibility (axe, WCAG 2.1 A and AA, zero violations) and the keyboard-only path stay in `e2e/accessibility.spec.ts`
-- [ ] User tests, round 2: three to five people who have not used Proofmark try the main journey and the three improvements with no help; results in docs/USER_TESTING.md; top issues fixed
-  - Mon 23 Nov: a tester page is ready: four timed tasks (a deck, F-12, MSG-01's wording, a post to "Approved") and the questions, with the answers copied back as text. Testers on Tue 24 Nov, morning
+- [x] User tests, round 2: three to five people who have not used Proofmark try the main journey and the three improvements with no help; results in docs/USER_TESTING.md; top issues fixed
+  - Mon 23 Nov: five testers (a student, a small business owner, a designer, a marketing student, a developer) did four tasks: a deck, F-12, MSG-01's wording, a post to "Approved". All five checked the deck and corrected the number, four of five finished the rule wording, and three of five reached "Approved" (11 to 16 minutes for all four tasks)
+  - Fixed: the demo banner says "Acting as" switches person in the same workspace, and who does what; the draft page shows three review steps and whose turn it is; the publish buttons say what publishing changes and what stays the same; re-check messages say what comes next; a changed fact's old and new wording are shown side by side. Declared in docs/USER_TESTING.md: an exact sentence for whole-piece findings, plainer replay explanations, one history per fact
 - [x] Real-world PDFs: decks exported from Google Slides, Canva and PowerPoint checked, and what we learn fixed or declared
   - Sun 22 Nov: two real decks checked, a 45-page university lecture deck exported from Keynote and a 9-page project deck printed from Chrome. Both read without an error (45 pages in about 0.2 s), but the findings were unusable and some text was garbled. Fixed:
     - Findings flooded (369 and 253): a font used throughout is now one finding that names its pages, and in documents words in capitals are grouped into phrases, with a document full of them as one finding
@@ -224,7 +225,12 @@ These are graded against our Round 2 wording. Each box must be true in the live 
     - Known and left: superscripts ("2³⁶") read as separate lines; "guaranteed" is flagged as an absolute claim even in a maths text, as the rule asks
 - [x] AI capacity for the judging period: daily caps sensible; stored answers for every sample, for today's facts and for after the Diwali offer expires on 30 Nov
   - Caps: 60 AI checks per workspace a day and 450 across the site (`AI_WORKSPACE_DAILY_CAP`, `AI_GLOBAL_DAILY_CAP`). Past either cap, the code checks still run and the page says why. Every sample was checked on the live site with today's facts and with the facts after 30 Nov, so a judge's first checks reuse stored answers and make no AI request
-- [ ] Every finding fixed or declared
+- [x] Every finding fixed or declared
+  - Mon 23 Nov: everything above is fixed, except what is declared, for the docs and the final PDF:
+    - PDFs: superscripts ("2³⁶") read as separate lines; "guaranteed" is flagged as an absolute claim even in a maths text, as the rule asks; pdf.js reads some hyphenated words with a space before the hyphen ("REAL -WORLD"); pictures inside PDFs are not checked
+    - The free database plan occasionally makes a save slow (up to a few seconds). After 10 seconds an action says so, with a reload link
+    - User tests: no single sentence for findings about the whole piece; plainer replay explanations and one history per fact are on the roadmap
+    - Testing: the AI-trouble test runs against a local server (the live site must keep its AI); Firefox runs on GitHub Actions only
 
 ### Phase 7 · Documentation, roadmap, final PDF, form
 
@@ -334,3 +340,4 @@ In this order: rule check settings on screen (declare it) → replay on the Rule
 | Mon 23 Nov | Text typed before a page finishes loading is kept | The form fields are controlled by React, which replaced early typing with empty values when it took over (seen in Firefox on the live site). The forms now adopt what is already in the fields when they load |
 | Mon 23 Nov | Firefox journeys run on GitHub Actions | Playwright's Firefox does not start on this Mac. The workflow runs the journeys in all four browsers against the live site, on demand |
 | Mon 23 Nov | Local test runs use 3 workers | The local server builds pages on demand and slowed down under many parallel journeys, failing tests that pass on the live site |
+| Mon 23 Nov | After the user tests: who does what and whose turn it is are said on screen; publishing says what it changes; a changed fact shows old and new side by side | Three of five testers did not reach "Approved": two were unsure whose turn it was or what switching person does, and the rule step lost two. Each fix is a sentence or a small panel where the doubt arose, not a new flow |

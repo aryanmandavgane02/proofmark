@@ -166,6 +166,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                             )}
                             <PendingButton className={btn.accent} pendingText="Working…">{replay || u.rule.check_kind === "code" ? `Accept and publish as v${rulebookVersion + 1}` : "Replay, then publish"}</PendingButton>
                           </div>
+                          <PublishNote code={u.rule.code} next={rulebookVersion + 1} replayed={u.rule.check_kind !== "code"} proposal />
                         </form>
                         {u.rule.check_kind === "code" ? (
                           <p className="mt-2 text-xs text-muted">Not replayed: {u.rule.code} is checked only by code, so its wording does not change what is flagged.</p>
@@ -195,6 +196,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                               {u.rule.check_kind !== "code" && <button formAction={previewReplay} className={btn.secondary}>Preview the effect on past decisions</button>}
                               <PendingButton className={btn.accent} pendingText="Working…">{u.rule.check_kind === "code" ? `Save and publish as v${rulebookVersion + 1}` : "Replay, then publish"}</PendingButton>
                             </div>
+                            <PublishNote code={u.rule.code} next={rulebookVersion + 1} replayed={u.rule.check_kind !== "code"} />
                           </form>
                         </details>
                       </>
@@ -341,5 +343,18 @@ export default async function Insights(props: PageProps<"/app/insights">) {
         )}
       </section>
     </>
+  );
+}
+
+/**
+ * What publishing new wording does, and what it leaves alone. Added after user tests in Round 3: people were unsure
+ * whether to publish or leave the proposal, and whether publishing would cancel past approvals.
+ */
+function PublishNote({ code, next, replayed, proposal }: { code: string; next: number; replayed: boolean; proposal?: boolean }) {
+  return (
+    <p className="text-xs text-muted">
+      Publishing makes this the wording of {code} in rulebook v{next}, for every check from then on. Past drafts, findings and approvals stay as they are
+      {replayed ? "; the replay only shows what would have been different" : ""}.{proposal ? " Not sure yet? Leave the proposal here and decide later." : ""}
+    </p>
   );
 }

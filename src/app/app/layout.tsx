@@ -17,6 +17,14 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
   await syncExpiredFacts(s.workspace.id, todayIST());
   const { count: unread } = await s.supabase.from("notifications").select("id", { count: "exact", head: true })
     .eq("workspace_id", s.workspace.id).eq("person_id", s.person.id).is("read_at", null);
+  // User tests: people thought switching person restarted the demo or made a new account, and asked what each one does.
+  const names = (role: string) => s.people.filter((p) => p.role === role);
+  const list = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0] ?? "");
+  const who = [
+    names("creator").length && `${list(names("creator").map((p) => p.name))} write${names("creator").length > 1 ? "" : "s"}`,
+    names("reviewer").length && `${list(names("reviewer").map((p) => `${p.name} (${p.reviewer_area ?? p.title.toLowerCase()})`))} review${names("reviewer").length > 1 ? "" : "s"}`,
+    names("manager").length && `${list(names("manager").map((p) => p.name))} manage${names("manager").length > 1 ? "" : "s"} the brand`,
+  ].filter(Boolean).join(", ");
   return (
     <div className="flex min-h-full flex-1 flex-col">
       <Suspense fallback={null}>
@@ -43,7 +51,7 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
               <IconBell className="h-5 w-5" />
               {!!unread && <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-red px-1 text-center text-[11px] font-bold leading-5 text-white">{unread > 9 ? "9+" : unread}</span>}
             </Link>
-            <PersonSwitcher people={s.people} activeId={s.person.id} />
+            <PersonSwitcher people={s.people} activeId={s.person.id} describedBy={s.workspace.is_demo ? "acting-as-help" : undefined} />
           </div>
         </div>
         <div className="mx-auto max-w-6xl px-4 pb-2.5 pt-2">
@@ -51,7 +59,8 @@ export default async function AppLayout({ children }: LayoutProps<"/app">) {
         </div>
         {s.workspace.is_demo && (
           <div className="border-t border-line/70 bg-gradient-to-r from-[#eef0fb] via-[#f3eefc] to-[#e9f5f1] px-4 py-1.5 text-center text-xs text-muted">
-            Demo workspace for the fictional brand <b>{s.workspace.brand_name}</b>. Everything here is private to you and uses made-up data.
+            Demo workspace for the fictional brand <b>{s.workspace.brand_name}</b>. Everything here is private to you and uses made-up data.{" "}
+            <span id="acting-as-help">&ldquo;Acting as&rdquo; switches person in this same workspace; nothing restarts. {who}.</span>
           </div>
         )}
       </header>

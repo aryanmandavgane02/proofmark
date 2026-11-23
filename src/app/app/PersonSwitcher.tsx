@@ -8,7 +8,7 @@ import type { Person } from "@/lib/session";
 const ROLE: Record<string, string> = { creator: "Creator", manager: "Brand manager", reviewer: "Authorised reviewer" };
 
 /** Shows the chosen person straight away, with a spinner while the server switches. */
-function Picker({ people, activeId, onPick }: { people: Person[]; activeId: string; onPick: () => void }) {
+function Picker({ people, activeId, onPick, describedBy }: { people: Person[]; activeId: string; onPick: () => void; describedBy?: string }) {
   const { pending } = useFormStatus();
   return (
     <span className="relative inline-flex items-center">
@@ -19,6 +19,7 @@ function Picker({ people, activeId, onPick }: { people: Person[]; activeId: stri
         defaultValue={activeId}
         onChange={onPick}
         aria-busy={pending}
+        aria-describedby={describedBy}
         className={`rounded-lg border border-line bg-surface py-1.5 pl-2 pr-8 font-semibold text-primary-d shadow-card transition ${pending ? "opacity-70" : ""}`}
       >
         {people.map((p) => (
@@ -37,14 +38,14 @@ function Picker({ people, activeId, onPick }: { people: Person[]; activeId: stri
   );
 }
 
-export function PersonSwitcher({ people, activeId }: { people: Person[]; activeId: string }) {
+export function PersonSwitcher({ people, activeId, describedBy }: { people: Person[]; activeId: string; describedBy?: string }) {
   const path = usePathname();
   const form = useRef<HTMLFormElement>(null);
   return (
     <form ref={form} action={switchPerson} className="flex items-center gap-2 text-sm">
       <label htmlFor="person" className="text-muted">Acting as</label>
       <input type="hidden" name="back" value={path} />
-      <Picker people={people} activeId={activeId} onPick={() => form.current?.requestSubmit()} />
+      <Picker people={people} activeId={activeId} onPick={() => form.current?.requestSubmit()} describedBy={describedBy} />
       <noscript><button className="rounded-md border border-line px-2 py-1">Switch</button></noscript>
     </form>
   );
