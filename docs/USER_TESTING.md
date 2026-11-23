@@ -63,5 +63,5 @@ Each tester was given only the task: *"You're checking a social media post for a
 
 ### Not changed in Round 2
 
-- **Visual comparisons** (tester 3): colour findings now show swatches of the image colour and the nearest brand colour. Font checks are part of Round 3 improvement 1 (documents and decks). Logo side-by-side comparison is not built.
+- **Visual comparisons** (tester 3): colour findings now show swatches of the image colour and the nearest brand colour. Font checks are part of Round 3 improvement 1 (documents and decks). Logo side-by-side comparison was not built in Round 2; it was added in Round 3 (Phase 5): a logo finding shows the approved logo beside it.
 - **Where to start** (tester 1): the guided checklist on Start here already covers this; further onboarding work is noted.
