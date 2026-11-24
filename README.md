@@ -6,7 +6,8 @@ rule comes from, and a suggested fix. A person always makes the final call.
 
 Built for **CodeZen 2026, Round 3** by team **SoloStack** (solo: Aryan Mandavgane). Problem statement by Inkloom AI.
 
-**Live demo:** https://proofmark-flame.vercel.app
+**Live demo:** https://proofmark-flame.vercel.app · **Final report (PDF, 10 pages):**
+[docs/round3/SoloStack_CodeZen2026_Round3_Final.pdf](docs/round3/SoloStack_CodeZen2026_Round3_Final.pdf)
 
 **Demo access: no username, no password.** "Start the live demo" gives you a private copy of a workspace for the
 fictional snack brand *Urja Bites*, with four people you can switch between with **Acting as**: Arjun writes (creator),
@@ -89,7 +90,7 @@ All three are covered by browser tests on the live site, in Safari's engine, Fir
 | Brand setup | Import a brand-guide PDF: the AI drafts numbered rules with their quote and page, code confirms each quote is in the document, the manager approves and publishes a versioned rulebook. Fact ledger with source, owner, end date and confidential facts, and each fact's history. Glossary of approved terms. Colour palette, logo and brand typefaces. Rule check settings edited on screen |
 | Content | Posts, ads, emails and web copy for Instagram, LinkedIn, email, website or ads; images (PNG, JPEG, WebP) with alt text; PDF documents and decks of up to 100 pages |
 | Checks | 14 code checks run first: numbers against facts, ended offers, superlatives, health and absolute claims, T&C on offers, approved terms, reading level per channel, capitals, pressure language, hashtags, emoji, alt text, brand colours, brand typefaces. The AI checks only what code cannot: tone, messaging, claims in context, logo use, and words in images and deck pictures |
-| Trust | Proof check: an AI finding is shown only if its quote is really in the draft and its rule is approved and applies. A second opinion on tone and messaging. Every finding is labelled *verified by code*, *AI verified* or *needs human judgment* |
+| Trust | Proof check: an AI finding is shown only if its quote is really in the draft and its rule is approved and applies. A second opinion on tone and messaging. Every finding is labelled *verified by code*, *AI, evidence verified* or *needs human judgment* |
 | Review | Accept a fix, edit, or dispute each finding; comments; versions with word-level differences; routing by risk to legal or design; review steps showing whose turn it is; override with a reason; approval tied to the exact version or file, withdrawn by any later edit; "Copy approved text" and a printable approval record; append-only audit trail |
 | Keeping content current | Outdated-content alerts when a fact changes or ends, one-click re-check, notifications |
 | Insights | Repeated mistakes by rule, category and channel; rules flagged as unclear from real disputes and overrides; AI-proposed clearer wording; rule-change replay before publishing; claims with no approved fact; decisions kept as test cases (JSON download) |
@@ -111,7 +112,7 @@ Every Round 2 open end is closed or declared, and reliability, usability and acc
 | Other browsers | The 12 main journeys in Safari's engine, Firefox, and at iPhone and Pixel sizes: 48 of 48 |
 | Database attacks (`npm run rls-check`) | 32 of 32 refused |
 | Scored test set (`npm run eval`) | Code checks: 100% found, 100% precision. Code + AI: 97% found, 98% precision. PDFs: 100% / 100%. Alerts: 5 of 5, held-out 90% / 100%. Replay: 3 of 5 change, agreement 2 of 4 → 4 of 4 |
-| User tests | Five people, four tasks, no help; after the changes, all five reached "Approved" |
+| User tests | Five people, four tasks, no help: three reached "Approved" at first, the other two after the changes made from their feedback |
 
 What was tested and how, what testing found and fixed, and what is still imperfect: [docs/TESTING.md](docs/TESTING.md).
 User tests: [docs/USER_TESTING.md](docs/USER_TESTING.md). Scores with their history: [eval/RESULTS.md](eval/RESULTS.md).
@@ -204,5 +205,6 @@ tier may use submitted content. User research: [docs/USER_RESEARCH.md](docs/USER
 
 Built solo by Aryan Mandavgane with **Claude Code** (Anthropic) as a disclosed AI assistant for code, tests, seed data and
 documents, under Aryan's direction and review; commits it helped with carry a `Co-Authored-By` line. Services, libraries and AI
-use: [DISCLOSURES.md](DISCLOSURES.md). Earlier rounds: Round 1 plan [docs/round1/](docs/round1/), Round 2 report
-[docs/round2/](docs/round2/), Round 2 build plan [docs/PLAN.md](docs/PLAN.md). Licence: MIT.
+use: [DISCLOSURES.md](DISCLOSURES.md). Rounds: Round 1 plan [docs/round1/](docs/round1/), Round 2 report
+[docs/round2/](docs/round2/), Round 2 build plan [docs/PLAN.md](docs/PLAN.md), Round 3 plan
+[docs/ROUND3_PLAN.md](docs/ROUND3_PLAN.md) and final report [docs/round3/](docs/round3/). Licence: MIT.

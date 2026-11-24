@@ -105,8 +105,11 @@ test("rulebook: a code rule's check settings are edited on screen and used once 
   const again = page.locator("div").filter({ has: page.getByText("TONE-02", { exact: true }) }).filter({ hasText: "Edit" }).last();
   await again.getByText("Edit", { exact: true }).click();
   await again.getByLabel("Longest sentence, in words").fill("12");
+  // New wording too: a rule checked only by code is not replayed, and the page says why before publishing.
+  await again.getByLabel("Rule (what the checker enforces)").fill("Keep sentences short: at most 12 words in website copy.");
   await again.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText(/Edited: TONE-02/)).toBeVisible();
+  await expect(page.getByText("Not replayed: TONE-02 is checked only by code, so its wording does not change what is flagged.")).toBeVisible();
   await page.getByRole("button", { name: "Publish as v2" }).click();
   await expect(page.getByRole("heading", { name: "Rulebook v2" })).toBeVisible();
 

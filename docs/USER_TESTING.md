@@ -44,11 +44,18 @@ The two testers who had not reached "Approved" (2 and 4) tried the two tasks the
 
 **Result:** both reached "Approved" this time (before: neither), so all five testers have now done so. Change made from the retest: after "Submit for review", a message now confirms it and names who reviews next ("Sent for review. Ritu (Legal and compliance) reviews it next: switch to Ritu with “Acting as” to continue the demo"). The retest was two people, unobserved, with their own time estimates.
 
+### Also changed afterwards (Tue 24 Nov 2026)
+
+Three requests first listed here as "not changed" were built before submission:
+
+- **A history for each fact** (tester 5). Every fact on the Facts page has a "History" list: each change, who made it and when, the old and new wording, and what happened to each draft that relied on it (sent back for changes, or still correct).
+- **The replay in plain words, with examples** (testers 1 and 4). Above the replay table, one sentence says whether the new wording fits people's decisions better, the same or worse, followed by up to three past decisions that would change, each explained in a sentence, and a line on how to read the table.
+- **Findings about the whole piece say so** (tester 3). A finding with no single sentence to point to, such as "one clear call to action", is marked "About the whole post" (or document, email, page, ad), and a missing element reads "Missing: hashtags" instead of a quote. Findings about words were already highlighted in the text, with the page for decks.
+
 ### Not changed in Round 3
 
-- **The exact sentence for every finding** (tester 3). Findings about words are already highlighted in the text, and in decks they give the page. Findings about the whole piece, such as "one clear call to action", have no single sentence to point to.
-- **Simpler explanations, and examples of changed decisions** (testers 1 and 4). The replay table already lists each past decision with its verdict under the old and new wording. Plainer wording is noted for later.
-- **One history per fact or rule** (tester 5). The audit trail lists every fact edit and rule publication with its time, and Insights lists every alert with the drafts it affected and what happened to them. A single history per fact that brings these together is on the roadmap.
+- **One history per rule** (tester 5). The Rulebook lists every published version with its note, who published it and the replay kept with it, and the audit trail lists each rule change; a history view for a single rule is not built.
+- **Simpler explanations of every finding** (tester 4). Findings about fonts and rankings were rewritten in plain words; the others are unchanged.
 
 ## Round 2
 

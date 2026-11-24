@@ -65,8 +65,8 @@ plan, with every decision and its reason: [ROUND3_PLAN.md](ROUND3_PLAN.md).
 ## Testing and operations
 
 - Browser tests grew from 12 to 60, plus 12 journeys in Safari's engine, Firefox and phone sizes; a crawl of every page as
-  every person; a reliability matrix; accessibility at zero violations. Unit tests grew from 89 to 173; database attacks
-  refused from 22 to 32.
+  every person; a reliability matrix; accessibility at zero violations. Unit tests grew from 89 to 173; database checks
+  from 22 (21 attacks refused and 1 check of what people should see) to 34 (32 refused and 2).
 - Scored test set extended with PDFs, alerts (including a held-out set written by an independent labeller, a separate AI agent that
   never saw the code, before the first run), and the replay; results published with their history.
 - A second Supabase project for testing, so the live database stays quiet for judging; the README's setup was proven on it
