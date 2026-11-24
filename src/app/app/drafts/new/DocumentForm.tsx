@@ -109,7 +109,7 @@ export function DocumentForm({ samples, initial, clientToken }: { samples: SeedD
             </button>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted">Your own deck works the same way. Proofmark reads the text and the fonts of every page; pictures inside the PDF are not checked yet.</p>
+        <p className="mt-3 text-xs text-muted">Your own deck works the same way. Proofmark reads the text and the fonts of every page, and the AI reads the words in its 4 largest pictures; logos, colours and photos inside pictures are not checked yet.</p>
       </aside>
     </div>
   );

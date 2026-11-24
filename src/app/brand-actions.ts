@@ -122,7 +122,7 @@ export async function reviewRule(formData: FormData) {
   if (!channels.length) notice("/app/rulebook", `Tick at least one channel for ${r.code}.`); // none ticked would otherwise read as "all channels"
   const status = decision === "approve" ? "approved" : decision === "reject" ? "rejected" : undefined;
   // Check settings of code rules: only the settings the rule already has, each kept to its type and validated.
-  const { data: current } = await s.supabase.from("rules").select("params, check_kind, check_type").eq("workspace_id", s.workspace.id).eq("code", r.code).maybeSingle();
+  const { data: current } = await s.supabase.from("rules").select("params, check_kind, check_type, status").eq("workspace_id", s.workspace.id).eq("code", r.code).maybeSingle();
   let params: Record<string, unknown> | undefined;
   const keys = current?.params ? Object.keys(current.params as Record<string, unknown>) : [];
   const fields = [...formData.keys()];
@@ -137,7 +137,8 @@ export async function reviewRule(formData: FormData) {
     .update({ title: r.title, statement: r.statement, severity: r.severity, channels: channels.length === CHANNELS.length ? [] : channels, ...(params ? { params } : {}), ...(status ? { status } : {}), updated_at: new Date().toISOString() })
     .eq("workspace_id", s.workspace.id)
     .eq("code", r.code);
-  await logEvent(s, status ? `rule.${status}` : "rule.edited", { code: r.code });
+  // "Retire this rule" on a live rule and "Reject" on a drafted one both set "rejected"; the audit trail says which it was.
+  await logEvent(s, status ? (status === "rejected" && current?.status === "approved" ? "rule.retired" : `rule.${status}`) : "rule.edited", { code: r.code });
   revalidatePath("/app/rulebook");
 }
 

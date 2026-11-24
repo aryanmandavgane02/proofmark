@@ -13,7 +13,7 @@ export default async function Notifications() {
     <>
       <PageTitle
         title="Notifications"
-        subtitle={<>For <b>{s.person.name}</b> ({s.person.title}): for example when a fact changes or ends and one of your approved drafts relied on it. Switch person with &ldquo;Acting as&rdquo; to see someone else&apos;s.</>}
+        subtitle={<>For <b>{s.person.name}</b>, {s.person.title}: for example when a fact changes or ends and one of your approved drafts relied on it. Switch person with &ldquo;Acting as&rdquo; to see someone else&apos;s.</>}
         action={unread > 0 ? (
           <form action={markNotificationsRead}>
             <PendingButton className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-semibold text-primary-d hover:bg-soft" pendingText="Marking…">Mark all as read</PendingButton>

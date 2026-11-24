@@ -19,7 +19,9 @@ the final runs on Tue 24 Nov 2026.
 ## Where the tests run
 
 - **The live site** (https://proofmark-flame.vercel.app): the full browser suite during Round 3, and from 23 Nov only short
-  checks of the key journeys, to keep the free database's disk budget for judging.
+  checks of the key journeys, to keep the free database's disk budget for judging. On 24 Nov, after the last fixes, the full
+  suite passed twice on the live site (60 of 60 each time; the AI-trouble test runs only locally), and the workspaces those
+  runs created were deleted afterwards.
 - **A separate test database** (a second Supabase project, from 23 Nov): every full run, the cross-browser runs and the
   scored test set's fresh AI runs. Setting it up from the README is how missing database grants were found (below).
 - **Locally** against `npm run dev`, with three parallel workers (the development server builds pages on demand).
@@ -79,6 +81,7 @@ page shortcuts to each improvement, as the right person; switching person; Back;
 | Reliability matrix (Phase 6) | A form refused by the server cleared what had been typed; a long word widened the page on a phone | Forms clear only on success; long words wrap |
 | Cross-browser runs (Phase 6) | Text typed before load was lost (Firefox); a title typed early was undone (iPhone size) | Fields adopt what is typed before load; every change builds on the latest state |
 | Security pass (Block 1) | A corrected PDF submitted twice deleted the file its new version used | A file a version uses is never deleted; a repeat shows what the first made |
+| Final walkthrough (Tue 24 Nov) | Every page read as every person on the live site: two pages still said a PDF's pictures are not checked (true until Block 2); the audit trail said “rejected or retired”; “finding(s)”-style plurals; a draft with one version was compared with itself; rule cards showed channel keys; an import's count did not change after a rejection | Wording corrected on each; the audit trail records whether a rule was rejected or retired; one fingerprint for a single version; channel names; the count says how many still wait |
 | Live use (Tue 24 Nov) | “Yes, start fresh” did nothing when the demo behind the page was gone (its sign-in cleared or expired, or the workspace removed after days unused): the click led back to the same page | It now starts a fresh demo, and the button says “Starting fresh…” while it works; a browser test clears the cookies with the page open and clicks it |
 | Fresh setup from the README (Block 2) | On a new Supabase project, even the server was refused ("permission denied"): newer projects no longer grant table access by default | Migration 0015 grants it explicitly, as the live project already had |
 | Test database (Block 2) | When the sign-in service refused a new session (an hourly limit), the visitor saw an error page | The home page says why and to try again in a few minutes |

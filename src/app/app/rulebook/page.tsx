@@ -128,7 +128,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
         <Card className="mb-6 p-5">
           <h2 className="font-semibold text-primary-d">Imported from {imp.file_name}</h2>
           <p className="mt-1 text-sm text-muted">{imp.pages} page{imp.pages > 1 ? "s" : ""} read. The AI ({imp.ai_model}) drafted rules; code then checked that every quote is really in the document, corrected page numbers and removed duplicates of existing rules.</p>
-          <p className="mt-2 text-sm"><b>{imp.drafted}</b> rule{imp.drafted === 1 ? "" : "s"} verified and waiting for approval below. <b>{imp.dropped.length}</b> not imported{imp.dropped.length ? ":" : "."}</p>
+          <p className="mt-2 text-sm"><b>{imp.drafted}</b> rule{imp.drafted === 1 ? "" : "s"} verified{fromImport.length === imp.drafted ? " and waiting for approval below" : fromImport.length ? `; ${fromImport.length} still waiting for approval below` : "; all of them have been reviewed"}. <b>{imp.dropped.length}</b> not imported{imp.dropped.length ? ":" : "."}</p>
           {imp.dropped.length > 0 && (
             <ul className="mt-1 list-disc pl-5 text-sm text-muted">{imp.dropped.map((d, i) => <li key={i}><b>{d.rule_code}</b>{d.quote ? <> &ldquo;{d.quote.slice(0, 90)}&rdquo;</> : null}: {d.reason}</li>)}</ul>
           )}
@@ -216,7 +216,7 @@ export default async function Rulebook(props: PageProps<"/app/rulebook">) {
                     </div>
                     <div className="text-xs text-muted">
                       <p>{KIND[r.check_kind]}</p>
-                      <p>{r.channels.length ? `Channels: ${r.channels.join(", ")}` : "All channels"}</p>
+                      <p>{r.channels.length ? `Channels: ${r.channels.map((c) => CHANNEL_LABEL[c as keyof typeof CHANNEL_LABEL] ?? c).join(", ")}` : "All channels"}</p>
                     </div>
                   </div>
                 ))}

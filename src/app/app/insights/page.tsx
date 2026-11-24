@@ -1,3 +1,4 @@
+import { shorten } from "@/lib/plural";
 import Link from "next/link";
 import { requireSession } from "@/lib/session";
 import { Card, CategoryChip, PageTitle, btn, input, timeAgo } from "@/components/ui";
@@ -333,7 +334,7 @@ export default async function Insights(props: PageProps<"/app/insights">) {
                     <td className="p-2.5 font-semibold">{t.shouldFlag.length}</td>
                     <td className="p-2.5 font-semibold">{t.shouldPass.length}</td>
                     <td className="p-2.5 text-muted">
-                      {[...t.shouldPass.slice(0, 1).map((r) => `pass: “${r.quote.slice(0, 50)}”`), ...t.shouldFlag.slice(0, 1).map((r) => `flag: “${r.quote.slice(0, 50)}”`)].join(" · ")}
+                      {[...t.shouldPass.slice(0, 1).map((r) => `pass: “${shorten(r.quote)}”`), ...t.shouldFlag.slice(0, 1).map((r) => `flag: “${shorten(r.quote)}”`)].join(" · ")}
                     </td>
                   </tr>
                 ))}

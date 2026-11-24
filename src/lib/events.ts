@@ -1,4 +1,5 @@
 // Plain-language descriptions of audit events, shared by the draft page and the audit trail.
+import { plural } from "./plural";
 export function describeEvent(type: string, detail: Record<string, unknown>): string {
   switch (type) {
     case "draft.created": return "created the draft and ran the checks.";
@@ -16,9 +17,10 @@ export function describeEvent(type: string, detail: Record<string, unknown>): st
     case "workspace.created": return "created this workspace.";
     case "settings.code_checks_only": return detail.on ? "switched the workspace to code checks only." : "turned AI checks back on.";
     case "rulebook.published": return `published rulebook v${detail.version}: ${detail.note}.`;
-    case "rules.imported": return `imported ${detail.drafted} draft rule(s) from ${detail.file} (${detail.dropped} not imported).`;
+    case "rules.imported": return `imported ${plural(Number(detail.drafted), "draft rule")} from ${detail.file} (${detail.dropped} not imported).`;
     case "rule.approved": return `approved rule ${detail.code}.`;
-    case "rule.rejected": return `rejected or retired rule ${detail.code}.`;
+    case "rule.rejected": return `rejected draft rule ${detail.code}.`;
+    case "rule.retired": return `retired rule ${detail.code}; it leaves the rulebook when the next version is published.`;
     case "rule.edited": return `edited rule ${detail.code}.`;
     case "rule.clarity_proposed": return `asked the AI for clearer wording of ${detail.code} (${detail.disputed} disputed, ${detail.overridden} overridden).`;
     case "rule.clarified": return `reworded ${detail.code} and published rulebook v${detail.version}.`;

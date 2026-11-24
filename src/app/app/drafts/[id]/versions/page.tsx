@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { plural } from "@/lib/plural";
 import { notFound } from "next/navigation";
 import { diffArrays } from "diff";
 import { requireSession } from "@/lib/session";
@@ -60,7 +61,7 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
                     <a href={`/app/drafts/${id}/file?v=${v.version}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">Open this PDF ↗</a>
                   </p>
                 )}
-                <p className="text-xs">{open(v.id)} open finding(s){appr ? ` · ${appr.valid ? "approved" : "approval withdrawn after edit"} by ${personBy.get(appr.approver_id)}` : ""}</p>
+                <p className="text-xs">{plural(open(v.id), "open finding")}{appr ? ` · ${appr.valid ? "approved" : "approval withdrawn after edit"} by ${personBy.get(appr.approver_id)}` : ""}</p>
                 {v.version > 1 && <Link className="text-xs font-semibold text-primary hover:underline" href={`?from=${v.version - 1}&to=${v.version}`}>Compare with version {v.version - 1}</Link>}
               </div>
             );
@@ -70,7 +71,7 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
           <h2 className="text-sm font-semibold text-primary-d">
             {from === to ? `Version ${to}` : <>Changes from version {from} to version {to}</>}
           </h2>
-          <p className="mb-3 text-xs text-muted"><ins className="bg-[#d8f0ea] no-underline">Added</ins> · <del className="bg-[#fde0dd]">removed</del>{B.file_hash && " · For a PDF, this compares the text read from each version's file."}</p>
+          {from !== to && <p className="mb-3 text-xs text-muted"><ins className="bg-[#d8f0ea] no-underline">Added</ins> · <del className="bg-[#fde0dd]">removed</del>{B.file_hash && " · For a PDF, this compares the text read from each version's file."}</p>}
           <Diff a={A.body} b={B.body} />
           {(A.alt_text || B.alt_text) && (
             <div className="mt-4 border-t border-line pt-3">
@@ -78,7 +79,7 @@ export default async function Versions(props: PageProps<"/app/drafts/[id]/versio
               <Diff a={A.alt_text} b={B.alt_text} />
             </div>
           )}
-          <p className="mt-4 font-mono text-xs text-muted">Fingerprints: v{from} {A.fingerprint.slice(0, 12)} → v{to} {B.fingerprint.slice(0, 12)}</p>
+          <p className="mt-4 font-mono text-xs text-muted">{from === to ? <>Fingerprint: v{to} {B.fingerprint.slice(0, 12)}</> : <>Fingerprints: v{from} {A.fingerprint.slice(0, 12)} → v{to} {B.fingerprint.slice(0, 12)}</>}</p>
         </Card>
       </div>
     </>

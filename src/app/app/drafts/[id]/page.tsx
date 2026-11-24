@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { plural } from "@/lib/plural";
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { Card, CategoryChip, LabelChip, SeverityChip, StatusPill, btn, input, timeAgo } from "@/components/ui";
@@ -453,8 +454,8 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
               <summary className="cursor-pointer font-semibold text-primary-d">How this was checked</summary>
               <dl className="mt-3 grid grid-cols-[150px_1fr] gap-x-3 gap-y-1.5">
                 <dt className="text-muted">Rulebook</dt><dd>v{run.rulebook_version}</dd>
-                {isDocument && <><dt className="text-muted">Document</dt><dd>{version!.page_count} page{version!.page_count > 1 ? "s" : ""} read from the PDF: the text of every page and the font of every piece of text. Every finding names its page. Pictures inside the PDF are not checked yet.</dd></>}
-                <dt className="text-muted">Code checks</dt><dd>{findings.filter((f) => f.label === "code").length} finding(s), {run.ms - (run.ai_ms ?? 0)} ms, no AI involved</dd>
+                {isDocument && <><dt className="text-muted">Document</dt><dd>{version!.page_count} page{version!.page_count > 1 ? "s" : ""} read from the PDF: the text of every page, the font of every piece of text, and (by the AI) the words in its 4 largest pictures. Every finding names its page. Logos, colours and photos inside pictures are not checked.</dd></>}
+                <dt className="text-muted">Code checks</dt><dd>{plural(findings.filter((f) => f.label === "code").length, "finding")}, {run.ms - (run.ai_ms ?? 0)} ms, no AI involved</dd>
                 <dt className="text-muted">AI checks</dt>
                 <dd>
                   {run.ai_status === "running" && "Running now. The page updates on its own when the AI findings arrive."}
@@ -462,14 +463,14 @@ export default async function DraftPage(props: PageProps<"/app/drafts/[id]">) {
                   {run.ai_status === "skipped" && `Not run this time: ${run.ai_error ?? "only code checks ran."}`}
                   {run.ai_status === "unavailable" && `Did not run: ${run.ai_error ?? "service unavailable"}`}
                   {(run.ai_status === "ok" || run.ai_status === "cached") && <>{run.ai_model} · {run.ai_requests} request{run.ai_requests === 1 ? "" : "s"}{run.ai_status === "cached" ? " (stored result reused for identical content)" : ""} · {run.ai_ms} ms</>}
-                  {run.ai_status === "reused" && <>Not asked again: only the text you fixed changed. {run.reused_count} AI finding(s) on unchanged text were carried over from version {run.reused_from_version}; code re-checked everything. 0 AI requests.</>}
+                  {run.ai_status === "reused" && <>Not asked again: only the text you fixed changed. {plural(run.reused_count, "AI finding")} on unchanged text {run.reused_count === 1 ? "was" : "were"} carried over from version {run.reused_from_version}; code re-checked everything. 0 AI requests.</>}
                 </dd>
                 <dt className="text-muted">Proof check</dt>
                 <dd>
                   {(run.ai_status === "ok" || run.ai_status === "cached" || run.ai_status === "reused") ? (
                     <>
-                      {findings.filter((f) => f.label === "ai_verified").length} text finding(s) from AI passed: quote found in the draft, rule approved and applicable.
-                      {findings.some((f) => f.field === "image" && f.label === "needs_judgment") && <> {findings.filter((f) => f.field === "image" && f.label === "needs_judgment").length} image finding(s) cannot be verified by code, so a person confirms them.</>}
+                      {plural(findings.filter((f) => f.label === "ai_verified").length, "text finding")} from AI passed: quote found in the draft, rule approved and applicable.
+                      {findings.some((f) => f.field === "image" && f.label === "needs_judgment") && <> {plural(findings.filter((f) => f.field === "image" && f.label === "needs_judgment").length, "image finding")} cannot be verified by code, so a person confirms them.</>}
                       {run.dropped.length > 0 ? <> {run.dropped.length} dropped:</> : " None dropped."}
                       {run.dropped.length > 0 && (
                         <ul className="mt-1 list-disc pl-5 text-muted">

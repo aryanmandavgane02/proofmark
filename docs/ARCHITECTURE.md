@@ -73,7 +73,7 @@ instead of asking again.
   operations the reader takes the glyphs each page actually draws (to give letter-spaced words back their real spaces),
   the real font names, and the pictures. It rebuilds lines: wrapped lines join, headings and code lines stay apart,
   superscripts stay on their line. Scans with a hidden text layer are recognised, and their fonts are not judged.
-- **Checking:** the pages are joined into one text with a page map, so every existing code check runs unchanged (an offer
+- **Checking:** the pages are joined into one text with a page map, so every existing text check runs unchanged (an offer
   on page 3 with "T&C apply" on page 10 is not a false alarm), and each finding is given its page. A new code check (VIS-03)
   compares every font with the brand typefaces, one finding per font naming its pages. The AI reviews the whole document
   in one request with page markers.
