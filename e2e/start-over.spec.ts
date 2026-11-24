@@ -53,3 +53,19 @@ test("home page: an unknown or built-in name in the address is ignored, never an
     await expect(page.getByRole("button", { name: /Start the live demo|Continue your demo/ }).first(), name).toBeVisible();
   }
 });
+
+test("home page: “Yes, start fresh” still starts a demo when the old one is gone", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await page.goto("/");
+  await page.getByRole("button", { name: /Start the live demo/ }).click();
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /Continue your demo/ })).toBeVisible();
+  // The page still offers to start over, but the demo behind it is gone (its sign-in expired, was cleared, or the
+  // workspace was removed after days unused). The click must still lead somewhere, never back to the same page.
+  await context.clearCookies();
+  await page.getByText("Start over with a fresh workspace").click();
+  await page.getByRole("button", { name: /Yes, start fresh/ }).click();
+  await expect(page).toHaveURL(/\/app$/, { timeout: 60_000 });
+  await expect(page.getByText(/0 of 5 done/)).toBeVisible();
+});

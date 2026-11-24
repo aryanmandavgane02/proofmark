@@ -248,8 +248,11 @@ These are graded against our Round 2 wording. Each box must be true in the live 
 
 ### Phase 8 · Freeze, verify, submit
 
-- [ ] Feature freeze; only fixes
-- [ ] Final verification: all tests on production, crawl, accessibility, every link signed-out, the PDF opened from Drive, repository public and fully pushed
+- [x] Feature freeze; only fixes (from Tue 24 Nov, 11:32)
+- [x] Final verification: all tests on the test database (173 unit, 61 browser, 32 attacks refused plus 2 positive checks, scores re-run), every page crawled and audited for accessibility, repository public and fully pushed
+  - Tue 24 Nov: the final cleanup removed 371 idle demo workspaces from the live database (with 480 files and 371 anonymous sign-ins); stored AI answers are not tied to a workspace and stay
+  - Found in live use: “Yes, start fresh” did nothing when the demo behind the page was gone (the cleanup had removed it while the home page was open): the reset needed a demo and sent the visitor back to the same page. Fixed: it starts a fresh demo instead, and the button says “Starting fresh…” while it works. A browser test clears the cookies with the page open and clicks it (61 browser tests)
+- [ ] The PDF opened from Drive signed out; the key journeys checked once more on the live site after the last deploy
 - [ ] Submitted with at least three hours to spare; no deploys after the final check
 
 ---

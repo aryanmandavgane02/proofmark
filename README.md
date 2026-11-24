@@ -109,7 +109,7 @@ Every Round 2 open end is closed or declared, and reliability, usability and acc
 | What | Result |
 |---|---|
 | Unit tests (`npm test`) | 173 passing |
-| Browser tests (`npx playwright test`) | 60: every journey, the three improvements, a reliability matrix (bad input, empty states, refresh, the same action twice, stale tabs, AI trouble), every page as every person at desktop and phone width, and accessibility (zero WCAG 2.1 A/AA violations by axe, keyboard only) |
+| Browser tests (`npx playwright test`) | 61: every journey, the three improvements, a reliability matrix (bad input, empty states, refresh, the same action twice, stale tabs, AI trouble), every page as every person at desktop and phone width, and accessibility (zero WCAG 2.1 A/AA violations by axe, keyboard only) |
 | Other browsers | The 12 main journeys in Safari's engine, Firefox, and at iPhone and Pixel sizes: 48 of 48 |
 | Database attacks (`npm run rls-check`) | 32 of 32 refused |
 | Scored test set (`npm run eval`) | Code checks: 100% found, 100% precision. Code + AI: 97% found, 98% precision. PDFs: 100% / 100%. Alerts: 5 of 5, held-out 90% / 100%. Replay: 3 of 5 change, agreement 2 of 4 → 4 of 4 |

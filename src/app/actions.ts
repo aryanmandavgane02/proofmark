@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { seedDemoWorkspace } from "@/lib/seed/seed-workspace";
 import { selfOrigin } from "@/lib/origin";
-import { requireSession } from "@/lib/session";
+import { getSession, requireSession } from "@/lib/session";
 import { fingerprint, runChecks, settleStaleRun, VERSION_COLUMNS, type RunResult } from "@/lib/pipeline";
 import { MAX_IMAGE_BYTES, imageTypeOk, storeImage } from "@/lib/images";
 import { SAMPLE_DOCUMENTS, SAMPLE_DRAFTS } from "@/lib/seed/urja";
@@ -122,18 +122,28 @@ export async function tryImprovement(formData: FormData) {
 
 /** Throws away the visitor's demo workspace and creates a fresh one. */
 export async function resetDemo() {
-  const s = await requireSession();
-  const admin = createAdminClient();
-  const fresh = await seedDemoWorkspace(s.user.id);
-  // Remove the visitor's older demo workspaces. Comparing creation times (rather than "all but the new one")
-  // means two quick resets cannot delete each other's new workspace.
-  const { data: created } = await admin.from("workspaces").select("created_at").eq("id", fresh).single();
-  const { data: mine } = await admin.from("members").select("workspace_id").eq("user_id", s.user.id);
-  const older = (mine ?? []).map((m) => m.workspace_id).filter((id) => id !== fresh);
-  if (older.length && created) {
-    const { data: gone } = await admin.from("workspaces").delete().in("id", older).eq("is_demo", true).lt("created_at", created.created_at).select("id");
-    await Promise.all((gone ?? []).map((w) => removeWorkspaceFiles(w.id)));
+  const s = await getSession();
+  // The demo behind the page may be gone: its sign-in expired or was cleared, or the workspace was removed after days
+  // unused. Starting over then means starting a fresh demo, never a click that leads back to the same page.
+  if (!s?.workspace || !s.person) {
+    await ensureDemo();
+    redirect("/app");
   }
+  const admin = createAdminClient();
+  const userId = s.user.id;
+  const fresh = await seedDemoWorkspace(userId);
+  // Remove the visitor's older demo workspaces once the new one has opened (the app always shows the newest), so the
+  // visitor does not wait for it. Comparing creation times (rather than "all but the new one") means two quick resets
+  // cannot delete each other's new workspace.
+  after(async () => {
+    const { data: created } = await admin.from("workspaces").select("created_at").eq("id", fresh).single();
+    const { data: mine } = await admin.from("members").select("workspace_id").eq("user_id", userId);
+    const older = (mine ?? []).map((m) => m.workspace_id).filter((id) => id !== fresh);
+    if (older.length && created) {
+      const { data: gone } = await admin.from("workspaces").delete().in("id", older).eq("is_demo", true).lt("created_at", created.created_at).select("id");
+      await Promise.all((gone ?? []).map((w) => removeWorkspaceFiles(w.id)));
+    }
+  });
   redirect("/app");
 }
 

@@ -8,7 +8,7 @@ the final runs on Tue 24 Nov 2026.
 | Layer | Result | Command |
 |---|---|---|
 | Unit tests (Vitest) | **173 passing** in 14 files | `npm test` |
-| Browser tests (Playwright, Chrome) | **60 tests** in 16 files: 59 pass against the live site and locally; the AI-trouble test runs against a local server with the AI turned away | `npx playwright test` |
+| Browser tests (Playwright, Chrome) | **61 tests** in 16 files: 60 pass against the live site and locally; the AI-trouble test runs against a local server with the AI turned away | `npx playwright test` |
 | Other browsers and phones | The 12 main journeys in Safari's engine (WebKit), Firefox, and at iPhone 14 and Pixel 7 sizes: **48 of 48** on GitHub Actions against the live site; **36 of 36** locally (Safari's engine, iPhone, Android; Firefox does not start on the development Mac) | `ALL_BROWSERS=1 npx playwright test --project=safari --project=firefox --project=iphone --project=android`, or the "Cross-browser" workflow |
 | Every page as every person | 22 pages per person (12 pages, plus draft pages with versions and approval records), as each of the 4 people, at 1280 and 375 px wide, and every internal link (38 to 43 per person): no console errors, no "undefined" or "NaN", nothing wider than a phone, no failing link | part of `npx playwright test` (`e2e/crawl.spec.ts`) |
 | Accessibility | Every screen passes axe (WCAG 2.1 A and AA) with **zero violations**; the demo works by keyboard alone; no page scrolls sideways at phone width | `e2e/accessibility.spec.ts` |
@@ -79,6 +79,7 @@ page shortcuts to each improvement, as the right person; switching person; Back;
 | Reliability matrix (Phase 6) | A form refused by the server cleared what had been typed; a long word widened the page on a phone | Forms clear only on success; long words wrap |
 | Cross-browser runs (Phase 6) | Text typed before load was lost (Firefox); a title typed early was undone (iPhone size) | Fields adopt what is typed before load; every change builds on the latest state |
 | Security pass (Block 1) | A corrected PDF submitted twice deleted the file its new version used | A file a version uses is never deleted; a repeat shows what the first made |
+| Live use (Tue 24 Nov) | “Yes, start fresh” did nothing when the demo behind the page was gone (its sign-in cleared or expired, or the workspace removed after days unused): the click led back to the same page | It now starts a fresh demo, and the button says “Starting fresh…” while it works; a browser test clears the cookies with the page open and clicks it |
 | Fresh setup from the README (Block 2) | On a new Supabase project, even the server was refused ("permission denied"): newer projects no longer grant table access by default | Migration 0015 grants it explicitly, as the live project already had |
 | Test database (Block 2) | When the sign-in service refused a new session (an hourly limit), the visitor saw an error page | The home page says why and to try again in a few minutes |
 | Judge rehearsal (Block 3) | Links to part of a page hid it under the header, or did not scroll at all when opened directly | Anchors keep room for the header; a small helper scrolls once the page has streamed in |

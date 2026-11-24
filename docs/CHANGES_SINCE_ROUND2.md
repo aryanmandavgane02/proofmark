@@ -34,7 +34,7 @@ plan, with every decision and its reason: [ROUND3_PLAN.md](ROUND3_PLAN.md).
   0.3 s); setting up a demo is about 20% faster.
 - **Forms keep what was typed** when the server refuses it, and when it was typed before the page finished loading.
 - **Errors say what happened:** a demo that cannot be started explains why on the home page; unknown addresses give a
-  friendly page; a corrected PDF submitted twice can no longer delete the approved file.
+  friendly page; a corrected PDF submitted twice can no longer delete the approved file; “Yes, start fresh” starts a new demo even when the old one is gone.
 - **Loading states** on every page, and explicit time limits for the pages that run checks.
 
 ## Usability: a newcomer finds the way alone
@@ -64,7 +64,7 @@ plan, with every decision and its reason: [ROUND3_PLAN.md](ROUND3_PLAN.md).
 
 ## Testing and operations
 
-- Browser tests grew from 12 to 60, plus 12 journeys in Safari's engine, Firefox and phone sizes; a crawl of every page as
+- Browser tests grew from 12 to 61, plus 12 journeys in Safari's engine, Firefox and phone sizes; a crawl of every page as
   every person; a reliability matrix; accessibility at zero violations. Unit tests grew from 89 to 173; database checks
   from 22 (21 attacks refused and 1 check of what people should see) to 34 (32 refused and 2).
 - Scored test set extended with PDFs, alerts (including a held-out set written by an independent labeller, a separate AI agent that
