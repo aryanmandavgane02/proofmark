@@ -33,6 +33,17 @@ They sent their answers back as text. The answers are summarised below in their 
 - **What happens after a re-check** (tester 5). The messages now say what comes next. A draft sent back goes to its writer to fix, then through review again. A draft that is still correct keeps its approval, and nothing needs to be submitted again.
 - **Old and new wording side by side** (testers 2 and 3). When a fact changes, its old and new wording are shown side by side: once on the Facts page above the drafts that used it, and with each alert elsewhere. Each listed draft already showed the exact words it used, with the page for decks.
 
+### Retest after the changes (Tue 24 Nov 2026)
+
+The two testers who had not reached "Approved" (2 and 4) tried the two tasks they found hardest again, on the live demo, with no help: the clearer wording for MSG-01, and the sample post to "Approved". Their answers, summarised:
+
+| Tester | Rule wording (MSG-01) | Sample post to "Approved" | Where they still hesitated |
+|---|---|---|---|
+| 2. Small business owner | Done, about 4 min: the new wording "made more sense" | Done, about 6 min: "understood the problems better this time" | Briefly before publishing, wanting to understand the effect on past decisions |
+| 4. Marketing student | Done, about 3 min: "more confident about deciding whether to publish" | Done, about 5 min: "straightforward" | Whether the post had actually been submitted, or was still waiting for them |
+
+**Result:** both reached "Approved" this time (before: neither), so all five testers have now done so. Change made from the retest: after "Submit for review", a message now confirms it and names who reviews next ("Sent for review. Ritu (Legal and compliance) reviews it next: switch to Ritu with “Acting as” to continue the demo"). The retest was two people, unobserved, with their own time estimates.
+
 ### Not changed in Round 3
 
 - **The exact sentence for every finding** (tester 3). Findings about words are already highlighted in the text, and in decks they give the page. Findings about the whole piece, such as "one clear call to action", have no single sentence to point to.

@@ -34,6 +34,7 @@ test("workflow: revision, dispute, approval, and re-approval after an edit", asy
   const steps = page.getByRole("list", { name: "Review steps" });
   await expect(steps.locator("[aria-current=step]")).toContainText("Now: Arjun");
   await page.getByRole("button", { name: "Submit for review" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Sent for review. Ritu (Legal and compliance) reviews it next: switch to Ritu" })).toBeVisible();
   await expect(page.getByText(/Assigned to/)).toContainText("Ritu");
   await expect(steps.locator("[aria-current=step]")).toContainText("Now: Ritu");
   await expect(page.locator("#acting-as-help")).toContainText("switches person in this same workspace; nothing restarts. Arjun writes, Ritu (legal) and Kabir (design) review, Meera manages the brand.");

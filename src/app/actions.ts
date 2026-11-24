@@ -590,6 +590,9 @@ export async function submitForReview(formData: FormData) {
   if (!ok) notice(path, ALREADY_DONE, "info");
   await logEvent(s, "draft.submitted", draftId, { reviewer: reviewer?.name, reason });
   revalidatePath(path);
+  // Retest, Round 3: a tester was unsure whether the post had been submitted or still waited for them. Say so.
+  const who = reviewer ? `${reviewer.name} (${reviewer.title})` : "The brand manager";
+  notice(path, `Sent for review. ${who} reviews it next${reviewer && reviewer.id !== s.person.id ? `: switch to ${reviewer.name} with “Acting as” at the top to continue the demo` : ""}.`, "success");
 }
 
 export async function resolveDispute(formData: FormData) {
