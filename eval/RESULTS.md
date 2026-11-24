@@ -51,7 +51,7 @@ Which approved content relies on a fact, found with the same number reader as th
 | Every fact against every sample: reliance found (recall) | 100% (20 of 20) |
 | Every fact against every sample: alerts that are right (precision) | 100% (0 false) |
 | Single sentences written while building it: recall and precision | 100% and 100% |
-| **Held-out sentences (40, written and labelled by an independent labeller, committed before the first run)** | **first run: 60% recall, 86% precision (30 of 40). Now: 90% and 100%** (38 of 40 right) |
+| **Held-out sentences (40, written and labelled by an independent labeller (a separate AI agent that never saw the code), committed before the first run)** | **first run: 60% recall, 86% precision (30 of 40). Now: 90% and 100%** (38 of 40 right) |
 
 No misses and no false alerts on the library and the sentences written while building it.
 

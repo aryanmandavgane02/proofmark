@@ -1,15 +1,36 @@
 # Disclosures
 
-Required by the CodeZen general rules 6 and 7 and the Submission Integrity section: reused material, templates, external services and significant AI assistance.
+Required by the CodeZen general rules 6 and 7 and the Submission Integrity section: reused material, templates, external
+services and significant AI assistance.
 
-## Work done before the build window
+## When the work was done
 
-None. The repository was created on 16 Nov 2026 after Round 2 opened at 10:00 IST. The only earlier material is the Round 1 plan PDF in `docs/round1/`, which is a planning document, not code.
+- **Round 2:** the repository was created on 16 Nov 2026 after Round 2 opened at 10:00 IST. The only earlier material is
+  the Round 1 plan PDF in `docs/round1/`, a planning document, not code.
+- **Round 3:** built between Sat 21 Nov 23:59 and Tue 24 Nov 2026, on top of the Round 2 code. There are no commits between
+  the Round 2 deadline and the start of Round 3; every Round 3 commit is in the history with its time.
 
 ## AI assistance
 
-- **Claude Code (Anthropic)** is used throughout the build for planning, code, tests, seed data and documents, under the direction and review of the participant. Commits made with its help carry a `Co-Authored-By: Claude …` trailer, so its involvement is visible in the history.
-- **Google Gemini API** is part of the product: it runs the AI checks (tone, messaging, claims, images) and drafts rules from an uploaded brand guide, and proposes clearer wording for rules flagged as unclear on the Insights page. See the in-app "AI and data use" page.
+- **Claude Code (Anthropic)** is used throughout for planning, code, tests, seed data and documents, under the direction
+  and review of the participant. Commits made with its help carry a `Co-Authored-By: Claude …` trailer, so its involvement
+  is visible in the history.
+- **The held-out test set for outdated-content alerts** (`eval/heldout-alerts.ts`, 40 sentences) was written and labelled
+  by a separate AI agent that was given only the facts and the definition of an alert, never the code, and was committed
+  before the detector's first run on it. Both the first score and the later one are published.
+- **Google Gemini API** is part of the product: it runs the AI checks (tone, messaging, claims in context), reads the
+  words in images and in a PDF's largest pictures, checks logo use, drafts rules from an uploaded brand guide, proposes
+  clearer wording for rules flagged as unclear, and judges past decisions for the rule-change replay. See the in-app
+  "AI and data use" page for what each request receives.
+
+## People
+
+- **User tests:** five people who had not used Proofmark tried it on their own, and two of them retried after the
+  changes. Their answers are summarised in `docs/USER_TESTING.md`, without names.
+- **Real decks used for testing** (Round 3, Phase 6): five PDFs sent by the participant. One, the participant's own project deck, was
+  also checked on the live site and deleted from it afterwards, including the stored AI answers that quoted it. The others,
+  lecture decks and notes, some with other people's names, were read only on the development machine with the PDF reader,
+  never uploaded or sent to an AI, and are not in the repository.
 
 ## Templates and boilerplate
 
@@ -20,24 +41,33 @@ None. The repository was created on 16 Nov 2026 after Round 2 opened at 10:00 IS
 | Service | Used for |
 |---|---|
 | Vercel | Hosting |
-| Supabase | Database, authentication, file storage |
-| Google Gemini API (free tier) | AI checks and rule drafting |
-| GitHub, GitHub Actions | Source code, automated tests on every push, and a daily check of the live site |
+| Supabase | Database, authentication, file storage; a second project, used only for testing, since 23 Nov |
+| Google Gemini API (free tier) | AI checks, picture reading, rule drafting, clearer wording and the replay's judging |
+| GitHub, GitHub Actions | Source code, automated tests on every push, the cross-browser runs, and a daily check of the live site |
 
-The free Gemini tier may use submitted content to improve Google's products, so the live demo uses only fictional brand data (the "Urja Bites" brand) and says so in the app.
+The free Gemini tier may use submitted content to improve Google's products, so the live demo uses only fictional brand
+data (the "Urja Bites" brand) and says so in the app.
 
 ## Libraries
 
-Listed in `package.json`. Main ones: Next.js, React, Tailwind CSS, @supabase/supabase-js, @supabase/ssr, @google/genai, Zod, sharp (image colours), unpdf (PDF text), diff (version differences), postgres (migrations), Vitest, Playwright, @axe-core/playwright (accessibility tests), tsx, dotenv.
+Listed in `package.json`. Main ones: Next.js, React, Tailwind CSS, @supabase/supabase-js, @supabase/ssr, @google/genai,
+Zod, sharp (image colours, and pictures taken out of PDFs), unpdf (pdf.js: PDF text, fonts and pictures), diff (version
+differences), postgres (migrations), Vitest, Playwright, @axe-core/playwright (accessibility tests), tsx, dotenv.
 
 ## Generated assets
 
-- The Urja Bites brand guide PDFs in `public/samples/` are generated by `scripts/make-brand-guide.ts` from the seed data, and the sample images by `scripts/make-sample-images.ts`. The brand, logo, facts and people are fictional.
-- The sample review history on the Insights page (`src/lib/seed/history.ts`) is made up and labelled "Sample" in the app.
+- The Urja Bites brand guide PDFs in `public/samples/` are generated by `scripts/make-brand-guide.ts` from the seed data;
+  the sample decks, the one-pager and the PDF test files (`e2e/fixtures/`, `eval/docs/`) by `scripts/make-sample-docs.ts`;
+  the sample images by `scripts/make-sample-images.ts`. The brand, logo, facts and people are fictional.
+- The sample review history on the Insights page (`src/lib/seed/history.ts`) and the approved sample library
+  (`src/lib/seed/library.ts`) are made up and labelled "Sample" in the app.
 
 ## Fonts, icons and visual assets
 
-- **Fonts:** Inter (body text) and Plus Jakarta Sans (headings), both from Google Fonts under the SIL Open Font License, loaded and self-hosted through `next/font`.
-- **Icons:** simple line icons drawn for this project as inline SVG (`src/components/icons.tsx`); no icon library or icon pack is used.
-- **Logo and illustrations:** the Proofmark mark and the fictional Urja Bites logo and sample ad were made for this project (`src/components/Logo.tsx`, `public/demo/`, `scripts/make-sample-images.ts`).
-
+- **Fonts:** Inter (body text) and Plus Jakarta Sans (headings), both from Google Fonts under the SIL Open Font License,
+  self-hosted through `next/font`. The sample decks also use Poppins (the fictional brand's headline font, SIL Open Font
+  License) and, on purpose, Georgia and Arial to show the typeface check.
+- **Icons:** simple line icons drawn for this project as inline SVG (`src/components/icons.tsx`); no icon library is used.
+- **Logo and illustrations:** the Proofmark mark, the link-preview card and the fictional Urja Bites logo and sample ad were
+  made for this project (`src/components/Logo.tsx`, `src/app/opengraph-image.tsx`, `public/demo/`,
+  `scripts/make-sample-images.ts`).

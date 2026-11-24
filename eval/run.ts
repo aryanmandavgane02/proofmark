@@ -286,7 +286,7 @@ async function main() {
     `| Every fact against every sample: reliance found (recall) | ${pct(alerts.recall)} (${alerts.tp} of ${alerts.tp + alerts.fn}) |`,
     `| Every fact against every sample: alerts that are right (precision) | ${pct(alerts.precision)} (${alerts.fp} false) |`,
     `| Single sentences written while building it: recall and precision | ${pct(alerts.phraseRecall)} and ${pct(alerts.phrasePrecision)} |`,
-    ...(alerts.held.n ? [`| **Held-out sentences (${alerts.held.n}, written and labelled by an independent labeller, committed before the first run)** | **first run: 60% recall, 86% precision (30 of 40). Now: ${pct(alerts.held.recall)} and ${pct(alerts.held.precision)}** (${alerts.held.right} of ${alerts.held.n} right) |`] : []),
+    ...(alerts.held.n ? [`| **Held-out sentences (${alerts.held.n}, written and labelled by an independent labeller (a separate AI agent that never saw the code), committed before the first run)** | **first run: 60% recall, 86% precision (30 of 40). Now: ${pct(alerts.held.recall)} and ${pct(alerts.held.precision)}** (${alerts.held.right} of ${alerts.held.n} right) |`] : []),
     "",
     alerts.misses.length ? `Misses and false alerts: ${alerts.misses.join("; ")}.` : "No misses and no false alerts on the library and the sentences written while building it.",
     ...(alerts.held.n ? ["", `Held-out set (\`eval/heldout-alerts.ts\`) now: ${alerts.held.misses.length ? `still wrong: ${alerts.held.misses.join("; ")}.` : "every sentence right."}`] : []),
