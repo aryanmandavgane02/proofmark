@@ -129,6 +129,9 @@ Components, data flow, the security model and the hardest problems: [docs/ARCHIT
 
 ## Run it yourself
 
+Tested from a fresh clone: the migrations on a brand-new Supabase project (23 Nov 2026), then clone, install, migrate,
+typecheck, lint, unit tests, key browser journeys and the database attack tests (24 Nov).
+
 **You need:** Node.js 22 (20.9 or later works), Google Chrome (for the browser tests), a free
 [Supabase](https://supabase.com) account and a [Gemini API key](https://aistudio.google.com/apikey).
 
