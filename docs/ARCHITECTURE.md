@@ -86,7 +86,8 @@ instead of asking again.
   found with the same number reader as the facts check, matched by unit and keywords, so "35,000+ customers", "35k
   customers" and "35,000 families" all count, and "1,200 buyers" (another fact) does not. Text facts and offers are found
   by their keywords.
-- **Triggers** (`src/lib/alerts-server.ts`): a fact edit that changes its value or wording; an end date set or passed.
+- **Triggers** (`src/lib/alerts-server.ts`): a fact edit that changes a number fact's value or a text fact's wording (a wording-only edit of a number
+  fact raises nothing); an end date set or passed.
   Passed dates are raised when the app is next opened, so no scheduled job is needed. One alert per approved version,
   fact and trigger, stored with the old and new wording and the quotes as evidence. Confidential facts never raise alerts,
   because alerts are shown to creators.

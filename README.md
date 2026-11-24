@@ -38,7 +38,8 @@ Each was named in Round 2 with a "done when" test. Here is that wording, what wa
 > brand typefaces are flagged, and the scored test set includes PDF cases with published scores.*
 
 - **Built:** upload a PDF of up to **100 pages** (Round 2 promised 20; real 45- and 58-page lecture decks needed more) and
-  15 MB, straight to private storage. Every page gets the same code checks, AI checks and proof check as posts, plus a check
+  15 MB, straight to private storage. Every page gets the code checks for text (hashtag, emoji, alt-text and colour checks are for posts and
+  images), the AI checks and the proof check, as posts do, plus a check
   that fonts are the brand typefaces. Each finding shows its page and quote and links to that page in the PDF. The document
   goes through the same review, and the reviewer approves the **exact file** (its SHA-256 is recorded and re-checked). A
   corrected PDF becomes the next version. Beyond the promise: the AI reads the words in a deck's largest pictures (a
@@ -55,7 +56,7 @@ Each was named in Round 2 with a "done when" test. Here is that wording, what wa
 > missed on a seeded test set, and each can be re-checked in one click. When a fact expires, or the brand manager sets its
 > expiry date (for example the Diwali offer), the drafts that mention it are listed.*
 
-- **Built:** when a fact's value or wording changes, or it expires or is set to expire, every approved draft that relied
+- **Built:** when a number fact's value or a text fact's wording changes, or a fact expires or is set to expire, every approved draft that relied
   on it is listed on the fact and on Insights, and its owner is notified in the app. One click re-checks it against today's
   facts: if it no longer holds, the approval is withdrawn and it goes back for changes; if it does, the alert closes. Each
   fact keeps a history of its changes and what happened to each draft. Confidential facts never raise alerts creators
