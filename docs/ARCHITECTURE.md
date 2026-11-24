@@ -158,3 +158,5 @@ Every column the app filters by, and every foreign key, has an index (0014); the
   `AI_GLOBAL_DAILY_CAP`); every sample's AI answers are stored, so a judge's first checks need no AI request.
 - A daily GitHub job checks the live site and its database (`/api/health`), which also stops the free database from
   pausing.
+- Opening the home page wakes the database, sign-in and file storage in the background (`src/lib/warm-up.ts`, after the
+  page is sent), so the first "Start the live demo" after a quiet spell does not wait for idle services.

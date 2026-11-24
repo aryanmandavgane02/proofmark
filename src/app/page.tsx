@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { CODE_CHECK_COUNT } from "@/lib/checks";
 import { LogoMark } from "@/components/Logo";
 import { IconArrow, IconBell, IconBolt, IconBook, IconCheck, IconPages, IconPen, IconReset, IconShield, IconSpark, IconTrail, IconUser } from "@/components/icons";
 import { getSession } from "@/lib/session";
+import { warmUp } from "@/lib/warm-up";
 import { resetDemo, startDemo, tryImprovement } from "./actions";
 import { CloseDetails } from "./app/CloseDetails";
 import { ResetButton } from "./ResetButton";
@@ -112,6 +114,8 @@ const DEMO_PROBLEM: Record<string, string> = {
 };
 
 export default async function Home(props: PageProps<"/">) {
+  // Wake the database and sign-in service while the visitor reads, so their first click does not wait for them.
+  after(warmUp);
   const sp = await props.searchParams;
   // Only the listed reasons: a plain lookup would also answer to built-in names such as "constructor".
   const key = String(sp.demo ?? "");
